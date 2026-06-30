@@ -1,0 +1,55 @@
+plugins:
+  - rubocop-performance
+  - rubocop-rake
+  - rubocop-rspec
+
+AllCops:
+  TargetRubyVersion: 3.2
+  NewCops: enable
+  SuggestExtensions: false
+
+Style/Documentation:
+  Enabled: false
+
+# Phlex components subclass Phlex::HTML, whose #initialize takes no args; calling
+# super is unnecessary and Phlex doesn't expect it.
+Lint/MissingSuper:
+  AllowedParentClasses:
+    - Phlex::HTML
+    - Phlex::SGML
+
+# The entrypoint deliberately defines both DocsKit (config) and the Docs Phlex::Kit
+# in one file, mirroring the daisyui gem's loader bootstrap.
+Style/OneClassPerFile:
+  Exclude:
+    - "lib/docs_kit.rb"
+
+# The shell head/page templates are linear builders; their ABC is inherent to the
+# markup they emit, not accidental complexity.
+Metrics/AbcSize:
+  Exclude:
+    - "app/components/docs/shell.rb"
+    - "app/components/docs/page.rb"
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Layout/LineLength:
+  Max: 120
+
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+    - "*.gemspec"
+
+Metrics/MethodLength:
+  Max: 25
+
+RSpec/ExampleLength:
+  Max: 12
+
+RSpec/MultipleExpectations:
+  Max: 6
+
+RSpec/NestedGroups:
+  Max: 4

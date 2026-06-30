@@ -1,0 +1,153 @@
+# docs-kit
+
+Shared [Phlex](https://www.phlex.fun) chrome for documentation sites built on
+[daisyUI](https://daisyui.com). Extract the shell, sidebar, code blocks, theme
+switcher, and page kit into one gem so multiple docs sites look identical and are
+maintained in one place.
+
+Reactive demos ([phlex-reactive](https://github.com/mhenrixon/phlex-reactive))
+and Postgres-SSE transport ([pgbus](https://github.com/mhenrixon/pgbus)) are
+**optional, runtime-detected** add-ons — docs-kit does not depend on them.
+
+## What you get
+
+A `Docs::` Phlex kit, configured once per site:
+
+| Component | Role |
+|-----------|------|
+| `Docs::Shell` | The full HTML document: daisyUI Drawer shell, sticky topbar, sidebar, scrollable main. |
+| `Docs::Sidebar` | Config-driven grouped nav with active-link highlighting + an optional version badge. |
+| `Docs::ThemeSwitcher` | Zero-JS daisyUI theme dropdown (themes come from config). |
+| `Docs::Icon` | Inline lucide SVG via `rails_icons`. |
+| `Docs::Code` | Rouge-highlighted code block with an inline theme (no extra stylesheet). |
+| `Docs::Page` | Base class for a hand-authored doc page; renders inside `Docs::Shell`. |
+| `Docs::Header` / `Section` / `Prose` / `Callout` | The page-authoring kit. |
+| `Docs::Example` | Base for a live example with `method_source`-extracted source. |
+
+Plus `DocsKit::Registry` (in-memory docs registry mixin), `DocsKit::NavItem`
+(sidebar link value object), and `DocsKit::Controller#render_page`.
+
+## Install
+
+```ruby
+# Gemfile
+gem "docs-kit"
+gem "daisyui", require: "daisy_ui"   # the daisyUI Phlex components
+gem "phlex-rails"
+gem "rails_icons", "~> 1.1"
+gem "rouge"
+# Optional, for reactive demos:
+# gem "phlex-reactive"
+```
+
+## Configure (per site)
+
+```ruby
+# config/initializers/docs_kit.rb
+DocsKit.configure do |c|
+  c.brand        = "phlex-reactive"
+  c.title_suffix = "phlex-reactive"
+  c.themes       = %w[dark light synthwave retro cyberpunk dracula night nord sunset]
+  c.version_badge = -> { "v#{Phlex::Reactive::VERSION}" }   # optional
+  c.nav = lambda do
+    {
+      "Demos" => Demo.grouped.transform_values { |demos|
+        demos.map { |d| DocsKit::NavItem.new(href: "/demos/#{d.slug}", label: d.title, icon: d.icon) }
+      },
+      "Docs" => Doc.all.select(&:view_class).group_by(&:group).transform_values { |docs|
+        docs.map { |d| DocsKit::NavItem.new(href: "/docs/#{d.slug}", label: d.title) }
+      }
+    }
+  end
+end
+```
+
+## Render
+
+```ruby
+# app/controllers/application_controller.rb
+class ApplicationController < ActionController::Base
+  include DocsKit::Controller   # adds #render_page
+end
+
+# any page controller
+def show = render_page(Views::Docs::Pages::Installation.new)
+```
+
+`render_page(view)` renders the Phlex page with `layout: false`, because
+`Docs::Shell` IS the full HTML document. phlex-rails still renders through a real
+view context, so CSRF, `dom_id`, url helpers, and the reactive token signer all
+work inside components.
+
+A page composes the shell + kit:
+
+```ruby
+class Views::Docs::Pages::Installation < Docs::Page
+  title "Installation"
+  eyebrow "Guide"
+  def lead = "Add the gem and render your first component."
+
+  def content
+    render Docs::Section.new("Add the gem") do
+      render Docs::Prose.new { p { "Components are plain Ruby classes." } }
+      render Docs::Code.new(<<~RUBY, filename: "Gemfile")
+        gem "docs-kit"
+      RUBY
+    end
+  end
+end
+```
+
+## CSS — the canonical build
+
+daisyUI (and docs-kit) ship **no CSS** — your app builds Tailwind. To keep sites
+identical, docs-kit standardizes on **Tailwind CSS v4 via the standalone CLI
+(Bun)**.
+
+`app/assets/stylesheets/application.tailwind.css`:
+
+```css
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: dark --default, light, synthwave, retro, cyberpunk, dracula, night, nord, sunset;
+}
+
+/* Tailwind must scan the Ruby that emits classes — the daisyUI gem, docs-kit,
+   and your own views. */
+@source "../../../app/views/**/*.rb";
+@source "../../../../.bundle/gems/daisyui*/**/*.rb";
+@source "../../../../.bundle/gems/docs-kit*/**/*.rb";
+/* daisyUI Drawer classes are generated at render time, never literal — force them: */
+@source inline("drawer drawer-content drawer-side drawer-toggle drawer-overlay {lg:}drawer-open drawer-end");
+```
+
+`package.json`:
+
+```json
+{
+  "scripts": {
+    "build:css": "bunx @tailwindcss/cli -i app/assets/stylesheets/application.tailwind.css -o app/assets/builds/application.css --minify",
+    "watch:css": "bunx @tailwindcss/cli -i app/assets/stylesheets/application.tailwind.css -o app/assets/builds/application.css --watch"
+  }
+}
+```
+
+The themes in `@plugin "daisyui" { themes: ... }` **must** match
+`DocsKit.configuration.themes`, or the switcher offers a theme the CSS doesn't
+ship.
+
+## JavaScript
+
+docs-kit ships no JS. Reactive sites load the auto-pinned
+`phlex/reactive/reactive_controller` (from phlex-reactive) and register it
+eagerly:
+
+```js
+// app/javascript/controllers/index.js
+import ReactiveController from "phlex/reactive/reactive_controller"
+application.register("reactive", ReactiveController)
+```
+
+## License
+
+MIT.

@@ -1,0 +1,60 @@
+# frozen_string_literal: true
+
+require_relative "lib/docs_kit/version"
+
+Gem::Specification.new do |s|
+  s.name = "docs-kit"
+  s.version = DocsKit::VERSION
+  s.licenses = ["MIT"]
+  s.summary = "Shared Phlex docs-site chrome (shell, sidebar, code, theme switcher) built on daisyUI"
+  s.description = "DocsKit is a reusable documentation-site component library for Phlex + daisyUI. " \
+                  "It extracts the shared shell, sidebar, code blocks, and page kit so multiple docs " \
+                  "sites look identical and are maintained in one place. Reactive demos (phlex-reactive) " \
+                  "and Postgres-SSE transport (pgbus) are optional, runtime-detected add-ons."
+  s.authors = ["Mikael Henriksson"]
+  s.email = "mikael@zoolutions.llc"
+
+  # Use `git ls-files` when packaging from a checkout; fall back to a Dir glob
+  # when there is no .git (e.g. building a host app's Docker image from the gem
+  # source copied into the container). Both paths ship the same prefixes — app/
+  # carries the Phlex components, config/ carries the importmap pin.
+  s.files = begin
+    files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
+      ls.readlines("\x0", chomp: true).select do |f|
+        f.start_with?("lib/", "app/", "config/") ||
+          f == "CHANGELOG.md" || f == "LICENSE.txt" || f == "README.md"
+      end
+    end
+    files.empty? ? raise(Errno::ENOENT) : files
+  rescue Errno::ENOENT
+    Dir[
+      "lib/**/*.rb", "app/**/*", "config/**/*",
+      "CHANGELOG.md", "LICENSE.txt", "README.md"
+    ].select { |f| File.file?(f) }
+  end
+
+  s.homepage = "https://github.com/mhenrixon/docs-kit"
+  s.metadata = {
+    "source_code_uri" => "https://github.com/mhenrixon/docs-kit",
+    "changelog_uri" => "https://github.com/mhenrixon/docs-kit/blob/main/CHANGELOG.md",
+    "bug_tracker_uri" => "https://github.com/mhenrixon/docs-kit/issues",
+    "rubygems_mfa_required" => "true"
+  }
+
+  s.required_ruby_version = ">= 3.2"
+
+  # The daisyUI Phlex component kit (Drawer/Menu/Card/...). Gemfile name is
+  # `daisyui`; require path is `daisy_ui`; module is `DaisyUI`.
+  s.add_dependency "daisyui", ">= 1.2"
+  # Phlex 2 + the Rails view glue (helper mixins, render_in, dom_id).
+  s.add_dependency "phlex-rails", ">= 2.0", "< 3"
+  # lucide icons synced into the host app's assets.
+  s.add_dependency "rails_icons", "~> 1.1"
+  # Syntax highlighting for Docs::Code.
+  s.add_dependency "rouge", ">= 4.0"
+  s.add_dependency "zeitwerk", "~> 2.6"
+
+  # phlex-reactive (reactive demos) and pgbus (Postgres-SSE transport) are
+  # intentionally NOT dependencies — they are optional, runtime-detected. A site
+  # that wants reactive examples adds phlex-reactive itself.
+end
