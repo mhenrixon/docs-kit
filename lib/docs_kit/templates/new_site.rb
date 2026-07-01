@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "securerandom"
+
 # Rails application template for a docs-kit docs site. Run via:
 #
 #   rails new my-docs --minimal -a propshaft -j importmap --skip-... -m new_site.rb
@@ -84,6 +86,9 @@ after_bundle do
       clear:
         RAILS_SERVE_STATIC_FILES: "true"
         RAILS_LOG_TO_STDOUT: "true"
+        # A stateless docs site: SECRET_KEY_BASE only signs cookies, so it's
+        # inlined (no user data at risk). Rotate with `bin/rails secret`.
+        SECRET_KEY_BASE: "#{SecureRandom.hex(64)}"
   YAML
 
   create_file ".kamal/secrets", <<~SH

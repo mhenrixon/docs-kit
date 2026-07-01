@@ -38,3 +38,7 @@ env:
   clear:
     RAILS_SERVE_STATIC_FILES: "true"
     RAILS_LOG_TO_STDOUT: "true"
+    # Inline SECRET_KEY_BASE — this is a public, stateless docs site with no user
+    # accounts or sensitive data, so the key carries no real risk here (it signs
+    # cookies only). Rotate with `bin/rails secret` if ever needed.
+    SECRET_KEY_BASE: "de60d191f13962f9d4a506e8daf5d88dac41a011571376508cb3620a49a3bbcec5879b520c56b78d94ea6fd1f18065e53eabe6d6e3e0ae4476a6b8b470af61b9"
