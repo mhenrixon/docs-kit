@@ -34,7 +34,18 @@ module Docs
       doctype
       html(lang: "en", data: { theme: config.default_theme }) do
         render_head
-        body(class: "bg-base-100 text-base-content") do
+        # The docs-nav controller lives on <body> — the shared ancestor of BOTH
+        # the sidebar (collapse persistence, :sidebar TOC injection) and the
+        # content column (:panel/:toggle TOC slot + scroll-spy). Scoping it to the
+        # sidebar alone would put the content-column TOC out of its reach.
+        body(
+          class: "bg-base-100 text-base-content",
+          data: {
+            controller: "docs-nav",
+            docs_nav_storage_key_value: config.nav_storage_key,
+            docs_nav_on_page_value: (@on_page || "").to_s
+          }
+        ) do
           shell(&)
         end
       end
@@ -86,7 +97,7 @@ module Docs
 
         drawer.side(class: "z-40") do
           drawer.overlay
-          render Docs::Sidebar.new(on_page: @on_page)
+          render Docs::Sidebar.new
         end
       end
     end

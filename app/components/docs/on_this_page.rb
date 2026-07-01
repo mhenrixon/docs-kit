@@ -45,9 +45,12 @@ module Docs
     # :panel — a sticky card in the top-right of the content column. Hidden on
     # narrow screens (where :toggle would be used); the content stays full-width.
     def panel
+      # Floats to the right of the prose and sticks below the topbar as you
+      # scroll. Shown from lg up (where the content column has room to its right);
+      # on smaller screens prefer :toggle.
       toc_target(
-        class: "not-prose hidden xl:block absolute right-0 top-0 w-56 " \
-               "sticky-toc rounded-box border border-base-300 bg-base-200/60 p-3 text-sm"
+        class: "not-prose hidden lg:block float-right sticky top-24 ml-6 mb-4 w-56 " \
+               "rounded-box border border-base-300 bg-base-200/60 p-3 text-sm"
       ) do
         heading
       end

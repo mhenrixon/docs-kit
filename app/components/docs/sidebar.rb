@@ -12,27 +12,12 @@ module Docs
     include Phlex::Rails::Helpers::Request
     include DaisyUI
 
-    # on_page: the auto-TOC placement, passed to the docs-nav controller. In
-    # :sidebar mode the controller injects the current page's headings under the
-    # active nav link; :panel/:toggle fill a content-column slot instead.
-    def initialize(on_page: false)
-      @on_page = on_page
-    end
-
     def view_template
-      # data-controller="docs-nav" (from docs-kit's bundled Stimulus controller)
-      # persists each <details> open/closed to localStorage and drives the on-page
-      # TOC + scroll-spy. With JS off it's inert — the server renders every
-      # <details open>, so the sidebar is simply fully expanded (progressive
-      # enhancement).
-      div(
-        class: "bg-base-200 flex min-h-full w-72 flex-col",
-        data: {
-          controller: "docs-nav",
-          docs_nav_storage_key_value: config.nav_storage_key,
-          docs_nav_on_page_value: (@on_page || "").to_s
-        }
-      ) do
+      # The docs-nav Stimulus controller lives on <body> (Docs::Shell) so it spans
+      # this sidebar AND the content column. Here it drives collapse persistence
+      # and, in :sidebar mode, hosts the injected page TOC. With JS off the server
+      # renders every <details open>, so the sidebar is simply fully expanded.
+      div(class: "bg-base-200 flex min-h-full w-72 flex-col") do
         header_section
         div(class: "flex-1 overflow-y-auto px-2 pb-6") do
           Menu(class: "w-full gap-1") do
