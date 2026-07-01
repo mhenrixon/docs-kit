@@ -147,9 +147,33 @@ server round-trip:
   sidebar stays how they left it across navigations. The server always renders
   every section `open`, so with JS off the sidebar is simply fully expanded
   (progressive enhancement).
-- **Scroll-spy** — highlights the on-page heading nearest the top as you scroll,
-  and (if you render `Docs::OnThisPage`) builds + lights up an "On this page" TOC
-  from the page's `<h2>`/`<h3>` — no server-side knowledge of the headings.
+- **"On this page" auto-TOC** — collects the current page's `Docs::Section`
+  anchors from the DOM and renders a live, scroll-spied table of contents in one
+  of three placements, auto-hiding on short pages. No server-side knowledge of
+  the headings, no per-page wiring.
+
+### On this page (auto-TOC)
+
+`Docs::Page` renders it automatically. The placement is a strategy — set the
+site-wide default, override per page:
+
+```ruby
+DocsKit.configure { |c| c.on_page_default = :panel }   # :panel | :toggle | :sidebar | false
+
+class Views::Docs::Pages::Installation < Docs::Page
+  on_page :toggle   # override just this page; `false` opts out
+end
+```
+
+| Mode | Placement |
+|------|-----------|
+| `:panel` (default) | A sticky card floating top-right of the content column. |
+| `:toggle` | A sticky floating button (top-right) that opens a dropdown. |
+| `:sidebar` | Nested under the active nav item in the left sidebar (GitBook-style). |
+
+All three are driven by the same `docs-nav` controller reading the page's
+headings, so they need zero per-page data. A page with fewer than 2 sections
+hides the TOC. Scroll-spy highlights the section you're reading.
 
 `Docs::Sidebar` already carries `data-controller="docs-nav"`. Register the
 controller in the host app:
