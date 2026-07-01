@@ -8,20 +8,15 @@ module DocsUI
   # code sample. Self-contained: it injects its own Rouge theme CSS so no separate
   # stylesheet asset is required.
   #
-  #   render DocsUI::Code.new(ruby_source)                        # ruby, no title
-  #   render DocsUI::Code.new(erb, lexer: :erb, filename: "...")   # labelled
+  #   render DocsUI::Code.new(ruby_source)                          # ruby, no title
+  #   render DocsUI::Code.new(py, lexer: :python, filename: "a.py")  # any language
+  #
+  # Any language Rouge knows (~200 lexers) works by its name or alias — python,
+  # go, rust, elixir, kotlin, swift, json, dockerfile, ... — no allowlist. Add
+  # friendly aliases/labels via DocsKit.configure (code_lexer_aliases). An unknown
+  # language falls back to plaintext (never raises).
   class Code < Phlex::HTML
     FORMATTER = Rouge::Formatters::HTML.new
-
-    LEXERS = {
-      ruby: Rouge::Lexers::Ruby,
-      erb: Rouge::Lexers::ERB,
-      html: Rouge::Lexers::HTML,
-      javascript: Rouge::Lexers::Javascript,
-      shell: Rouge::Lexers::Shell,
-      yaml: Rouge::Lexers::YAML,
-      plaintext: Rouge::Lexers::PlainText
-    }.freeze
 
     def initialize(source, lexer: :ruby, filename: nil)
       @source = source.to_s.strip
@@ -48,8 +43,28 @@ module DocsUI
       end
     end
 
+    # Resolve @lexer to a Rouge lexer instance. Order: an explicit Rouge::Lexer
+    # class/instance passed through; a configured friendly alias; Rouge's own
+    # registry (name/alias); then the configured fallback (plaintext).
     def lexer
-      (LEXERS[@lexer] || Rouge::Lexers::PlainText).new
+      explicit_lexer || (find_lexer(@lexer.to_s) || Rouge::Lexers::PlainText).new
+    end
+
+    # A Rouge::Lexer instance passed directly (class or instance), else nil.
+    def explicit_lexer
+      return @lexer if @lexer.is_a?(Rouge::Lexer)
+      return @lexer.new if @lexer.is_a?(Class) && @lexer < Rouge::Lexer
+
+      nil
+    end
+
+    # Find a lexer CLASS by name: configured alias → Rouge registry → fallback.
+    def find_lexer(name)
+      config = DocsKit.configuration
+      aliased = config.lexer_aliases[name.to_sym]
+      (aliased && Rouge::Lexer.find(aliased.to_s)) ||
+        Rouge::Lexer.find(name) ||
+        Rouge::Lexer.find(config.code_lexer_fallback.to_s)
     end
 
     # Static Rouge theme CSS — no user input. Phlex safe(), not html_safe.

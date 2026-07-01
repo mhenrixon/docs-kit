@@ -60,6 +60,30 @@ module DocsKit
     # render no auto-TOC by default.
     attr_writer :on_page_default
 
+    # Friendly-name → Rouge lexer aliases for code blocks, merged over the
+    # built-in defaults. Any language Rouge knows (~200) already works by its own
+    # name/alias; use this only to add or override (e.g. { curl: "console",
+    # dockerfile: "docker" }). Value is anything Rouge::Lexer.find accepts.
+    attr_accessor :code_lexer_aliases
+
+    # The lexer used when a requested language can't be resolved. Default
+    # "plaintext" (no highlighting, never raises).
+    attr_accessor :code_lexer_fallback
+
+    # Human labels for language tabs in Docs::Example, merged over the built-ins
+    # (e.g. { elixir: "Elixir", curl: "cURL" }). Unknown tokens humanize.
+    attr_accessor :code_language_labels
+
+    # Built-in friendly aliases (kept small — Rouge resolves most names itself).
+    DEFAULT_LEXER_ALIASES = { curl: "console", console: "console" }.freeze
+
+    # Built-in tab labels for the common languages that don't just capitalize.
+    DEFAULT_LANGUAGE_LABELS = {
+      javascript: "JavaScript", typescript: "TypeScript", php: "PHP",
+      curl: "cURL", json: "JSON", yaml: "YAML", html: "HTML", css: "CSS",
+      erb: "ERB", jsx: "JSX", tsx: "TSX", sql: "SQL", graphql: "GraphQL"
+    }.freeze
+
     def initialize
       @brand = "Docs"
       @title_suffix = nil
@@ -72,6 +96,19 @@ module DocsKit
       @default_group_icon = "file-text"
       @nav_storage_key = nil
       @on_page_default = :panel
+      @code_lexer_aliases = {}
+      @code_lexer_fallback = "plaintext"
+      @code_language_labels = {}
+    end
+
+    # The effective alias map (built-ins + site overrides), symbol-keyed.
+    def lexer_aliases
+      DEFAULT_LEXER_ALIASES.merge((@code_lexer_aliases || {}).transform_keys(&:to_sym))
+    end
+
+    # The effective label map (built-ins + site overrides), symbol-keyed.
+    def language_labels
+      DEFAULT_LANGUAGE_LABELS.merge((@code_language_labels || {}).transform_keys(&:to_sym))
     end
 
     # The auto-TOC placements, all driven by the same docs-nav Stimulus

@@ -19,7 +19,7 @@ A `DocsUI::` Phlex kit, configured once per site:
 | `DocsUI::Sidebar` | Config-driven grouped nav with active-link highlighting + an optional version badge. |
 | `DocsUI::ThemeSwitcher` | Zero-JS daisyUI theme dropdown (themes come from config). |
 | `DocsUI::Icon` | Inline lucide SVG via `rails_icons`. |
-| `DocsUI::Code` | Rouge-highlighted code block with an inline theme (no extra stylesheet). |
+| `DocsUI::Code` | Rouge-highlighted code block (any of Rouge's ~200 languages) with an inline theme. |
 | `DocsUI::Page` | Base class for a hand-authored doc page; renders inside `DocsUI::Shell`. |
 | `DocsUI::Header` / `Section` / `Prose` / `Callout` | The page-authoring kit. |
 | `DocsUI::Example` | Base for a live example with `method_source`-extracted source. |

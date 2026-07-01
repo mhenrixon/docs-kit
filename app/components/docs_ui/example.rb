@@ -24,30 +24,22 @@ module DocsUI
   # first language shows and the rest are visible below it (progressive
   # enhancement — no content is hidden without JS).
   class Example < Phlex::HTML
-    # A label per known language token, for the tab text. Unknown tokens fall
-    # back to a humanized version of the token.
-    LANGUAGE_LABELS = {
-      ruby: "Ruby", python: "Python", javascript: "JavaScript", typescript: "TypeScript",
-      shell: "Shell", bash: "Bash", go: "Go", rust: "Rust", java: "Java",
-      php: "PHP", curl: "cURL", json: "JSON", yaml: "YAML", html: "HTML", erb: "ERB"
-    }.freeze
-
-    # Lexer aliases → the DocsUI::Code lexer key (Rouge). Tokens map to a lexer so a
-    # site can use a friendly language name that isn't a Rouge lexer verbatim.
-    LEXER_FOR = { curl: :shell, bash: :shell }.freeze
-
     def initialize
       @snippets = []
     end
 
-    # Collect one language's snippet. `lang` is the language token (e.g. :ruby);
-    # filename/lexer optional. The block returns the source string.
+    # Collect one language's snippet. `lang` is the language token (e.g. :ruby,
+    # :python, :go) — Docs::Code resolves it against Rouge's full registry + the
+    # configured aliases, so any language works. The tab label comes from the
+    # configured language_labels (else the token capitalized). filename/lexer are
+    # optional; lexer defaults to the language token. The block returns the source.
     def code(lang, filename: nil, lexer: nil)
+      token = lang.to_sym
       @snippets << {
-        lang: lang.to_sym,
-        label: LANGUAGE_LABELS.fetch(lang.to_sym, lang.to_s.capitalize),
+        lang: token,
+        label: DocsKit.configuration.language_labels.fetch(token, token.to_s.capitalize),
         filename: filename,
-        lexer: lexer || LEXER_FOR.fetch(lang.to_sym, lang.to_sym),
+        lexer: lexer || token,
         source: yield.to_s
       }
       nil
