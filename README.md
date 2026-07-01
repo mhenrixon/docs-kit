@@ -138,12 +138,34 @@ ship.
 
 ## JavaScript
 
-docs-kit ships no JS. Reactive sites load the auto-pinned
-`phlex/reactive/reactive_controller` (from phlex-reactive) and register it
-eagerly:
+docs-kit ships **one** Stimulus controller, `docs-nav`, auto-pinned by the engine
+(like the daisyUI gem's dropdown controller). It's client-only UX polish — no
+server round-trip:
+
+- **Collapse persistence** — remembers which sidebar `<details>` the reader
+  opened/closed (localStorage, namespaced by `config.nav_storage_key`), so the
+  sidebar stays how they left it across navigations. The server always renders
+  every section `open`, so with JS off the sidebar is simply fully expanded
+  (progressive enhancement).
+- **Scroll-spy** — highlights the on-page heading nearest the top as you scroll,
+  and (if you render `Docs::OnThisPage`) builds + lights up an "On this page" TOC
+  from the page's `<h2>`/`<h3>` — no server-side knowledge of the headings.
+
+`Docs::Sidebar` already carries `data-controller="docs-nav"`. Register the
+controller in the host app:
 
 ```js
 // app/javascript/controllers/index.js
+import { lazyLoadControllersFrom } from "@hotwired/stimulus-loading"
+lazyLoadControllersFrom("docs_kit/controllers", application)
+```
+
+The **active nav item** needs no JS — it's server-rendered from the request path.
+
+Reactive sites also load the auto-pinned `phlex/reactive/reactive_controller`
+(from phlex-reactive) and register it eagerly:
+
+```js
 import ReactiveController from "phlex/reactive/reactive_controller"
 application.register("reactive", ReactiveController)
 ```
