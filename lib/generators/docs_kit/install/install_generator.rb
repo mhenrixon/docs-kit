@@ -16,7 +16,11 @@ module DocsKit
     class InstallGenerator < ::Rails::Generators::Base
       source_root File.expand_path("templates", __dir__)
 
-      REGISTER_LINE = 'lazyLoadControllersFrom("docs_kit/controllers", application)'
+      # eagerLoadControllersFrom (NOT lazy) — the default controllers/index.js only
+      # imports eagerLoadControllersFrom; injecting a lazyLoadControllersFrom call
+      # without its import throws a ReferenceError that aborts the whole module, so
+      # NO controllers register. Eager-loading a few docs controllers is fine.
+      REGISTER_LINE = 'eagerLoadControllersFrom("docs_kit/controllers", application)'
 
       def create_phlex_initializer
         # Phlex autoload namespaces (Views:: / Components::). Skip if the app

@@ -2,4 +2,4 @@
 import { application } from "controllers/application"
 import { eagerLoadControllersFrom } from "@hotwired/stimulus-loading"
 eagerLoadControllersFrom("controllers", application)
-lazyLoadControllersFrom("docs_kit/controllers", application)
+eagerLoadControllersFrom("docs_kit/controllers", application)
