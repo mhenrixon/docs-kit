@@ -57,6 +57,11 @@ loader.ignore(File.expand_path("docs_kit/configuration.rb", __dir__))
 # engine.rb is required explicitly below only under Rails, so zeitwerk never
 # manages it (it would otherwise expect a DocsKit::Engine constant outside Rails).
 loader.ignore(File.expand_path("docs_kit/engine.rb", __dir__))
+# The Rails application template (docs_kit/templates) is executed inside
+# `rails new`, not autoloadable Ruby — ignore it so eager_load! doesn't try to
+# load it (it references template-DSL locals like `app_name`). Generators are
+# loaded by Rails' generator system, not this loader.
+loader.ignore(File.expand_path("docs_kit/templates", __dir__))
 loader.setup
 
 require_relative "docs_kit/engine" if defined?(Rails::Engine)
