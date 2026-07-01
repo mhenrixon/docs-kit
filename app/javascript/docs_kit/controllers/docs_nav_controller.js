@@ -42,7 +42,9 @@ export default class extends Controller {
   // tocLink: pre-rendered TOC links to spy on.
   // toc: a server-rendered container the controller fills with heading links.
   // tocRoot: the element hidden when the page has too few headings.
-  static targets = ["tocLink", "toc", "tocRoot"]
+  // codeGroup/codeTab/codePanel: a multi-language Docs::Example — the controller
+  // shows the panel for the globally-remembered language and hides the others.
+  static targets = ["tocLink", "toc", "tocRoot", "codeGroup", "codeTab", "codePanel"]
 
   connect() {
     this.restoreCollapseState()
@@ -51,6 +53,7 @@ export default class extends Controller {
     this.element.addEventListener("toggle", this.onToggle, true)
     this.buildToc()
     this.startScrollSpy()
+    this.applyLanguage(this.readLanguage())
   }
 
   disconnect() {
@@ -201,6 +204,51 @@ export default class extends Controller {
       link.classList.toggle("menu-active", active)
       if (active) link.setAttribute("data-current", "")
     })
+  }
+
+  // --- 3. Multi-language code groups (Docs::Example) --------------------------
+
+  get languageKey() {
+    return `docs-kit:${this.storageKeyValue}:code-lang`
+  }
+
+  readLanguage() {
+    return this.read(this.languageKey)
+  }
+
+  // Tab click: remember the language globally and re-apply to every code group.
+  selectLanguage(event) {
+    const lang = event.params.lang
+    if (!lang) return
+    this.write(this.languageKey, lang)
+    this.applyLanguage(lang)
+  }
+
+  // Show the chosen language in each code group. A group without that language
+  // falls back to its own first snippet, so switching never blanks a group.
+  applyLanguage(preferred) {
+    if (!this.hasCodeGroupTarget) return
+
+    this.codeGroupTargets.forEach((group) => {
+      const panels = this.groupPanels(group)
+      if (panels.length === 0) return
+
+      const chosen =
+        panels.find((p) => p.dataset.lang === preferred) || panels[0]
+
+      panels.forEach((p) => (p.hidden = p !== chosen))
+      this.groupTabs(group).forEach((tab) =>
+        tab.classList.toggle("tab-active", tab.dataset.docsNavLangParam === chosen.dataset.lang),
+      )
+    })
+  }
+
+  groupPanels(group) {
+    return this.codePanelTargets.filter((p) => group.contains(p))
+  }
+
+  groupTabs(group) {
+    return this.codeTabTargets.filter((t) => group.contains(t))
   }
 
   // --- storage (private, fails safe if localStorage is unavailable) -----------

@@ -1,74 +1,108 @@
 # frozen_string_literal: true
 
 module Docs
-  # Base class for one component/demo example. A subclass renders a live component
-  # (daisyUI and/or reactive) in #example; a viewer shows that live render in a
-  # Preview tab and the extracted #example source in a Source tab, so the shown
-  # code and the running component never drift.
+  # A multi-language code group: the same example shown in several languages, with
+  # tabs to switch. The chosen language is a GLOBAL sticky preference (localStorage
+  # via the docs-nav controller) — pick Ruby once and every code group on this and
+  # future pages shows Ruby, falling back to an available language when a group
+  # doesn't have the chosen one.
   #
-  #   class Views::Components::Examples::Button::Colors < Docs::Example
-  #     include DaisyUI
-  #     title "Buttons with colors"
-  #     def example
-  #       Button(:primary) { "Primary" }
+  #   render Docs::Example.new do |ex|
+  #     ex.code(:ruby, filename: "client.rb") do
+  #       <<~RUBY
+  #         Anthropic.messages.create(model: "claude-opus-4-8", ...)
+  #       RUBY
+  #     end
+  #     ex.code(:python, filename: "client.py") do
+  #       <<~PY
+  #         client.messages.create(model="claude-opus-4-8", ...)
+  #       PY
   #     end
   #   end
   #
-  # #example_source requires the `method_source` gem (a host docs-app dependency);
-  # it is loaded lazily so the kit doesn't hard-depend on it.
+  # With one snippet it degrades to a plain Docs::Code (no tabs). With JS off the
+  # first language shows and the rest are visible below it (progressive
+  # enhancement — no content is hidden without JS).
   class Example < Phlex::HTML
-    class << self
-      # The heading shown above this example. Defaults to a humanized version of
-      # the class's last name segment.
-      def title(value = nil)
-        @title = value if value
-        @title || humanized_name
-      end
+    # A label per known language token, for the tab text. Unknown tokens fall
+    # back to a humanized version of the token.
+    LANGUAGE_LABELS = {
+      ruby: "Ruby", python: "Python", javascript: "JavaScript", typescript: "TypeScript",
+      shell: "Shell", bash: "Bash", go: "Go", rust: "Rust", java: "Java",
+      php: "PHP", curl: "cURL", json: "JSON", yaml: "YAML", html: "HTML", erb: "ERB"
+    }.freeze
 
-      # Sort key for ordering examples on a page (lower first). Defaults to 100 so
-      # unordered examples fall after explicitly-ordered ones.
-      def order(value = nil)
-        @order = value if value
-        @order || 100
-      end
+    # Lexer aliases → the Docs::Code lexer key (Rouge). Tokens map to a lexer so a
+    # site can use a friendly language name that isn't a Rouge lexer verbatim.
+    LEXER_FOR = { curl: :shell, bash: :shell }.freeze
 
-      private
-
-      def humanized_name
-        last = name.to_s.split("::").last.to_s
-        if last.respond_to?(:underscore)
-          last.underscore.humanize
-        else
-          last.gsub(/([a-z\d])([A-Z])/, '\1 \2').tr("_", " ")
-        end
-      end
+    def initialize
+      @snippets = []
     end
 
-    # Override with the live component render(s) to demonstrate.
-    def example
-      raise NotImplementedError, "#{self.class} must implement #example"
+    # Collect one language's snippet. `lang` is the language token (e.g. :ruby);
+    # filename/lexer optional. The block returns the source string.
+    def code(lang, filename: nil, lexer: nil)
+      @snippets << {
+        lang: lang.to_sym,
+        label: LANGUAGE_LABELS.fetch(lang.to_sym, lang.to_s.capitalize),
+        filename: filename,
+        lexer: lexer || LEXER_FOR.fetch(lang.to_sym, lang.to_sym),
+        source: yield.to_s
+      }
+      nil
     end
 
-    # The Ruby source of #example, extracted via method_source — the exact lines a
-    # host app would write. Strips the `def example` / final `end` wrapper and
-    # re-dedents to the least-indented body line.
-    def example_source
-      require "method_source"
-      body = method(:example).source.lines[1..-2] || []
-      dedent(body).join.strip
-    end
-
-    # Rendered live inside a Preview tab.
     def view_template
-      example
+      yield self if block_given?
+      return if @snippets.empty?
+      return render_single if @snippets.one?
+
+      div(
+        class: "not-prose my-4",
+        data: { docs_nav_target: "codeGroup" }
+      ) do
+        language_tabs
+        snippet_panels
+      end
     end
 
     private
 
-    def dedent(lines)
-      indents = lines.reject { |l| l.strip.empty? }.map { |l| l[/\A */].length }
-      margin = indents.min || 0
-      lines.map { |l| l.strip.empty? ? l : l[margin..] }
+    def render_single
+      snippet = @snippets.first
+      render Docs::Code.new(snippet[:source], lexer: snippet[:lexer], filename: snippet[:filename])
+    end
+
+    def language_tabs
+      div(role: "tablist", class: "tabs tabs-box w-fit mb-2") do
+        @snippets.each do |snippet|
+          button(
+            role: "tab",
+            class: "tab",
+            data: {
+              docs_nav_target: "codeTab",
+              docs_nav_lang_param: snippet[:lang],
+              action: "docs-nav#selectLanguage",
+              testid: "code-lang-#{snippet[:lang]}"
+            }
+          ) { snippet[:label] }
+        end
+      end
+    end
+
+    def snippet_panels
+      @snippets.each do |snippet|
+        div(
+          data: {
+            docs_nav_target: "codePanel",
+            docs_nav_lang_param: snippet[:lang],
+            lang: snippet[:lang]
+          }
+        ) do
+          render Docs::Code.new(snippet[:source], lexer: snippet[:lexer], filename: snippet[:filename])
+        end
+      end
     end
   end
 end
