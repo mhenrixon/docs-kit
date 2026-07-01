@@ -11,5 +11,4 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-      - run: echo "token is ${{ github.token != '' }}"
+      - run: echo "hello"
