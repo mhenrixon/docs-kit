@@ -60,16 +60,22 @@ on:
         required: false
         default: "ghcr.io"
         type: string
+    # These are marked required: false on purpose. Callers pass them with
+    # `secrets: inherit`, and GitHub can't statically confirm an inherited secret
+    # satisfies a `required: true` declaration — that combination produces a
+    # startup_failure. They're still effectively required at runtime: the deploy
+    # step fails fast (below) if DEPLOY_HOST/DEPLOY_DOMAIN are empty, and the SSH
+    # agent step errors if SSH_PRIVATE_KEY is missing.
     secrets:
       SSH_PRIVATE_KEY:
         description: "Deploy key for the Kamal SSH user on the deploy host."
-        required: true
+        required: false
       DEPLOY_HOST:
         description: "The deploy host (IP or DNS) — consumed by config/deploy.yml."
-        required: true
+        required: false
       DEPLOY_DOMAIN:
         description: "The public host kamal-proxy routes — consumed by config/deploy.yml."
-        required: true
+        required: false
 
 concurrency:
   group: deploy-docs-${{ inputs.image }}
