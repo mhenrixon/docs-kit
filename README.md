@@ -98,6 +98,62 @@ class Views::Docs::Pages::Installation < DocsUI::Page
 end
 ```
 
+## Deploy a new docs site
+
+The build + deploy is defined **once** in this gem's reusable workflow
+(`.github/workflows/deploy.yml`). A new site adds five small things and it
+deploys to the oss-infrastructure server (Kamal + GHCR + Cloudflare Tunnel).
+
+**1. A thin caller** — `.github/workflows/deploy-docs.yml`:
+
+```yaml
+name: Deploy docs
+on:
+  release: { types: [published] }
+  workflow_dispatch:
+jobs:
+  deploy:
+    uses: mhenrixon/docs-kit/.github/workflows/deploy.yml@main
+    with:
+      image: mhenrixon/<repo>     # OWNER/REPO — see naming note below
+      service: <repo>
+    secrets: inherit
+```
+
+**2. `docs/config/deploy.yml`** — `service:` and `image:` MUST match the caller:
+
+```yaml
+service: <repo>
+image: mhenrixon/<repo>
+registry: { server: ghcr.io, username: mhenrixon, password: [KAMAL_REGISTRY_PASSWORD] }
+builder: { arch: amd64, context: .., dockerfile: Dockerfile }   # repo root = build context
+proxy:   { host: <%= ENV["DEPLOY_DOMAIN"] %>, app_port: 3000, ssl: false, healthcheck: { path: /up } }
+servers: { web: { hosts: [<%= ENV["DEPLOY_HOST"] %>] } }
+ssh:     { user: oss }
+```
+
+**3. `docs/Dockerfile`** — end the final stage with the matching label:
+
+```dockerfile
+LABEL service="<repo>"
+```
+
+**4. `docs/.kamal/secrets`** — `KAMAL_REGISTRY_PASSWORD=$KAMAL_REGISTRY_PASSWORD`.
+
+**5. GitHub** — a `docs` environment with secrets `SSH_PRIVATE_KEY`,
+`DEPLOY_HOST`, `DEPLOY_DOMAIN`. (The registry password is the auto-provided
+`GITHUB_TOKEN` — no PAT.)
+
+> **Naming — use the repo name, not `<repo>-docs`.** `image`/`service` must be
+> the calling repo's `OWNER/REPO`. Pushing `ghcr.io/mhenrixon/<repo>` from the
+> repo's own Actions run auto-links the package to the repo, so `GITHUB_TOKEN`
+> can both push (build job) and pull (deploy) it. A different name becomes an
+> unlinked user-scoped package `GITHUB_TOKEN` can't pull → the deploy fails.
+
+**First deploy per host:** run `kamal setup` (or `bin/deploy setup`) once to boot
+any accessories (e.g. a Postgres accessory); the release workflow runs plain
+`kamal deploy`, which doesn't boot accessories.
+
 ## CSS — the canonical build
 
 daisyUI (and docs-kit) ship **no CSS** — your app builds Tailwind. To keep sites
