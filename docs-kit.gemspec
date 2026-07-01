@@ -27,8 +27,10 @@ Gem::Specification.new do |s|
     end
     files.empty? ? raise(Errno::ENOENT) : files
   rescue Errno::ENOENT
+    # lib/**/* (not just *.rb) so generator templates + USAGE + bin scripts under
+    # lib/generators ship even when building without .git (e.g. in a container).
     Dir[
-      "lib/**/*.rb", "app/**/*", "config/**/*",
+      "lib/**/*", "app/**/*", "config/**/*",
       "CHANGELOG.md", "LICENSE.txt", "README.md"
     ].select { |f| File.file?(f) }
   end

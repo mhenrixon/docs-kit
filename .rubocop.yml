@@ -48,6 +48,12 @@ Metrics/BlockLength:
     - "spec/**/*"
     - "*.gemspec"
 
+# Generators are procedural wiring — one method per install step — so they're
+# naturally long and flat, not complex.
+Metrics/ClassLength:
+  Exclude:
+    - "lib/generators/**/*"
+
 Metrics/MethodLength:
   Max: 25
 

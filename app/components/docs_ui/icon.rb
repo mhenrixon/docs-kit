@@ -16,12 +16,15 @@ module DocsUI
     end
 
     def view_template
-      # rails_icons is a Railtie gem; outside a Rails host (e.g. isolated Phlex
-      # unit tests) it isn't loaded. Render nothing rather than raise — in a real
-      # docs app rails_icons is always present, so this only no-ops in tests.
-      return unless defined?(::Icons::Icon)
+      # rails_icons is a Railtie gem; outside a Rails host (isolated Phlex tests)
+      # it isn't loaded, and in a not-yet-fully-set-up app its default library may
+      # be unconfigured. Either way, render nothing rather than take down the page
+      # — icons are chrome, not content. In development we still raise so a real
+      # misconfiguration is visible.
+      return unless defined?(::Icons::Icon) && rails_icons_library
 
-      raw(safe(svg_for(@name, **@attributes)))
+      svg = svg_for(@name, **@attributes)
+      raw(safe(svg)) if svg
     end
 
     private
@@ -36,11 +39,23 @@ module DocsUI
     rescue ::Icons::IconNotFound
       raise if local_env?
 
-      ::Icons::Icon.new(name: MISSING_ICON, library: rails_icons_library, variant: nil, arguments: arguments).svg
+      begin
+        ::Icons::Icon.new(name: MISSING_ICON, library: rails_icons_library, variant: nil, arguments: arguments).svg
+      rescue StandardError
+        nil # even the fallback glyph isn't synced — render nothing.
+      end
+    rescue StandardError
+      # Library misconfigured / icon set not synced. Surface it in dev; elsewhere
+      # degrade to no icon rather than 500 the whole docs page.
+      raise if local_env?
+
+      nil
     end
 
     def rails_icons_library
       ::RailsIcons.configuration.default_library
+    rescue StandardError
+      nil
     end
 
     def local_env?

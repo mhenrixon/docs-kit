@@ -1,0 +1,15 @@
+Description:
+    Wire an existing Rails app into docs-kit: the config initializer, the
+    controller render helper, a Doc registry + a sample guide page + routes, the
+    Bun/Tailwind CSS build (bin/build-css + application.tailwind.css), and the
+    Stimulus/importmap registration for the docs-nav controller.
+
+    Idempotent — re-running skips files that already exist.
+
+Example:
+    rails generate docs_kit:install
+
+    After running:
+      bun install && bun run build:css
+      # edit config/initializers/docs_kit.rb, add pages under app/views/docs/pages/
+      bin/dev

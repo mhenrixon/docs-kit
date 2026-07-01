@@ -1,0 +1,25 @@
+# frozen_string_literal: true
+
+module Views
+  module Landings
+    # The home page. Renders inside DocsUI::Shell (the full document + drawer
+    # shell); links to the authored docs.
+    class Show < Phlex::HTML
+      include Phlex::Rails::Helpers::Routes
+
+      def view_template
+        render DocsUI::Shell.new do
+          div(class: "prose max-w-none") do
+            h1 { "<%= app_brand %>" }
+            p { "Documentation, built with docs-kit." }
+            ul do
+              Doc.all.select(&:view_class).each do |doc|
+                li { a(href: "/docs/#{doc.slug}", class: "link") { doc.title } }
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
