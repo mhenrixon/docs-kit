@@ -160,8 +160,12 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ inputs.ruby_version }}
-          bundler-cache: true
-          working-directory: ${{ inputs.working_directory }}
+
+      # Install the Kamal CLI directly so a consuming site doesn't need `kamal` in
+      # its docs Gemfile. `kamal deploy` (not `bundle exec kamal`) then works for
+      # every site regardless of its bundle.
+      - name: Install Kamal
+        run: gem install kamal
 
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.1
@@ -202,6 +206,6 @@ jobs:
             echo "::error::DEPLOY_HOST/DEPLOY_DOMAIN empty — is the caller's 'secrets: inherit' set and does the deploy job keep 'environment: docs'?"
             exit 1
           fi
-          bundle exec kamal deploy \
+          kamal deploy \
             --skip-push \
             --version="$IMAGE_TAG"
