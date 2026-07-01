@@ -29,12 +29,18 @@ export default class extends Controller {
     headings: { type: String, default: "h2[id], h3[id]" },
     // Namespaces the localStorage keys so multiple docs sites don't collide.
     storageKey: { type: String, default: "docs" },
+    // Auto-TOC placement: "panel" | "toggle" | "sidebar" | "" (off). Panel and
+    // toggle fill a server-rendered [data-docs-nav-target=toc]; sidebar injects
+    // the list under the active left-nav link (no server slot).
+    onPage: { type: String, default: "" },
+    // Fewer than this many headings → hide the TOC entirely (short pages).
+    minHeadings: { type: Number, default: 2 },
   }
 
   // tocLink: pre-rendered TOC links to spy on.
-  // toc: an empty container the controller fills with links built from the page's
-  //      headings (so a page gets an "On this page" list with zero data wiring).
-  static targets = ["tocLink", "toc"]
+  // toc: a server-rendered container the controller fills with heading links.
+  // tocRoot: the element hidden when the page has too few headings.
+  static targets = ["tocLink", "toc", "tocRoot"]
 
   connect() {
     this.restoreCollapseState()
@@ -83,17 +89,28 @@ export default class extends Controller {
 
   // --- 2. Scroll-spy ----------------------------------------------------------
 
-  // Fill a toc target with a link per page heading, so an "On this page" panel
-  // needs no server-side knowledge of the headings. Indents h3 under h2.
+  // Build the "On this page" list from the page's headings — no server-side
+  // knowledge of them needed — and place it per the on_page mode. Too few
+  // headings hides the whole TOC (short pages show nothing).
   buildToc() {
-    if (!this.hasTocTarget) return
     const content = document.querySelector(this.contentValue)
     if (!content) return
     const headings = Array.from(content.querySelectorAll(this.headingsValue))
-    if (headings.length === 0) return
 
+    if (headings.length < this.minHeadingsValue) {
+      this.hideToc()
+      return
+    }
+
+    const list = this.buildList(headings)
+    if (this.onPageValue === "sidebar") this.placeInSidebar(list)
+    else this.placeInSlot(list)
+  }
+
+  buildList(headings) {
     const list = document.createElement("ul")
     list.className = "menu menu-sm w-full"
+    list.setAttribute("data-docs-nav-generated", "")
     headings.forEach((h) => {
       const li = document.createElement("li")
       if (h.tagName === "H3") li.className = "ml-3"
@@ -104,11 +121,28 @@ export default class extends Controller {
       li.appendChild(a)
       list.appendChild(li)
     })
-    // Append (don't replace) so a title/label already inside the toc survives.
-    // Remove any list we built on a previous connect (Turbo re-render).
+    return list
+  }
+
+  // panel / toggle: fill the server-rendered [data-docs-nav-target=toc].
+  placeInSlot(list) {
+    if (!this.hasTocTarget) return
     this.tocTarget.querySelector("ul[data-docs-nav-generated]")?.remove()
-    list.setAttribute("data-docs-nav-generated", "")
     this.tocTarget.appendChild(list)
+  }
+
+  // sidebar: nest the list under the active left-nav link (.menu-active), so the
+  // current page's sub-headings appear right under it (GitBook style).
+  placeInSidebar(list) {
+    const active = this.element.querySelector("a.menu-active")
+    const host = active?.closest("li")
+    if (!host) return
+    host.querySelector("ul[data-docs-nav-generated]")?.remove()
+    host.appendChild(list)
+  }
+
+  hideToc() {
+    if (this.hasTocRootTarget) this.tocRootTargets.forEach((el) => (el.hidden = true))
   }
 
   startScrollSpy() {

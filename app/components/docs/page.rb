@@ -27,10 +27,18 @@ module Docs
         @eyebrow = value if value
         @eyebrow
       end
+
+      # The "On this page" auto-TOC placement for this page. Defaults to the
+      # configured DocsKit.configuration.on_page_default; set false to opt out,
+      # or :panel/:toggle/:sidebar to override per page.
+      def on_page(value = :__unset__)
+        @on_page = value unless value == :__unset__
+        defined?(@on_page) ? @on_page : true
+      end
     end
 
     def view_template
-      render Docs::Shell.new(title: self.class.title) do
+      render Docs::Shell.new(title: self.class.title, on_page: self.class.on_page) do
         nav(class: "mb-6") do
           a(href: root_path, class: "link link-hover text-sm opacity-70") { "← Home" }
         end

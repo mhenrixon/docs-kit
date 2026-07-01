@@ -34,6 +34,39 @@ RSpec.describe DocsKit do
       expect(described_class.configuration.nav_storage_key).to eq("custom")
     end
 
+    describe "on_page (auto-TOC) mode" do
+      it "defaults to :panel" do
+        expect(described_class.configuration.on_page_default).to eq(:panel)
+      end
+
+      it "accepts any of the three modes as the default" do
+        %i[panel toggle sidebar].each do |mode|
+          described_class.configure { |c| c.on_page_default = mode }
+          expect(described_class.configuration.on_page_default).to eq(mode)
+        end
+      end
+
+      it "treats false as no auto-TOC" do
+        described_class.configure { |c| c.on_page_default = false }
+        expect(described_class.configuration.on_page_default).to be(false)
+      end
+
+      it "normalizes a per-page override: true -> the default, a mode -> itself, false -> false" do
+        described_class.configure { |c| c.on_page_default = :sidebar }
+        config = described_class.configuration
+
+        expect(config.normalize_on_page(true)).to eq(:sidebar)
+        expect(config.normalize_on_page(:toggle)).to eq(:toggle)
+        expect(config.normalize_on_page(false)).to be(false)
+        expect(config.normalize_on_page(nil)).to be(false)
+      end
+
+      it "rejects an unknown mode" do
+        config = described_class.configuration
+        expect { config.normalize_on_page(:bogus) }.to raise_error(ArgumentError, /on_page must be one of/)
+      end
+    end
+
     it "resolves nav from a callable into a Hash" do
       described_class.configure { |c| c.nav = -> { { "Docs" => { "Guide" => [1, 2] } } } }
 

@@ -22,8 +22,12 @@ module Docs
 
     DRAWER_ID = "site-drawer"
 
-    def initialize(title: nil)
+    # on_page: the auto-TOC placement for this page (:panel/:toggle/:sidebar or
+    # false). Threaded to the sidebar's docs-nav controller; :panel/:toggle also
+    # render an "On this page" slot inside the content column.
+    def initialize(title: nil, on_page: false)
       @title = title
+      @on_page = DocsKit.configuration.normalize_on_page(on_page)
     end
 
     def view_template(&)
@@ -39,6 +43,10 @@ module Docs
     private
 
     def config = DocsKit.configuration
+
+    # panel/toggle render their TOC in the content column; sidebar mode is
+    # injected by the controller under the active nav link (no content slot).
+    def content_toc? = %i[panel toggle].include?(@on_page)
 
     def render_head
       head do
@@ -65,13 +73,20 @@ module Docs
         drawer.content(class: "flex flex-col min-h-screen") do
           topbar
           main(class: "flex-1 overflow-auto px-4 py-8 md:px-8") do
-            div(class: "mx-auto max-w-4xl", &)
+            # `relative` anchors the :panel/:toggle "On this page" (absolute
+            # right-0 top-0) to the content column, not the viewport.
+            div(class: "relative mx-auto max-w-4xl") do
+              # panel/toggle render their sticky slot alongside the content; the
+              # docs-nav controller (on the sidebar root) fills it.
+              render Docs::OnThisPage.new(mode: @on_page) if content_toc?
+              yield
+            end
           end
         end
 
         drawer.side(class: "z-40") do
           drawer.overlay
-          render Docs::Sidebar.new
+          render Docs::Sidebar.new(on_page: @on_page)
         end
       end
     end

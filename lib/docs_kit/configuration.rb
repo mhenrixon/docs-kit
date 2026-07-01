@@ -55,6 +55,11 @@ module DocsKit
     # the brand.
     attr_writer :nav_storage_key
 
+    # The default "On this page" (auto-TOC) placement, used by Docs::Page when a
+    # page doesn't pass its own on_page:. One of the ON_PAGE_MODES, or false to
+    # render no auto-TOC by default.
+    attr_writer :on_page_default
+
     def initialize
       @brand = "Docs"
       @title_suffix = nil
@@ -66,7 +71,45 @@ module DocsKit
       @code_theme = "Rouge::Themes::Monokai"
       @default_group_icon = "file-text"
       @nav_storage_key = nil
+      @on_page_default = :panel
     end
+
+    # The auto-TOC placements, all driven by the same docs-nav Stimulus
+    # controller (it reads the page's headings from the DOM):
+    #   :panel   — a sticky card in the top-right of the content column
+    #   :toggle  — a sticky floating button (top-right) opening a dropdown
+    #   :sidebar — nested under the active nav item in the left sidebar
+    ON_PAGE_MODES = %i[panel toggle sidebar].freeze
+
+    # The resolved default placement (a mode symbol or false). A bare `true`
+    # default means :panel (the canonical default), never a self-reference.
+    def on_page_default
+      raw = @on_page_default
+      raw = :panel if raw == true
+      coerce_on_page_mode(raw)
+    end
+
+    # Coerce a per-page on_page: value to a valid mode symbol or false. `true`
+    # means "use the configured default".
+    def normalize_on_page(value)
+      return on_page_default if value == true
+
+      coerce_on_page_mode(value)
+    end
+
+    private
+
+    def coerce_on_page_mode(value)
+      case value
+      when false, nil then false
+      when *ON_PAGE_MODES then value.to_sym
+      else
+        raise ArgumentError,
+              "on_page must be one of #{ON_PAGE_MODES.inspect}, true, or false (got #{value.inspect})"
+      end
+    end
+
+    public
 
     def nav_storage_key
       @nav_storage_key || @brand.to_s.downcase.gsub(/[^a-z0-9]+/, "-").gsub(/\A-+|-+\z/, "")
