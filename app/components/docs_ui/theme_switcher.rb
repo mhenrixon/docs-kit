@@ -2,8 +2,11 @@
 
 module DocsUI
   # daisyUI theme switcher — a dropdown of radio inputs with the `theme-controller`
-  # class. daisyUI swaps the page theme (data-theme on :root) with ZERO JavaScript
-  # via a CSS :has() selector, so this fits a no-custom-JS docs site.
+  # class. daisyUI swaps the page theme (data-theme on :root) via a CSS :has()
+  # selector; the docs-nav Stimulus controller additionally PERSISTS the choice to
+  # localStorage (change->docs-nav#selectTheme) and re-applies it on connect, and
+  # the anti-flash <head> script (DocsUI::Shell) restores it before first paint —
+  # so the theme survives navigation without a flicker.
   #
   # The offered themes come from DocsKit.configuration.themes and MUST match the
   # themes enabled in the site's Tailwind @plugin "daisyui" { themes: ... } block.
@@ -35,7 +38,7 @@ module DocsUI
           value: theme,
           class: "theme-controller btn btn-sm btn-block btn-ghost justify-start",
           aria_label: theme.capitalize,
-          data: { testid: "theme-#{theme}" }
+          data: { testid: "theme-#{theme}", action: "change->docs-nav#selectTheme" }
         )
       end
     end

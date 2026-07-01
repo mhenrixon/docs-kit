@@ -42,9 +42,13 @@ export default class extends Controller {
   // tocLink: pre-rendered TOC links to spy on.
   // toc: a server-rendered container the controller fills with heading links.
   // tocRoot: the element hidden when the page has too few headings.
+  // tocPopover: the collapsible card revealed by the floating toggle button.
   // codeGroup/codeTab/codePanel: a multi-language Docs::Example — the controller
   // shows the panel for the globally-remembered language and hides the others.
-  static targets = ["tocLink", "toc", "tocRoot", "codeGroup", "codeTab", "codePanel"]
+  static targets = [
+    "tocLink", "toc", "tocRoot", "tocPopover",
+    "codeGroup", "codeTab", "codePanel",
+  ]
 
   connect() {
     this.restoreCollapseState()
@@ -54,6 +58,7 @@ export default class extends Controller {
     this.buildToc()
     this.startScrollSpy()
     this.applyLanguage(this.readLanguage())
+    this.applyTheme(this.readTheme())
   }
 
   disconnect() {
@@ -125,9 +130,11 @@ export default class extends Controller {
       if ((heading?.tagName || el.tagName) === "H3") li.className = "ml-3"
       const a = document.createElement("a")
       a.href = `#${el.id}`
-      a.textContent = (heading?.textContent || el.textContent || "")
-        .replace(/#$/, "")
-        .trim()
+      const text = (heading?.textContent || el.textContent || "").replace(/#$/, "").trim()
+      a.textContent = text
+      a.title = text // full text on hover, since the label truncates
+      // Truncate long headings to one line so the card stays tidy.
+      a.className = "block truncate"
       a.setAttribute("data-docs-nav-target", "tocLink")
       li.appendChild(a)
       list.appendChild(li)
@@ -135,11 +142,15 @@ export default class extends Controller {
     return list
   }
 
-  // panel / toggle: fill the server-rendered [data-docs-nav-target=toc].
+  // panel / toggle: fill EVERY server-rendered [data-docs-nav-target=toc] (a
+  // :panel has two — the wide-screen card and the toggle popover — so clone the
+  // built list into each).
   placeInSlot(list) {
     if (!this.hasTocTarget) return
-    this.tocTarget.querySelector("ul[data-docs-nav-generated]")?.remove()
-    this.tocTarget.appendChild(list)
+    this.tocTargets.forEach((slot) => {
+      slot.querySelector("ul[data-docs-nav-generated]")?.remove()
+      slot.appendChild(list.cloneNode(true))
+    })
   }
 
   // sidebar: nest the list under the active left-nav link (.menu-active), so the
@@ -249,6 +260,47 @@ export default class extends Controller {
 
   groupTabs(group) {
     return this.codeTabTargets.filter((t) => group.contains(t))
+  }
+
+  // --- 4. Theme (global sticky preference) -----------------------------------
+  //
+  // daisyUI swaps the theme visually via a CSS :has() selector with zero JS, but
+  // that state lives only in the DOM and is lost on navigation (the flash). We
+  // persist the chosen theme to localStorage here and re-apply it; the anti-flash
+  // <head> script (DocsUI::Shell) restores it BEFORE first paint so there's no
+  // flicker on load.
+
+  get themeKey() {
+    return `docs-kit:${this.storageKeyValue}:theme`
+  }
+
+  readTheme() {
+    return this.read(this.themeKey)
+  }
+
+  // A theme radio changed: persist + apply. Wired via change->docs-nav#selectTheme.
+  selectTheme(event) {
+    const theme = event.target?.value
+    if (!theme) return
+    this.write(this.themeKey, theme)
+    this.applyTheme(theme)
+  }
+
+  // Set data-theme on <html> and check the matching radio (so the switcher shows
+  // the current theme after a navigation). No saved theme → leave the server
+  // default in place.
+  applyTheme(theme) {
+    if (!theme) return
+    document.documentElement.setAttribute("data-theme", theme)
+    this.element
+      .querySelectorAll('input.theme-controller[type="radio"]')
+      .forEach((radio) => (radio.checked = radio.value === theme))
+  }
+
+  // --- 5. On-this-page toggle (mobile / :toggle mode popover) -----------------
+
+  toggleToc() {
+    this.tocPopoverTargets.forEach((el) => el.classList.toggle("hidden"))
   }
 
   // --- storage (private, fails safe if localStorage is unavailable) -----------

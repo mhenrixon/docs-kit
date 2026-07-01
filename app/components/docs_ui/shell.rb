@@ -71,27 +71,48 @@ module DocsUI
         meta(name: "turbo-refresh-method", content: "morph")
         meta(name: "turbo-refresh-scroll", content: "preserve")
         config.stylesheets.each { |sheet| stylesheet_link_tag(sheet, data: { turbo_track: "reload" }) }
+        theme_restore_script
         javascript_importmap_tags
+      end
+    end
+
+    # Restore the persisted theme BEFORE first paint so there's no flash of the
+    # server default before the docs-nav controller runs. Reads the same
+    # localStorage key the controller writes (docs-kit:<site>:theme). Runs on
+    # initial load and on Turbo page renders (turbo:load).
+    def theme_restore_script
+      key = "docs-kit:#{config.nav_storage_key}:theme"
+      script do
+        raw(safe(<<~JS))
+          (function(){
+            function apply(){
+              try{
+                var t = localStorage.getItem(#{key.to_json});
+                if (t) document.documentElement.setAttribute("data-theme", t);
+              }catch(e){}
+            }
+            apply();
+            document.addEventListener("turbo:load", apply);
+          })();
+        JS
       end
     end
 
     # The daisyUI Drawer app-shell. Desktop: sidebar always open (lg:drawer-open).
     # Mobile: sidebar hidden, toggled by the hamburger in the topbar.
-    def shell(&)
+    def shell(&block)
       Drawer(id: DRAWER_ID, class: "lg:drawer-open min-h-screen") do |drawer|
         drawer.toggle
 
         drawer.content(class: "flex flex-col min-h-screen") do
           topbar
           main(class: "flex-1 overflow-auto px-4 py-8 md:px-8") do
-            # `relative` anchors the :panel/:toggle "On this page" (absolute
-            # right-0 top-0) to the content column, not the viewport.
-            div(class: "relative mx-auto max-w-4xl") do
-              # panel/toggle render their sticky slot alongside the content; the
-              # docs-nav controller (on the sidebar root) fills it.
-              render DocsUI::OnThisPage.new(mode: @on_page) if content_toc?
-              yield
-            end
+            # The :panel/:toggle "On this page" is position:fixed to the viewport's
+            # top-right (below the topbar), so it never overlaps the prose. Render
+            # it here so it's inside the docs-nav controller scope; the controller
+            # fills it from the page headings.
+            render DocsUI::OnThisPage.new(mode: @on_page) if content_toc?
+            div(class: "mx-auto max-w-4xl", &block)
           end
         end
 

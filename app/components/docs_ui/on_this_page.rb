@@ -9,9 +9,11 @@ module DocsUI
   # Three placements, same data, chosen by `mode:` (see
   # DocsKit::Configuration::ON_PAGE_MODES):
   #
-  #   :panel   — a sticky card floating in the top-right of the content column
-  #   :toggle  — a sticky floating button (top-right) that opens a dropdown
-  #   :sidebar — a slot the controller fills under the active left-nav item
+  #   :panel   — a fixed card pinned to the top-right of the viewport (below the
+  #              topbar). On wide screens it's always visible; on narrower screens
+  #              it collapses to a floating toggle button (docs-nav#toggleToc).
+  #   :toggle  — always the floating toggle button + dropdown (top-right).
+  #   :sidebar — a slot the controller fills under the active left-nav item.
   #
   # The controller hides the whole thing when the page has too few headings, so
   # short pages show nothing (data-docs-nav-target="tocRoot" + auto-hide).
@@ -25,7 +27,7 @@ module DocsUI
 
     def view_template
       case @mode
-      when :toggle then toggle
+      when :toggle then toggle_only
       when :sidebar then nil # the controller injects under the active nav item; no content slot
       else panel
       end
@@ -33,42 +35,66 @@ module DocsUI
 
     private
 
-    # Common: the empty list the controller fills. `tocRoot` is what auto-hides.
-    def toc_target(**attrs)
-      nav(**mix({ aria_label: @title, data: { docs_nav_target: "toc tocRoot" } }, attrs))
-    end
-
-    def heading
-      div(class: "mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-base-content/50") { @title }
-    end
-
-    # :panel — a sticky card in the top-right of the content column. Hidden on
-    # narrow screens (where :toggle would be used); the content stays full-width.
-    def panel
-      # Floats to the right of the prose and sticks below the topbar as you
-      # scroll. Shown from lg up (where the content column has room to its right);
-      # on smaller screens prefer :toggle.
-      toc_target(
-        class: "not-prose hidden lg:block float-right sticky top-24 ml-6 mb-4 w-56 " \
-               "rounded-box border border-base-300 bg-base-200/60 p-3 text-sm"
-      ) do
+    # The empty list the controller fills. `tocRoot` is what auto-hides on short
+    # pages; the docs-nav controller populates the inner list.
+    def toc_list(**attrs)
+      nav(**mix({ aria_label: @title, data: { docs_nav_target: "toc" } }, attrs)) do
         heading
       end
     end
 
-    # :toggle — a sticky floating button that opens a daisyUI dropdown. Zero extra
-    # JS for the open/close (daisyUI dropdown); the controller only fills the list.
-    def toggle
-      div(class: "not-prose dropdown dropdown-end sticky-toc absolute right-0 top-0") do
-        div(tabindex: "0", role: "button",
-            class: "btn btn-sm btn-ghost gap-1", aria_label: @title) do
+    def heading
+      div(class: "mb-2 text-xs font-semibold uppercase tracking-wider text-base-content/60") { @title }
+    end
+
+    # :panel — a card fixed to the top-right of the viewport, just below the
+    # sticky topbar. Solid bg-base-300 with a border + shadow so it stands out and
+    # stays out of the way (it never overlaps the prose). On < xl it's hidden and
+    # the compact toggle button takes over instead.
+    #
+    # data-docs-nav-target="tocRoot" wraps BOTH the card and the toggle so the
+    # controller hides the whole feature at once on short pages.
+    def panel
+      div(class: "not-prose", data: { docs_nav_target: "tocRoot" }) do
+        # Wide screens: the always-visible card.
+        toc_list(
+          class: "hidden xl:block fixed right-4 top-20 z-20 max-h-[70vh] w-64 overflow-y-auto " \
+                 "rounded-box border border-base-300 bg-base-300 p-4 text-sm shadow-xl"
+        )
+        # Narrower screens: a floating toggle button that reveals the same card.
+        floating_toggle(hidden_from: "xl")
+      end
+    end
+
+    # :toggle — always the floating toggle button (no always-visible card).
+    def toggle_only
+      div(class: "not-prose", data: { docs_nav_target: "tocRoot" }) do
+        floating_toggle(hidden_from: nil)
+      end
+    end
+
+    # A floating button pinned top-right that toggles a popover TOC card.
+    # hidden_from: a Tailwind breakpoint above which the button hides (so :panel
+    # shows the card instead); nil to always show it (:toggle mode).
+    def floating_toggle(hidden_from:)
+      wrapper = ["fixed right-4 top-20 z-20"]
+      wrapper << "#{hidden_from}:hidden" if hidden_from
+
+      div(class: wrapper.join(" "), data: { docs_nav_target: "tocToggleWrap" }) do
+        button(
+          type: "button",
+          class: "btn btn-sm gap-1 border border-base-300 bg-base-300 shadow-lg",
+          aria_label: @title,
+          data: { action: "docs-nav#toggleToc", docs_nav_target: "tocToggleBtn" }
+        ) do
           render DocsUI::Icon.new("list", class: "size-4")
-          plain @title
+          span(class: "hidden sm:inline") { @title }
         end
-        toc_target(
-          tabindex: "0",
-          class: "dropdown-content z-10 mt-2 w-64 rounded-box border border-base-300 " \
-                 "bg-base-200 p-3 shadow-2xl"
+        # The popover card, hidden until toggled.
+        toc_list(
+          class: "hidden mt-2 max-h-[70vh] w-64 overflow-y-auto rounded-box " \
+                 "border border-base-300 bg-base-300 p-4 text-sm shadow-xl",
+          data: { docs_nav_target: "tocPopover" }
         )
       end
     end
