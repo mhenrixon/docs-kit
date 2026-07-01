@@ -167,6 +167,12 @@ export default class extends Controller {
       { rootMargin: "0px 0px -80% 0px", threshold: 0 },
     )
     headings.forEach((h) => this.observer.observe(h))
+
+    // Seed the highlight immediately (don't wait for the first scroll): the URL
+    // hash if present, else the first section. Makes deep-links land highlighted.
+    const hashId = decodeURIComponent((window.location.hash || "").slice(1))
+    const initial = headings.find((h) => h.id === hashId) || headings[0]
+    if (initial) this.highlight(initial.id)
   }
 
   onIntersect(entries, headings) {
