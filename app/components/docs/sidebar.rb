@@ -36,8 +36,8 @@ module Docs
       end
     end
 
-    # A top-level collapsible group with its sub-groups (e.g. "Components" →
-    # "Actions"). `grouped` is a { subgroup => [items] } Hash.
+    # A top-level collapsible group (e.g. "Docs") holding collapsible sub-groups
+    # (e.g. "Guide", "Examples"). `grouped` is a { subgroup => [items] } Hash.
     def nav_group(heading, grouped)
       return if grouped.nil? || grouped.empty?
 
@@ -45,10 +45,20 @@ module Docs
         details(open: true) do
           summary(class: "text-xs font-semibold uppercase tracking-wider text-base-content/50") { heading }
           ul do
-            grouped.each do |subgroup, items|
-              li(class: "menu-title text-xs") { subgroup }
-              items.each { |item| li { nav_link(item) } }
-            end
+            grouped.each { |subgroup, items| nav_subgroup(subgroup, items) }
+          end
+        end
+      end
+    end
+
+    # A collapsible sub-group: its title is a <summary> so the whole section folds
+    # away. daisyUI's Menu renders nested li>details as an accordion natively.
+    def nav_subgroup(subgroup, items)
+      li do
+        details(open: true) do
+          summary(class: "menu-title text-xs") { subgroup }
+          ul do
+            items.each { |item| li { nav_link(item) } }
           end
         end
       end
