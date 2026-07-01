@@ -5,67 +5,111 @@ module Views
     module Pages
       class Deploy < DocsUI::Page
         title "Deploy"
-        eyebrow "Guide"
+        eyebrow "Reference"
 
         def lead = "One reusable workflow deploys every docs-kit site to Kamal + GHCR."
 
         def content
-          DocsUI::Section("Scaffold it", description: "docs-kit new writes the whole deploy for you.") do
-            DocsUI::Prose() { p { "The CLI generates a complete, deployable app:" } }
+          DocsUI::Section("Scaffolded for you") do
+            DocsUI::Prose() do
+              p do
+                plain "The CLI writes the whole deploy: "
+                code { "config/deploy.yml" }
+                plain ", "
+                code { ".kamal/secrets" }
+                plain ", a "
+                code { "Dockerfile" }
+                plain ", and a "
+                code { ".github/workflows/deploy-docs.yml" }
+                plain " that calls the shared reusable workflow. Point it at your repo and you have a deployable app:"
+              end
+            end
             DocsUI::Code(<<~SHELL, lexer: :shell)
-              docs-kit new my-docs --image mhenrixon/my-repo --service my-repo
+              docs-kit new my-docs --image OWNER/REPO --service my-repo
             SHELL
           end
 
-          DocsUI::Section("The caller workflow") do
+          DocsUI::Section("The reusable workflow") do
             DocsUI::Prose() do
               p do
-                plain "Each site's "
+                plain "Build and deploy live "
+                strong { "once" }
+                plain " in "
+                code { "mhenrixon/docs-kit/.github/workflows/deploy.yml" }
+                plain ". Each site's "
                 code { ".github/workflows/deploy-docs.yml" }
-                plain " is a thin caller of the reusable workflow — build + deploy live in one place."
+                plain " is a thin caller — no build logic is copied per site."
               end
             end
             DocsUI::Code(<<~YAML, lexer: :yaml, filename: ".github/workflows/deploy-docs.yml")
               on:
                 release: { types: [published] }
                 workflow_dispatch:
+
+              permissions:
+                contents: read
+                packages: write
+
               jobs:
                 deploy:
                   uses: mhenrixon/docs-kit/.github/workflows/deploy.yml@main
                   with:
-                    image: mhenrixon/my-repo
+                    image: OWNER/REPO
                     service: my-repo
                   secrets: inherit
             YAML
           end
 
-          DocsUI::Section("Naming", description: "Use the repo name so the ghcr package links to the repo.") do
+          DocsUI::Section("Naming", description: "Use the repo name.") do
             DocsUI::Prose() do
               p do
                 plain "Set "
                 code { "image" }
-                plain " / "
+                plain " and "
                 code { "service" }
-                plain " to the repo's OWNER/REPO. The pushed package then auto-links to the repo, so "
+                plain " to the repo's "
+                code { "OWNER/REPO" }
+                plain ". The pushed GHCR package then auto-links to the repo, so "
                 code { "GITHUB_TOKEN" }
-                plain " can push and pull it — no PAT."
+                plain " can push "
+                strong { "and" }
+                plain " pull it — no PAT required."
               end
+            end
+            DocsUI::Callout(:warning) do
+              plain "A name that doesn't match the repo becomes an unlinked package that "
+              code { "GITHUB_TOKEN" }
+              plain " can't pull — the deploy fails when Kamal tries to fetch the image."
             end
           end
 
           DocsUI::Section("Secrets") do
+            render PropTable.new(
+              [ "Secret", "Purpose" ],
+              [
+                [ "SSH_PRIVATE_KEY", "Deploy key for the Kamal SSH user." ],
+                [ "DEPLOY_HOST", "The deploy host (IP or DNS)." ],
+                [ "DEPLOY_DOMAIN", "The public host kamal-proxy routes." ]
+              ]
+            )
             DocsUI::Prose() do
               p do
-                plain "Add a "
+                plain "Add these to a "
                 code { "docs" }
-                plain " environment with "
-                code { "SSH_PRIVATE_KEY" }
-                plain ", "
-                code { "DEPLOY_HOST" }
-                plain ", "
-                code { "DEPLOY_DOMAIN" }
-                plain ". The registry password is the auto-provided GITHUB_TOKEN."
+                plain " GitHub Environment. The registry password is the auto-provided "
+                code { "GITHUB_TOKEN" }
+                plain ", so "
+                code { "secrets: inherit" }
+                plain " passes everything the reusable workflow needs."
               end
+            end
+          end
+
+          DocsUI::Section("Requirements the caller must set") do
+            DocsUI::Callout(:warning) do
+              plain "The caller workflow MUST grant "
+              code { "permissions: packages: write" }
+              plain " itself — a reusable workflow can't escalate its caller's permissions. Without it the deploy fails at startup, before any Kamal step runs."
             end
           end
         end

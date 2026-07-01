@@ -9,11 +9,15 @@ class Doc
   extend DocsKit::Registry
 
   entries [
-    { slug: "installation",  title: "Installation",  group: "Guide",     view: "Installation" },
-    { slug: "configuration", title: "Configuration", group: "Guide",     view: "Configuration" },
-    { slug: "deploy",        title: "Deploy",        group: "Guide",     view: "Deploy" },
+    { slug: "overview",      title: "Overview",       group: "Getting started", view: "Overview" },
+    { slug: "installation",  title: "Installation",   group: "Getting started", view: "Installation" },
+    { slug: "configuration", title: "Configuration",  group: "Getting started", view: "Configuration" },
+    { slug: "authoring",     title: "Authoring pages", group: "Getting started", view: "Authoring" },
+    { slug: "styling",       title: "Styling & CSS",  group: "Getting started", view: "Styling" },
     { slug: "components",    title: "Components",     group: "Reference", view: "Components" },
-    { slug: "languages",     title: "Code languages", group: "Reference", view: "Languages" }
+    { slug: "languages",     title: "Code languages", group: "Reference", view: "Languages" },
+    { slug: "on-this-page",  title: "On this page",   group: "Reference", view: "OnThisPage" },
+    { slug: "deploy",        title: "Deploy",         group: "Reference", view: "Deploy" }
   ]
 
   attr_reader :slug, :title, :group, :view_name
