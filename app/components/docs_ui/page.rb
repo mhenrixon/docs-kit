@@ -16,6 +16,9 @@ module DocsUI
   #   end
   class Page < Phlex::HTML
     include Phlex::Rails::Helpers::Routes
+    # Authored pages subclass this, so include the kit here: a page body can call
+    # DocsUI::Section(...) / DocsUI::Code(...) directly, no render ... .new.
+    include DocsUI
 
     class << self
       def title(value = nil)
