@@ -25,8 +25,10 @@ export default class extends Controller {
   static values = {
     // CSS selector for the page content whose headings drive scroll-spy.
     content: { type: String, default: "main" },
-    // Heading selector within the content (anchored headings only).
-    headings: { type: String, default: "h2[id], h3[id]" },
+    // What to collect for the TOC. Defaults to docs-kit's anchored sections
+    // (Docs::Section renders <section id>) plus bare anchored headings, so it
+    // works whether the id sits on the section or directly on the heading.
+    headings: { type: String, default: "section[id], h2[id], h3[id]" },
     // Namespaces the localStorage keys so multiple docs sites don't collide.
     storageKey: { type: String, default: "docs" },
     // Auto-TOC placement: "panel" | "toggle" | "sidebar" | "" (off). Panel and
@@ -111,12 +113,18 @@ export default class extends Controller {
     const list = document.createElement("ul")
     list.className = "menu menu-sm w-full"
     list.setAttribute("data-docs-nav-generated", "")
-    headings.forEach((h) => {
+    headings.forEach((el) => {
+      // The anchor is the element's own id; the visible heading may be the
+      // element itself (h2/h3) or its inner heading (a Docs::Section wrapper).
+      const heading =
+        el.matches("h1,h2,h3,h4") ? el : el.querySelector("h1,h2,h3,h4")
       const li = document.createElement("li")
-      if (h.tagName === "H3") li.className = "ml-3"
+      if ((heading?.tagName || el.tagName) === "H3") li.className = "ml-3"
       const a = document.createElement("a")
-      a.href = `#${h.id}`
-      a.textContent = h.textContent.replace(/#$/, "").trim()
+      a.href = `#${el.id}`
+      a.textContent = (heading?.textContent || el.textContent || "")
+        .replace(/#$/, "")
+        .trim()
       a.setAttribute("data-docs-nav-target", "tocLink")
       li.appendChild(a)
       list.appendChild(li)
