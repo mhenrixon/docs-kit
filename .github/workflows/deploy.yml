@@ -125,7 +125,11 @@ jobs:
         with:
           registry: ${{ inputs.registry }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # github.token, NOT secrets.GITHUB_TOKEN — a reusable (workflow_call)
+          # workflow can only reference secrets it declares/inherits, so
+          # secrets.GITHUB_TOKEN there triggers a startup_failure. github.token is
+          # always available and is the same auto-provided token.
+          password: ${{ github.token }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -191,7 +195,8 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_DOMAIN: ${{ secrets.DEPLOY_DOMAIN }}
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          # github.token (auto), not secrets.GITHUB_TOKEN — see the build job.
+          KAMAL_REGISTRY_PASSWORD: ${{ github.token }}
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         run: |
           # DEPLOY_HOST/DEPLOY_DOMAIN are `docs`-environment secrets that only
