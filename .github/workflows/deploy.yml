@@ -22,6 +22,14 @@ on:
         description: "GHCR image repo, e.g. mhenrixon/daisyui (no registry, no tag)."
         required: true
         type: string
+      service:
+        description: >-
+          The Kamal service name (must equal `service:` in config/deploy.yml).
+          Stamped as the `service` image LABEL so Kamal's validate_image passes
+          on the --skip-push deploy — the image is built here (docker/build-push-action),
+          not by `kamal build`, so Kamal never injects the label itself.
+        required: true
+        type: string
       ruby_version:
         description: "Ruby for the Kamal CLI."
         required: false
@@ -109,6 +117,11 @@ jobs:
           tags: |
             ${{ inputs.registry }}/${{ inputs.image }}:${{ steps.tag.outputs.image_tag }}
             ${{ inputs.registry }}/${{ inputs.image }}:latest
+          # Kamal's validate_image greps for this `service` label on the
+          # --skip-push deploy; since the image is built here and not by
+          # `kamal build`, we must stamp it ourselves.
+          labels: |
+            service=${{ inputs.service }}
           cache-from: type=registry,ref=${{ inputs.registry }}/${{ inputs.image }}:buildcache
           cache-to: type=registry,ref=${{ inputs.registry }}/${{ inputs.image }}:buildcache,mode=max
 
@@ -158,6 +171,14 @@ jobs:
           KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         run: |
+          # DEPLOY_HOST/DEPLOY_DOMAIN are `docs`-environment secrets that only
+          # reach this job because the deploy job sets `environment: docs` AND the
+          # caller sets `secrets: inherit`. If either is dropped they resolve to ""
+          # with no error and Kamal would deploy against an empty host — fail fast.
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_DOMAIN" ]; then
+            echo "::error::DEPLOY_HOST/DEPLOY_DOMAIN empty — is the caller's 'secrets: inherit' set and does the deploy job keep 'environment: docs'?"
+            exit 1
+          fi
           bundle exec kamal deploy \
             --skip-push \
             --version="$IMAGE_TAG"
