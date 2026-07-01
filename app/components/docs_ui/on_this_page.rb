@@ -62,25 +62,27 @@ module DocsUI
                  "rounded-box border border-base-300 bg-base-300 p-4 text-sm shadow-xl"
         )
         # Narrower screens: a floating toggle button that reveals the same card.
-        floating_toggle(hidden_from: "xl")
+        floating_toggle(hide_on_xl: true)
       end
     end
 
     # :toggle — always the floating toggle button (no always-visible card).
     def toggle_only
       div(class: "not-prose", data: { docs_nav_target: "tocRoot" }) do
-        floating_toggle(hidden_from: nil)
+        floating_toggle(hide_on_xl: false)
       end
     end
 
     # A floating button pinned top-right that toggles a popover TOC card.
-    # hidden_from: a Tailwind breakpoint above which the button hides (so :panel
-    # shows the card instead); nil to always show it (:toggle mode).
-    def floating_toggle(hidden_from:)
-      wrapper = ["fixed right-4 top-20 z-20"]
-      wrapper << "#{hidden_from}:hidden" if hidden_from
+    # hide_on_xl: true for :panel (hide the button at xl+, where the always-open
+    # card shows instead); false for :toggle (always show the button). The
+    # `xl:hidden` class is written as a LITERAL (never interpolated) so Tailwind's
+    # scanner keeps it — a computed "#{bp}:hidden" would be tree-shaken away.
+    def floating_toggle(hide_on_xl:)
+      wrapper = "fixed right-4 top-20 z-20"
+      wrapper += " xl:hidden" if hide_on_xl
 
-      div(class: wrapper.join(" "), data: { docs_nav_target: "tocToggleWrap" }) do
+      div(class: wrapper, data: { docs_nav_target: "tocToggleWrap" }) do
         button(
           type: "button",
           class: "btn btn-sm gap-1 border border-base-300 bg-base-300 shadow-lg",
