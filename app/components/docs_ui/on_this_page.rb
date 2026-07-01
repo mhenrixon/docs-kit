@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # An "On this page" table of contents that auto-collects the current page's
   # <h2>/<h3> and highlights the section you're reading (scroll-spy). It ships
   # EMPTY — the docs-nav Stimulus controller fills it from the DOM, so a page gets
@@ -16,7 +16,7 @@ module Docs
   # The controller hides the whole thing when the page has too few headings, so
   # short pages show nothing (data-docs-nav-target="tocRoot" + auto-hide).
   #
-  #   render Docs::OnThisPage.new(mode: :panel)
+  #   render DocsUI::OnThisPage.new(mode: :panel)
   class OnThisPage < Phlex::HTML
     def initialize(mode: :panel, title: "On this page")
       @mode = mode
@@ -62,7 +62,7 @@ module Docs
       div(class: "not-prose dropdown dropdown-end sticky-toc absolute right-0 top-0") do
         div(tabindex: "0", role: "button",
             class: "btn btn-sm btn-ghost gap-1", aria_label: @title) do
-          render Docs::Icon.new("list", class: "size-4")
+          render DocsUI::Icon.new("list", class: "size-4")
           plain @title
         end
         toc_target(

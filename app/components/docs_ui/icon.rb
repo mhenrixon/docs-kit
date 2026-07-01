@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # Renders a synced lucide icon as inline SVG via rails_icons. Thin Phlex wrapper.
   #
-  #   render Docs::Icon.new("search", class: "size-4")
+  #   render DocsUI::Icon.new("search", class: "size-4")
   #
   # A missing icon name falls back to a question-mark glyph outside development,
   # rather than raising, so a typo never takes down a docs page in production.

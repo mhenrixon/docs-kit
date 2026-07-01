@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # A callout box (note / tip / warning) for the docs. daisyUI alert styling + a
   # lucide icon per level.
   #
-  #   render Docs::Callout.new(:warning) { "Restart the server after…" }
+  #   render DocsUI::Callout.new(:warning) { "Restart the server after…" }
   class Callout < Phlex::HTML
     LEVELS = {
       note: { klass: "alert-info", icon: "info" },
@@ -19,7 +19,7 @@ module Docs
 
     def view_template(&)
       div(class: "not-prose alert #{@config[:klass]} my-4 items-start", role: "note") do
-        render Docs::Icon.new(@config[:icon], class: "size-5 shrink-0")
+        render DocsUI::Icon.new(@config[:icon], class: "size-5 shrink-0")
         div do
           div(class: "font-semibold") { @title } if @title
           div(class: "text-sm", &)

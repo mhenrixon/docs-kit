@@ -2,14 +2,14 @@
 
 require "rouge"
 
-module Docs
+module DocsUI
   # A syntax-highlighted code block for docs and demo panels. Rouge does the
   # highlighting; an optional filename/label sits in a title bar like a real docs
   # code sample. Self-contained: it injects its own Rouge theme CSS so no separate
   # stylesheet asset is required.
   #
-  #   render Docs::Code.new(ruby_source)                        # ruby, no title
-  #   render Docs::Code.new(erb, lexer: :erb, filename: "...")   # labelled
+  #   render DocsUI::Code.new(ruby_source)                        # ruby, no title
+  #   render DocsUI::Code.new(erb, lexer: :erb, filename: "...")   # labelled
   class Code < Phlex::HTML
     FORMATTER = Rouge::Formatters::HTML.new
 
@@ -43,7 +43,7 @@ module Docs
 
     def title_bar
       div(class: "flex items-center gap-2 border-b border-base-300 bg-base-300/60 px-4 py-2") do
-        render Docs::Icon.new("file-code", class: "size-3.5 opacity-60")
+        render DocsUI::Icon.new("file-code", class: "size-3.5 opacity-60")
         span(class: "font-mono text-xs opacity-70") { @filename }
       end
     end

@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # A doc page header: an optional eyebrow (kicker), the title, and a lead
   # paragraph. Gives every doc page a consistent masthead.
   #
-  #   render Docs::Header.new(title: "Installation", eyebrow: "Guide") do
+  #   render DocsUI::Header.new(title: "Installation", eyebrow: "Guide") do
   #     plain "Add the gem and render your first component."
   #   end
   class Header < Phlex::HTML

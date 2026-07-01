@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Docs::Code do
+RSpec.describe DocsUI::Code do
   it "highlights ruby source and injects scoped theme CSS" do
     html = described_class.new("puts 'hi'").call
 

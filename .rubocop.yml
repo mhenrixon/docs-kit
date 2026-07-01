@@ -34,8 +34,8 @@ Style/OneClassPerFile:
 # markup they emit, not accidental complexity.
 Metrics/AbcSize:
   Exclude:
-    - "app/components/docs/shell.rb"
-    - "app/components/docs/page.rb"
+    - "app/components/docs_ui/shell.rb"
+    - "app/components/docs_ui/page.rb"
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes

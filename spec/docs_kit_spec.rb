@@ -87,13 +87,13 @@ RSpec.describe DocsKit do
     end
   end
 
-  describe "the Docs Phlex kit" do
+  describe "the DocsUI Phlex kit" do
     it "is a Phlex::Kit" do
-      expect(Docs.singleton_class.ancestors).to include(Phlex::Kit)
+      expect(DocsUI.singleton_class.ancestors).to include(Phlex::Kit)
     end
 
-    it "autoloads Docs::Code as a Phlex component" do
-      expect(Docs::Code.ancestors).to include(Phlex::SGML)
+    it "autoloads DocsUI::Code as a Phlex component" do
+      expect(DocsUI::Code.ancestors).to include(Phlex::SGML)
     end
   end
 end

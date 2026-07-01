@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # A multi-language code group: the same example shown in several languages, with
   # tabs to switch. The chosen language is a GLOBAL sticky preference (localStorage
   # via the docs-nav controller) — pick Ruby once and every code group on this and
   # future pages shows Ruby, falling back to an available language when a group
   # doesn't have the chosen one.
   #
-  #   render Docs::Example.new do |ex|
+  #   render DocsUI::Example.new do |ex|
   #     ex.code(:ruby, filename: "client.rb") do
   #       <<~RUBY
   #         Anthropic.messages.create(model: "claude-opus-4-8", ...)
@@ -20,7 +20,7 @@ module Docs
   #     end
   #   end
   #
-  # With one snippet it degrades to a plain Docs::Code (no tabs). With JS off the
+  # With one snippet it degrades to a plain DocsUI::Code (no tabs). With JS off the
   # first language shows and the rest are visible below it (progressive
   # enhancement — no content is hidden without JS).
   class Example < Phlex::HTML
@@ -32,7 +32,7 @@ module Docs
       php: "PHP", curl: "cURL", json: "JSON", yaml: "YAML", html: "HTML", erb: "ERB"
     }.freeze
 
-    # Lexer aliases → the Docs::Code lexer key (Rouge). Tokens map to a lexer so a
+    # Lexer aliases → the DocsUI::Code lexer key (Rouge). Tokens map to a lexer so a
     # site can use a friendly language name that isn't a Rouge lexer verbatim.
     LEXER_FOR = { curl: :shell, bash: :shell }.freeze
 
@@ -71,7 +71,7 @@ module Docs
 
     def render_single
       snippet = @snippets.first
-      render Docs::Code.new(snippet[:source], lexer: snippet[:lexer], filename: snippet[:filename])
+      render DocsUI::Code.new(snippet[:source], lexer: snippet[:lexer], filename: snippet[:filename])
     end
 
     def language_tabs
@@ -100,7 +100,7 @@ module Docs
             lang: snippet[:lang]
           }
         ) do
-          render Docs::Code.new(snippet[:source], lexer: snippet[:lexer], filename: snippet[:filename])
+          render DocsUI::Code.new(snippet[:source], lexer: snippet[:lexer], filename: snippet[:filename])
         end
       end
     end

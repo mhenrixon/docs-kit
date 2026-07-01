@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # daisyUI theme switcher — a dropdown of radio inputs with the `theme-controller`
   # class. daisyUI swaps the page theme (data-theme on :root) with ZERO JavaScript
   # via a CSS :has() selector, so this fits a no-custom-JS docs site.
@@ -11,7 +11,7 @@ module Docs
     def view_template
       div(class: "dropdown dropdown-end") do
         div(tabindex: "0", role: "button", class: "btn btn-sm btn-ghost gap-1") do
-          render Docs::Icon.new("palette", class: "size-4")
+          render DocsUI::Icon.new("palette", class: "size-4")
           plain "Theme"
         end
         ul(tabindex: "0",

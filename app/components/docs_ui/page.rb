@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # The base class for a hand-authored doc page. Subclasses set the title (and
   # optional eyebrow/lead) and implement #content with the page body, composing
-  # the doc kit (Section/Prose/Code/Callout). Page renders it inside Docs::Shell
+  # the doc kit (Section/Prose/Code/Callout). Page renders it inside DocsUI::Shell
   # with a consistent masthead.
   #
-  #   class Views::Docs::Pages::Installation < Docs::Page
+  #   class Views::Docs::Pages::Installation < DocsUI::Page
   #     title "Installation"
   #     eyebrow "Guide"
   #     def lead = "Add the gem and render your first component."
   #     def content
-  #       render Docs::Section.new("Add the gem") { … }
+  #       render DocsUI::Section.new("Add the gem") { … }
   #     end
   #   end
   class Page < Phlex::HTML
@@ -38,12 +38,12 @@ module Docs
     end
 
     def view_template
-      render Docs::Shell.new(title: self.class.title, on_page: self.class.on_page) do
+      render DocsUI::Shell.new(title: self.class.title, on_page: self.class.on_page) do
         nav(class: "mb-6") do
           a(href: root_path, class: "link link-hover text-sm opacity-70") { "← Home" }
         end
 
-        render Docs::Header.new(title: self.class.title, eyebrow: self.class.eyebrow) do
+        render DocsUI::Header.new(title: self.class.title, eyebrow: self.class.eyebrow) do
           plain lead if lead
         end
 

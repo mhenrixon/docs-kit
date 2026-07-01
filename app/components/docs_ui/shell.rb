@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # The site shell — the full HTML document. A Phlex layout built on the daisyUI
   # Drawer: a sticky topbar, a sidebar always visible on desktop (lg:drawer-open)
   # that toggles as an overlay on mobile, and the page content in a scrollable
@@ -12,7 +12,7 @@ module Docs
   # nesting. phlex-rails still renders through a real view context, so CSRF,
   # dom_id, url helpers, and the reactive token signer all work inside components.
   #
-  #   render Docs::Shell.new(title: "Installation") { page_body }
+  #   render DocsUI::Shell.new(title: "Installation") { page_body }
   class Shell < Phlex::HTML
     include Phlex::Rails::Helpers::CSRFMetaTags
     include Phlex::Rails::Helpers::CSPMetaTag
@@ -89,7 +89,7 @@ module Docs
             div(class: "relative mx-auto max-w-4xl") do
               # panel/toggle render their sticky slot alongside the content; the
               # docs-nav controller (on the sidebar root) fills it.
-              render Docs::OnThisPage.new(mode: @on_page) if content_toc?
+              render DocsUI::OnThisPage.new(mode: @on_page) if content_toc?
               yield
             end
           end
@@ -97,7 +97,7 @@ module Docs
 
         drawer.side(class: "z-40") do
           drawer.overlay
-          render Docs::Sidebar.new
+          render DocsUI::Sidebar.new
         end
       end
     end
@@ -107,11 +107,11 @@ module Docs
       div(class: "navbar bg-base-200 border-b border-base-300 sticky top-0 z-30 px-4") do
         div(class: "flex-1 items-center gap-2") do
           label(for: DRAWER_ID, class: "btn btn-square btn-ghost btn-sm lg:hidden",
-                aria_label: "Open menu") { render Docs::Icon.new("menu", class: "size-5") }
+                aria_label: "Open menu") { render DocsUI::Icon.new("menu", class: "size-5") }
           a(href: "/", class: "btn btn-ghost text-lg font-bold") { config.brand }
         end
         div(class: "flex-none") do
-          render Docs::ThemeSwitcher.new
+          render DocsUI::ThemeSwitcher.new
         end
       end
     end

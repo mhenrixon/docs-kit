@@ -34,22 +34,24 @@ module DocsKit
   end
 end
 
-# The Docs namespace is a Phlex::Kit so `include Docs` exposes every component
-# constant as a bare callable method (Shell, Page, Code, Menu, ...). Defined
-# before loader.setup so zeitwerk autoloads its children (Docs::Shell, ...) into
-# this already-extended module.
-module Docs
+# The DocsUI namespace is a Phlex::Kit so `include DocsUI` exposes every
+# component constant as a bare callable method (DocsUI::Shell(), DocsUI::Code(),
+# ...). Named DocsUI (not Docs) so it never collides with a host app's own
+# `Views::Docs` page namespace, and to match the UI/AdminUI/DocsUI kit convention.
+# Defined before loader.setup so zeitwerk autoloads its children into this
+# already-extended module.
+module DocsUI
   extend Phlex::Kit
 end
 
 loader = Zeitwerk::Loader.new
 loader.tag = "docs_kit"
-loader.inflector.inflect("docs_kit" => "DocsKit")
+loader.inflector.inflect("docs_kit" => "DocsKit", "docs_ui" => "DocsUI")
 # DocsKit::* support code (registry mixin, engine helpers) under lib/docs_kit/,
 # excluding the eagerly-required files below.
 loader.push_dir(File.expand_path("docs_kit", __dir__), namespace: DocsKit)
-# The shippable Phlex components under app/components/docs/ → Docs::*.
-loader.push_dir(File.expand_path("../app/components/docs", __dir__), namespace: Docs)
+# The shippable Phlex components under app/components/docs_ui/ → DocsUI::*.
+loader.push_dir(File.expand_path("../app/components/docs_ui", __dir__), namespace: DocsUI)
 loader.ignore(File.expand_path("docs_kit/version.rb", __dir__))
 loader.ignore(File.expand_path("docs_kit/configuration.rb", __dir__))
 # engine.rb is required explicitly below only under Rails, so zeitwerk never

@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # The drawer sidebar: a brand header (with an optional version badge) over the
   # nav, driven entirely by DocsKit.configuration.nav_groups. Renders inside the
-  # daisyUI drawer-side (Docs::Shell owns responsive visibility), so this is just
+  # daisyUI drawer-side (DocsUI::Shell owns responsive visibility), so this is just
   # the panel content.
   #
   # nav_groups is an ordered Hash:
@@ -13,7 +13,7 @@ module Docs
     include DaisyUI
 
     def view_template
-      # The docs-nav Stimulus controller lives on <body> (Docs::Shell) so it spans
+      # The docs-nav Stimulus controller lives on <body> (DocsUI::Shell) so it spans
       # this sidebar AND the content column. Here it drives collapse persistence
       # and, in :sidebar mode, hosts the injected page TOC. With JS off the server
       # renders every <details open>, so the sidebar is simply fully expanded.
@@ -70,7 +70,7 @@ module Docs
 
     def nav_link(item)
       a(href: item.href, class: link_classes(item.href)) do
-        render Docs::Icon.new(item.icon, class: "size-4 shrink-0") if item.icon
+        render DocsUI::Icon.new(item.icon, class: "size-4 shrink-0") if item.icon
         span(class: "truncate") { item.label }
       end
     end

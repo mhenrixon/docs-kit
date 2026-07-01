@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe Docs::Example do
+RSpec.describe DocsUI::Example do
   def render_group(&)
     described_class.new.call(&)
   end

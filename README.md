@@ -11,18 +11,18 @@ and Postgres-SSE transport ([pgbus](https://github.com/mhenrixon/pgbus)) are
 
 ## What you get
 
-A `Docs::` Phlex kit, configured once per site:
+A `DocsUI::` Phlex kit, configured once per site:
 
 | Component | Role |
 |-----------|------|
-| `Docs::Shell` | The full HTML document: daisyUI Drawer shell, sticky topbar, sidebar, scrollable main. |
-| `Docs::Sidebar` | Config-driven grouped nav with active-link highlighting + an optional version badge. |
-| `Docs::ThemeSwitcher` | Zero-JS daisyUI theme dropdown (themes come from config). |
-| `Docs::Icon` | Inline lucide SVG via `rails_icons`. |
-| `Docs::Code` | Rouge-highlighted code block with an inline theme (no extra stylesheet). |
-| `Docs::Page` | Base class for a hand-authored doc page; renders inside `Docs::Shell`. |
-| `Docs::Header` / `Section` / `Prose` / `Callout` | The page-authoring kit. |
-| `Docs::Example` | Base for a live example with `method_source`-extracted source. |
+| `DocsUI::Shell` | The full HTML document: daisyUI Drawer shell, sticky topbar, sidebar, scrollable main. |
+| `DocsUI::Sidebar` | Config-driven grouped nav with active-link highlighting + an optional version badge. |
+| `DocsUI::ThemeSwitcher` | Zero-JS daisyUI theme dropdown (themes come from config). |
+| `DocsUI::Icon` | Inline lucide SVG via `rails_icons`. |
+| `DocsUI::Code` | Rouge-highlighted code block with an inline theme (no extra stylesheet). |
+| `DocsUI::Page` | Base class for a hand-authored doc page; renders inside `DocsUI::Shell`. |
+| `DocsUI::Header` / `Section` / `Prose` / `Callout` | The page-authoring kit. |
+| `DocsUI::Example` | Base for a live example with `method_source`-extracted source. |
 
 Plus `DocsKit::Registry` (in-memory docs registry mixin), `DocsKit::NavItem`
 (sidebar link value object), and `DocsKit::Controller#render_page`.
@@ -75,22 +75,22 @@ def show = render_page(Views::Docs::Pages::Installation.new)
 ```
 
 `render_page(view)` renders the Phlex page with `layout: false`, because
-`Docs::Shell` IS the full HTML document. phlex-rails still renders through a real
+`DocsUI::Shell` IS the full HTML document. phlex-rails still renders through a real
 view context, so CSRF, `dom_id`, url helpers, and the reactive token signer all
 work inside components.
 
 A page composes the shell + kit:
 
 ```ruby
-class Views::Docs::Pages::Installation < Docs::Page
+class Views::Docs::Pages::Installation < DocsUI::Page
   title "Installation"
   eyebrow "Guide"
   def lead = "Add the gem and render your first component."
 
   def content
-    render Docs::Section.new("Add the gem") do
-      render Docs::Prose.new { p { "Components are plain Ruby classes." } }
-      render Docs::Code.new(<<~RUBY, filename: "Gemfile")
+    render DocsUI::Section.new("Add the gem") do
+      render DocsUI::Prose.new { p { "Components are plain Ruby classes." } }
+      render DocsUI::Code.new(<<~RUBY, filename: "Gemfile")
         gem "docs-kit"
       RUBY
     end
@@ -147,20 +147,20 @@ server round-trip:
   sidebar stays how they left it across navigations. The server always renders
   every section `open`, so with JS off the sidebar is simply fully expanded
   (progressive enhancement).
-- **"On this page" auto-TOC** — collects the current page's `Docs::Section`
+- **"On this page" auto-TOC** — collects the current page's `DocsUI::Section`
   anchors from the DOM and renders a live, scroll-spied table of contents in one
   of three placements, auto-hiding on short pages. No server-side knowledge of
   the headings, no per-page wiring.
 
 ### On this page (auto-TOC)
 
-`Docs::Page` renders it automatically. The placement is a strategy — set the
+`DocsUI::Page` renders it automatically. The placement is a strategy — set the
 site-wide default, override per page:
 
 ```ruby
 DocsKit.configure { |c| c.on_page_default = :panel }   # :panel | :toggle | :sidebar | false
 
-class Views::Docs::Pages::Installation < Docs::Page
+class Views::Docs::Pages::Installation < DocsUI::Page
   on_page :toggle   # override just this page; `false` opts out
 end
 ```
@@ -175,7 +175,7 @@ All three are driven by the same `docs-nav` controller reading the page's
 headings, so they need zero per-page data. A page with fewer than 2 sections
 hides the TOC. Scroll-spy highlights the section you're reading.
 
-`Docs::Sidebar` already carries `data-controller="docs-nav"`. Register the
+`DocsUI::Sidebar` already carries `data-controller="docs-nav"`. Register the
 controller in the host app:
 
 ```js

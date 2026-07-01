@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # A titled doc section with an anchor (so the heading is linkable). Body is the
   # block. Use inside a Page; compose with Prose for the text.
   #
-  #   render Docs::Section.new("Add the gem") do
-  #     render Docs::Prose.new { p { "…" } }
+  #   render DocsUI::Section.new("Add the gem") do
+  #     render DocsUI::Prose.new { p { "…" } }
   #   end
   class Section < Phlex::HTML
     def initialize(title, id: nil)

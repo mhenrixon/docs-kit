@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-module Docs
+module DocsUI
   # A typographic wrapper for hand-authored doc prose. Gives consistent reading
   # rhythm via Tailwind's arbitrary-variant child selectors (so it does not depend
   # on a specific typography plugin config). Authoring a doc is just writing
   # p/ul/h3/code inside.
   #
-  #   render Docs::Prose.new do
+  #   render DocsUI::Prose.new do
   #     p { "Components are plain Ruby classes." }
   #     ul { li { "…" } }
   #   end
