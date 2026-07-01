@@ -2,14 +2,28 @@ name: Reusable docs deploy
 on:
   workflow_call:
     inputs:
-      image:
-        required: true
-        type: string
-      service:
-        required: true
-        type: string
+      image: { required: true, type: string }
+      service: { required: true, type: string }
+      ruby_version: { required: false, default: "3.4", type: string }
+      working_directory: { required: false, default: "docs", type: string }
+      dockerfile: { required: false, default: "docs/Dockerfile", type: string }
+      build_context: { required: false, default: ".", type: string }
+      registry: { required: false, default: "ghcr.io", type: string }
+    secrets:
+      SSH_PRIVATE_KEY: { required: false }
+      DEPLOY_HOST: { required: false }
+      DEPLOY_DOMAIN: { required: false }
+concurrency:
+  group: deploy-docs-${{ inputs.image }}
+  cancel-in-progress: false
+permissions:
+  contents: read
 jobs:
   noop:
     runs-on: ubuntu-latest
+    environment: docs
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - run: echo "reusable workflow reached, image=${{ inputs.image }} service=${{ inputs.service }}"
+      - run: echo "reached with env+perms+concurrency+secrets, host=${{ secrets.DEPLOY_HOST }}"
