@@ -11,6 +11,12 @@ AllCops:
 Style/Documentation:
   Enabled: false
 
+# lib/docs-kit.rb must match the hyphenated gem name for Bundler's auto-require;
+# it just requires the underscored real entrypoint.
+Naming/FileName:
+  Exclude:
+    - "lib/docs-kit.rb"
+
 # Phlex components subclass Phlex::HTML, whose #initialize takes no args; calling
 # super is unnecessary and Phlex doesn't expect it.
 Lint/MissingSuper:
