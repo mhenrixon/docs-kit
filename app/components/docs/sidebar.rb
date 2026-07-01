@@ -13,7 +13,17 @@ module Docs
     include DaisyUI
 
     def view_template
-      div(class: "bg-base-200 flex min-h-full w-72 flex-col") do
+      # data-controller="docs-nav" (from docs-kit's bundled Stimulus controller)
+      # persists each <details> open/closed to localStorage and drives scroll-spy.
+      # With JS off it's inert — the server renders every <details open>, so the
+      # sidebar is simply fully expanded (progressive enhancement).
+      div(
+        class: "bg-base-200 flex min-h-full w-72 flex-col",
+        data: {
+          controller: "docs-nav",
+          docs_nav_storage_key_value: config.nav_storage_key
+        }
+      ) do
         header_section
         div(class: "flex-1 overflow-y-auto px-2 pb-6") do
           Menu(class: "w-full gap-1") do

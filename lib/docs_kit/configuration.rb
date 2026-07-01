@@ -50,6 +50,11 @@ module DocsKit
     # The lucide icon name used for a nav group with no explicit icon.
     attr_accessor :default_group_icon
 
+    # Namespaces the sidebar's localStorage keys (collapse state) so two docs
+    # sites on the same origin don't clobber each other. Defaults to a slug of
+    # the brand.
+    attr_writer :nav_storage_key
+
     def initialize
       @brand = "Docs"
       @title_suffix = nil
@@ -60,6 +65,11 @@ module DocsKit
       @stylesheets = %w[application]
       @code_theme = "Rouge::Themes::Monokai"
       @default_group_icon = "file-text"
+      @nav_storage_key = nil
+    end
+
+    def nav_storage_key
+      @nav_storage_key || @brand.to_s.downcase.gsub(/[^a-z0-9]+/, "-").gsub(/\A-+|-+\z/, "")
     end
 
     def title_suffix

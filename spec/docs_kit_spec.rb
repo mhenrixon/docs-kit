@@ -26,6 +26,14 @@ RSpec.describe DocsKit do
       expect(described_class.configuration.default_theme).to eq("night")
     end
 
+    it "slugifies the brand into a nav_storage_key, overridable" do
+      described_class.configure { |c| c.brand = "DaisyUI Ruby" }
+      expect(described_class.configuration.nav_storage_key).to eq("daisyui-ruby")
+
+      described_class.configure { |c| c.nav_storage_key = "custom" }
+      expect(described_class.configuration.nav_storage_key).to eq("custom")
+    end
+
     it "resolves nav from a callable into a Hash" do
       described_class.configure { |c| c.nav = -> { { "Docs" => { "Guide" => [1, 2] } } } }
 
