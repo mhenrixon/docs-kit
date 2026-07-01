@@ -147,7 +147,6 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment: docs
     # Pull-only (kamal deploy --skip-push); no image push, so packages: read.
     permissions:
       contents: read
