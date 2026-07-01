@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
   s.files = begin
     files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
       ls.readlines("\x0", chomp: true).select do |f|
-        f.start_with?("lib/", "app/", "config/") ||
+        f.start_with?("exe/", "lib/", "app/", "config/") ||
           f == "CHANGELOG.md" || f == "LICENSE.txt" || f == "README.md"
       end
     end
@@ -30,10 +30,13 @@ Gem::Specification.new do |s|
     # lib/**/* (not just *.rb) so generator templates + USAGE + bin scripts under
     # lib/generators ship even when building without .git (e.g. in a container).
     Dir[
-      "lib/**/*", "app/**/*", "config/**/*",
+      "exe/*", "lib/**/*", "app/**/*", "config/**/*",
       "CHANGELOG.md", "LICENSE.txt", "README.md"
     ].select { |f| File.file?(f) }
   end
+
+  s.bindir = "exe"
+  s.executables = s.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
 
   s.homepage = "https://github.com/mhenrixon/docs-kit"
   s.metadata = {

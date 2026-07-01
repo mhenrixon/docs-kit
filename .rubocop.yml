@@ -47,6 +47,8 @@ Metrics/BlockLength:
   Exclude:
     - "spec/**/*"
     - "*.gemspec"
+    # Rails app template — one big after_bundle block by design.
+    - "lib/docs_kit/templates/**/*"
 
 # Generators are procedural wiring — one method per install step — so they're
 # naturally long and flat, not complex.

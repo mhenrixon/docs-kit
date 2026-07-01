@@ -1,0 +1,80 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# docs-kit CLI. One command scaffolds a complete, deployable docs site:
+#
+#   docs-kit new my-docs
+#   docs-kit new my-docs --image mhenrixon/my-repo --service my-repo
+#
+# It runs `rails new` with the right minimal flags and applies docs-kit's
+# application template (lib/docs_kit/templates/new_site.rb), which adds the gem,
+# runs `docs_kit:install`, syncs icons, builds the CSS, and scaffolds Kamal +
+# the reusable deploy workflow.
+
+require "optparse"
+
+TEMPLATE = File.expand_path("../lib/docs_kit/templates/new_site.rb", __dir__)
+
+command = ARGV.shift
+
+unless command == "new"
+  warn <<~USAGE
+    docs-kit — scaffold a docs site.
+
+    Usage:
+      docs-kit new NAME [--image OWNER/REPO] [--service NAME] [--gem-source SRC]
+
+    Options:
+      --image     GHCR image (default mhenrixon/NAME) — use OWNER/REPO for the
+                  repo-linked package so GITHUB_TOKEN can push+pull it.
+      --service   Kamal service name (default NAME).
+      --gem-source  How to depend on docs-kit: 'released' (default),
+                  'path:PATH', or 'github:OWNER/REPO'.
+  USAGE
+  exit 1
+end
+
+name = ARGV.shift
+if name.nil? || name.start_with?("-")
+  warn "docs-kit new: NAME is required (e.g. docs-kit new my-docs)"
+  exit 1
+end
+
+opts = {}
+OptionParser.new do |o|
+  o.on("--image IMAGE") { |v| opts[:image] = v }
+  o.on("--service SERVICE") { |v| opts[:service] = v }
+  o.on("--gem-source SRC") { |v| opts[:gem_source] = v }
+end.parse!(ARGV)
+
+# Map --gem-source to the Gemfile fragment the template injects.
+gem_source =
+  case opts[:gem_source]
+  when nil, "released" then ""
+  when /\Apath:(.+)\z/ then %(path: "#{Regexp.last_match(1)}")
+  when /\Agithub:(.+)\z/ then %(github: "#{Regexp.last_match(1)}")
+  else opts[:gem_source]
+  end
+
+env = {
+  "DOCS_KIT_GEM_SOURCE" => gem_source,
+  "DOCS_KIT_IMAGE" => opts[:image] || "mhenrixon/#{name}",
+  "DOCS_KIT_SERVICE" => opts[:service] || name
+}
+
+# A lean docs app: propshaft + importmap + turbo + stimulus (the shell uses
+# javascript_importmap_tags and docs-kit's docs-nav Stimulus controller, so we do
+# NOT pass --minimal — that strips JS entirely). Skip the DB/mailer/cable/test
+# bits a docs site doesn't need.
+rails_new = [
+  "rails", "new", name,
+  "-a", "propshaft", "-j", "importmap",
+  "--skip-active-record", "--skip-action-mailer", "--skip-action-cable",
+  "--skip-action-text", "--skip-active-job", "--skip-active-storage",
+  "--skip-test", "--skip-system-test", "--skip-jbuilder", "--skip-kamal",
+  "--skip-solid", "--skip-ci", "--skip-docker", "--skip-bootsnap",
+  "-m", TEMPLATE
+]
+
+puts "→ #{rails_new.join(' ')}"
+exit system(env, *rails_new) ? 0 : 1

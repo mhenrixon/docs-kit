@@ -98,11 +98,38 @@ class Views::Docs::Pages::Installation < DocsUI::Page
 end
 ```
 
+## Scaffold a new docs site in one command
+
+```bash
+docs-kit new my-docs                       # → a complete, deployable docs app
+docs-kit new my-docs --image mhenrixon/my-repo --service my-repo
+```
+
+`docs-kit new` runs `rails new` (propshaft + importmap + turbo/stimulus, no DB)
+and applies docs-kit's application template, which:
+
+- adds docs-kit + its deps to the Gemfile,
+- runs `rails g docs_kit:install` (initializers, controllers, a Doc registry, a
+  sample guide page, the Bun/Tailwind build, the docs-nav Stimulus wiring),
+- syncs the lucide icons and builds the CSS,
+- scaffolds Kamal (`config/deploy.yml`, `.kamal/secrets`, `Dockerfile`) and a
+  thin `.github/workflows/deploy-docs.yml` that calls the reusable workflow.
+
+Then `cd my-docs && bin/dev`. Already have a Rails app? Run the install generator
+instead:
+
+```bash
+rails g docs_kit:install
+rails g rails_icons:sync --library=lucide
+bun install && bun run build:css
+```
+
 ## Deploy a new docs site
 
 The build + deploy is defined **once** in this gem's reusable workflow
-(`.github/workflows/deploy.yml`). A new site adds five small things and it
-deploys to the oss-infrastructure server (Kamal + GHCR + Cloudflare Tunnel).
+(`.github/workflows/deploy.yml`). `docs-kit new` scaffolds the caller for you; to
+wire it by hand a site adds five small things and it deploys to the
+oss-infrastructure server (Kamal + GHCR + Cloudflare Tunnel).
 
 **1. A thin caller** — `.github/workflows/deploy-docs.yml`:
 
