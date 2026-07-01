@@ -1,0 +1,22 @@
+name: Deploy docs
+
+# Dogfood: docs-kit's own docs site (docs/) deploys via docs-kit's reusable
+# workflow. The docs app depends on the gem via `path: ".."`, so — like the
+# phlex-reactive/daisyui sites — the Docker build context is the REPO ROOT and
+# the Dockerfile lives in docs/ (the reusable workflow's defaults:
+# build_context ".", dockerfile "docs/Dockerfile", working_directory "docs").
+#
+# image/service = docs-kit (the repo name) so the ghcr package links to the repo
+# and GITHUB_TOKEN can push + pull it with no PAT.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    uses: mhenrixon/docs-kit/.github/workflows/deploy.yml@main
+    with:
+      image: mhenrixon/docs-kit
+      service: docs-kit
+    secrets: inherit
