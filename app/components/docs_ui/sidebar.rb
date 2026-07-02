@@ -67,10 +67,17 @@ module DocsUI
 
     # A collapsible sub-group: its title is a <summary> so the whole section folds
     # away. daisyUI's Menu renders nested li>details as an accordion natively.
+    #
+    # NOTE: a collapsible summary must NOT carry `.menu-title` — daisyUI reserves
+    # that for a STATIC (non-<details>) heading and its layout rule for the
+    # rotating caret is `summary:not(.menu-title)`. A `.menu-title` summary loses
+    # the grid layout, so its chevron drops below-left of the label instead of
+    # right-aligning like the top-level group's. Style it as a plain summary
+    # (matching daisyUI's own collapsible-submenu example) so both carets align.
     def nav_subgroup(subgroup, items)
       li do
         details(open: true) do
-          summary(class: "menu-title text-xs #{MARKER_RESET}") { subgroup }
+          summary(class: "text-xs font-medium text-base-content/60 #{MARKER_RESET}") { subgroup }
           ul do
             items.each { |item| li { nav_link(item) } }
           end
