@@ -12,6 +12,14 @@ module DocsUI
     include Phlex::Rails::Helpers::Request
     include DaisyUI
 
+    # Suppress the browser's native <details> disclosure triangle on nav summaries.
+    # daisyUI draws its OWN rotating chevron (li>details>summary::after), so the
+    # native marker would render a SECOND, non-rotating caret stacked next to it.
+    # daisyUI only hides the old ::-webkit-details-marker; modern browsers (and
+    # Safari) also need list-none + the standard ::marker reset. Literal classes —
+    # Tailwind tree-shakes interpolated ones.
+    MARKER_RESET = "list-none [&::-webkit-details-marker]:hidden [&::marker]:content-none"
+
     def view_template
       # The docs-nav Stimulus controller lives on <body> (DocsUI::Shell) so it spans
       # this sidebar AND the content column. Here it drives collapse persistence
@@ -47,7 +55,9 @@ module DocsUI
 
       li do
         details(open: true) do
-          summary(class: "text-xs font-semibold uppercase tracking-wider text-base-content/50") { heading }
+          summary(class: "text-xs font-semibold uppercase tracking-wider text-base-content/50 #{MARKER_RESET}") do
+            heading
+          end
           ul do
             grouped.each { |subgroup, items| nav_subgroup(subgroup, items) }
           end
@@ -60,7 +70,7 @@ module DocsUI
     def nav_subgroup(subgroup, items)
       li do
         details(open: true) do
-          summary(class: "menu-title text-xs") { subgroup }
+          summary(class: "menu-title text-xs #{MARKER_RESET}") { subgroup }
           ul do
             items.each { |item| li { nav_link(item) } }
           end
