@@ -16,6 +16,8 @@ module DocsUI
   # friendly aliases/labels via DocsKit.configure (code_lexer_aliases). An unknown
   # language falls back to plaintext (never raises).
   class Code < Phlex::HTML
+    include Phlex::Rails::Helpers::ContentSecurityPolicyNonce
+
     FORMATTER = Rouge::Formatters::HTML.new
 
     def initialize(source, lexer: :ruby, filename: nil)
@@ -25,7 +27,10 @@ module DocsUI
     end
 
     def view_template
-      style { highlight_css }
+      # Nonce the inline theme CSS so it survives a nonce-based style-src. Off a
+      # request there is no nonce (see #csp_nonce) and Phlex omits a nil-valued
+      # attribute, so the no-nonce markup is unchanged.
+      style(nonce: csp_nonce) { highlight_css }
       div(class: "not-prose my-4 overflow-hidden rounded-box border border-base-300 bg-base-300/40") do
         title_bar if @filename
         div(class: "code-highlight overflow-x-auto p-4 text-sm leading-relaxed") do
@@ -35,6 +40,13 @@ module DocsUI
     end
 
     private
+
+    # The request's CSP nonce, or nil when there's no Rails view context (an
+    # isolated Phlex render, or a host that doesn't nonce style-src). The
+    # phlex-rails value helper delegates to view_context, which raises without
+    # one, so guard on its presence — a nil result makes Phlex omit the
+    # attribute, keeping the un-nonced markup unchanged.
+    def csp_nonce = view_context && content_security_policy_nonce
 
     def title_bar
       div(class: "flex items-center gap-2 border-b border-base-300 bg-base-300/60 px-4 py-2") do
