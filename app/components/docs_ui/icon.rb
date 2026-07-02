@@ -53,7 +53,7 @@ module DocsUI
     end
 
     def rails_icons_library
-      ::RailsIcons.configuration.default_library
+      DocsKit.configuration.icon_library || ::RailsIcons.configuration.default_library
     rescue StandardError
       nil
     end

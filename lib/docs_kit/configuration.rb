@@ -50,6 +50,15 @@ module DocsKit
     # The lucide icon name used for a nav group with no explicit icon.
     attr_accessor :default_group_icon
 
+    # The RailsIcons library docs-kit renders its OWN chrome icons from (the
+    # sidebar carets, search glyph, theme toggle, etc.). Defaults to "lucide" to
+    # match the lucide icon names docs-kit ships. This is independent of the host
+    # app's RailsIcons.configuration.default_library — a host whose default is
+    # phosphor/heroicons can leave this at "lucide" so the chrome keeps rendering,
+    # without flipping its global default. Set to nil to defer to the host's
+    # default_library.
+    attr_accessor :icon_library
+
     # Namespaces the sidebar's localStorage keys (collapse state) so two docs
     # sites on the same origin don't clobber each other. Defaults to a slug of
     # the brand.
@@ -94,6 +103,7 @@ module DocsKit
       @stylesheets = %w[application]
       @code_theme = "Rouge::Themes::Monokai"
       @default_group_icon = "file-text"
+      @icon_library = "lucide"
       @nav_storage_key = nil
       @on_page_default = :panel
       @code_lexer_aliases = {}
