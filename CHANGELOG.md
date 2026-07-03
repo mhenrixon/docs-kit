@@ -14,3 +14,10 @@
   `all`/`from_slug`/`grouped` + the "authored" filter).
 - `DocsKit::NavItem` value object consumed by the sidebar.
 - `DocsKit::Controller#render_page` and a Rails engine that wires it.
+- Custom RuboCop cops shipped from the gem (`require: docs_kit/rubocop` +
+  `inherit_gem: { docs-kit: config/rubocop/docs_kit.yml }`, wired automatically by
+  the install generator): `DocsKit/RenderComponentPreferred` (prefer the Phlex-kit
+  helper form `DocsUI::Code(...)` over `render DocsUI::Code.new(...)`) and
+  `DocsKit/EscapedInterpolationInHeredoc` (steer `\#{...}` escapes in a
+  double-quoted heredoc to a single-quoted delimiter). RuboCop stays a
+  development-time dependency of the host — never a runtime dependency.

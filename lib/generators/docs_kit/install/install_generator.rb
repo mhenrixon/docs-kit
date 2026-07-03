@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "erb"
+require "yaml"
 require "rails/generators/base"
 
 module DocsKit
@@ -28,6 +29,27 @@ module DocsKit
       AGENTS_BEGIN = "<!-- BEGIN docs-kit -->"
       AGENTS_END   = "<!-- END docs-kit -->"
       AGENTS_BLOCK_RE = /#{Regexp.escape(AGENTS_BEGIN)}.*#{Regexp.escape(AGENTS_END)}/m
+
+      # The RuboCop wiring docs-kit injects. REQUIRE loads the cops;
+      # INHERIT_GEM/INHERIT_PATH enable + scope them (see config/rubocop/docs_kit.yml).
+      RUBOCOP_REQUIRE = "docs_kit/rubocop"
+      RUBOCOP_INHERIT_GEM = "docs-kit"
+      RUBOCOP_INHERIT_PATH = "config/rubocop/docs_kit.yml"
+
+      # The .rubocop.yml written when a site has none yet.
+      RUBOCOP_STARTER = <<~YAML.freeze
+        # docs-kit ships its custom cops from the gem — load + enable them here.
+        # (RuboCop is a development-time dependency; add `gem "rubocop"` to your
+        # Gemfile if it isn't there.)
+        require:
+          - #{RUBOCOP_REQUIRE}
+
+        inherit_gem:
+          #{RUBOCOP_INHERIT_GEM}: #{RUBOCOP_INHERIT_PATH}
+
+        AllCops:
+          NewCops: enable
+      YAML
 
       def create_phlex_initializer
         # Phlex autoload namespaces (Views:: / Components::). Skip if the app
@@ -134,6 +156,25 @@ module DocsKit
         write_write_docs_page_skill
       end
 
+      # Wire docs-kit's shipped RuboCop cops into the site's .rubocop.yml: a
+      # `require: docs_kit/rubocop` entry (loads the cops) plus an
+      # `inherit_gem: { docs-kit: config/rubocop/docs_kit.yml }` entry (enables
+      # + scopes them). RuboCop is a dev-time dependency the host already has —
+      # docs-kit never requires it at runtime. Created minimal when absent,
+      # MERGED into an existing config (a `rails new` app ships an omakase
+      # inherit_gem we must not drop), and idempotent on re-run.
+      def wire_rubocop_cops
+        path = File.join(destination_root, ".rubocop.yml")
+        return create_file(".rubocop.yml", RUBOCOP_STARTER) unless File.exist?(path)
+
+        existing = File.read(path)
+        merged = merge_rubocop_config(existing)
+        return say_status(:identical, ".rubocop.yml", :blue) if merged == existing
+
+        File.write(path, merged)
+        say_status(:update, ".rubocop.yml (docs-kit cops)", :green)
+      end
+
       def register_stimulus_controller
         index = stimulus_index_path
         return say_status(:skip, "no controllers/index.js — add: #{REGISTER_LINE}", :yellow) unless index
@@ -204,6 +245,34 @@ module DocsKit
         return say_status(:skip, skill, :blue) if File.exist?(File.join(destination_root, skill))
 
         create_file skill, render_template("skill.md.erb")
+      end
+
+      # Merge docs-kit's require + inherit_gem entries into an existing
+      # .rubocop.yml, preserving everything else. Idempotent: entries already
+      # present are left untouched, so re-running yields byte-identical output.
+      # Returns the (possibly unchanged) YAML string.
+      def merge_rubocop_config(existing)
+        config = YAML.safe_load(existing) || {}
+        config = {} unless config.is_a?(Hash)
+
+        config["require"] = ensure_in_list(config["require"], RUBOCOP_REQUIRE)
+
+        inherit_gem = config["inherit_gem"].is_a?(Hash) ? config["inherit_gem"] : {}
+        inherit_gem[RUBOCOP_INHERIT_GEM] = ensure_in_list(inherit_gem[RUBOCOP_INHERIT_GEM], RUBOCOP_INHERIT_PATH)
+        config["inherit_gem"] = inherit_gem
+
+        # Round-trip through the same load the merge started from: if nothing
+        # changed, return the original text verbatim (so :identical is reported
+        # and re-runs don't churn formatting).
+        YAML.safe_load(existing) == config ? existing : YAML.dump(config)
+      end
+
+      # Normalise a RuboCop scalar-or-list field to an array and append `value`
+      # unless already present. `nil` (absent key) becomes `[value]`; a bare
+      # string is promoted to a list so we never drop the site's own entry.
+      def ensure_in_list(current, value)
+        list = Array(current)
+        list.include?(value) ? list : list + [value]
       end
 
       # Render an ERB template from source_root against the generator binding, so

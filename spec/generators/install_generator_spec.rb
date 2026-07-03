@@ -33,7 +33,7 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
   end
 
   # Build a minimal Rails-ish skeleton the generator's injections expect to find.
-  def build_skeleton(routes: true, app_controller: true, stimulus_index: true, package_json: nil)
+  def build_skeleton(routes: true, app_controller: true, stimulus_index: true, package_json: nil, rubocop_yml: nil)
     FileUtils.mkdir_p(File.join(destination, "config/initializers"))
     FileUtils.mkdir_p(File.join(destination, "app/controllers"))
     FileUtils.mkdir_p(File.join(destination, "app/javascript/controllers"))
@@ -46,6 +46,7 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
     end
     write("app/javascript/controllers/index.js", stimulus_index_source) if stimulus_index
     write("package.json", package_json) if package_json
+    write(".rubocop.yml", rubocop_yml) if rubocop_yml
   end
 
   def write(rel, content)
@@ -376,6 +377,91 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
 
       it "does not overwrite the existing skill" do
         expect(read(".claude/skills/write-docs-page/SKILL.md")).to eq("# custom skill, do not clobber\n")
+      end
+    end
+  end
+
+  # The RuboCop wiring: the site's .rubocop.yml gets `require: docs_kit/rubocop`
+  # and `inherit_gem: { docs-kit: config/rubocop/docs_kit.yml }` so the gem's
+  # cops run. Created minimal when absent; merged (not clobbered) into an
+  # existing one; idempotent on re-run.
+  describe "RuboCop cop wiring (wire_rubocop_cops)" do
+    def rubocop_config
+      require "yaml"
+      YAML.safe_load(read(".rubocop.yml"))
+    end
+
+    context "when the site has no .rubocop.yml" do
+      before do
+        build_skeleton
+        run_generator
+      end
+
+      it "creates one that requires the gem cop entry point" do
+        expect(rubocop_config["require"]).to include("docs_kit/rubocop")
+      end
+
+      it "inherits the shipped cop config from the gem" do
+        expect(rubocop_config.dig("inherit_gem", "docs-kit")).to include("config/rubocop/docs_kit.yml")
+      end
+    end
+
+    context "when the site already has a .rubocop.yml (e.g. rails new omakase)" do
+      let(:omakase) do
+        <<~YAML
+          # Omakase Ruby styling for Rails
+          inherit_gem: { rubocop-rails-omakase: rubocop.yml }
+        YAML
+      end
+
+      before do
+        build_skeleton(rubocop_yml: omakase)
+        run_generator
+      end
+
+      it "adds the docs-kit cop require without dropping the existing inherit_gem" do
+        config = rubocop_config
+        expect(config["require"]).to include("docs_kit/rubocop")
+        expect(config.dig("inherit_gem", "rubocop-rails-omakase")).to eq("rubocop.yml")
+        expect(config.dig("inherit_gem", "docs-kit")).to include("config/rubocop/docs_kit.yml")
+      end
+    end
+
+    context "when the site's .rubocop.yml already has a require list" do
+      let(:existing) do
+        <<~YAML
+          require:
+            - rubocop-rspec
+          AllCops:
+            NewCops: enable
+        YAML
+      end
+
+      before do
+        build_skeleton(rubocop_yml: existing)
+        run_generator
+      end
+
+      it "appends to the existing require list rather than replacing it" do
+        requires = rubocop_config["require"]
+        expect(requires).to include("rubocop-rspec")
+        expect(requires).to include("docs_kit/rubocop")
+      end
+    end
+
+    context "when re-run (idempotence)" do
+      before do
+        build_skeleton
+        run_generator
+        run_generator
+      end
+
+      it "does not duplicate the docs_kit/rubocop require" do
+        expect(rubocop_config["require"].count("docs_kit/rubocop")).to eq(1)
+      end
+
+      it "does not duplicate the docs-kit inherit_gem entry" do
+        expect(rubocop_config.dig("inherit_gem", "docs-kit").count("config/rubocop/docs_kit.yml")).to eq(1)
       end
     end
   end

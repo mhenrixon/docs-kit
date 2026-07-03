@@ -96,4 +96,38 @@ RSpec.describe DocsKit do
       expect(DocsUI::Code.ancestors).to include(Phlex::SGML)
     end
   end
+
+  # The RuboCop cops live under lib/rubocop/cop/docs_kit/ — OUTSIDE the gem's
+  # zeitwerk push_dirs (lib/docs_kit + app/components/docs_ui) — and the cop
+  # entry point lib/docs_kit/rubocop.rb defines RuboCop::Cop::DocsKit::*, not a
+  # DocsKit::Rubocop constant, so it is explicitly ignored. The gem's loader
+  # must therefore never try to autoload them (which would raise a Zeitwerk
+  # NameError the moment the const was referenced).
+  describe "the shipped RuboCop cops" do
+    let(:loader) do
+      found = nil
+      Zeitwerk::Registry.loaders.each { |l| found = l if l.tag == "docs_kit" }
+      found
+    end
+
+    it "boots the gem's zeitwerk loader" do
+      expect(loader).not_to be_nil
+    end
+
+    it "does not register a DocsKit::Rubocop autoload for the cop entry point" do
+      # If lib/docs_kit/rubocop.rb were NOT ignored, zeitwerk would set an
+      # autoload for DocsKit::Rubocop and raise a NameError (mismatched constant)
+      # the instant it was referenced. Ignored => plain uninitialized constant.
+      expect(described_class.autoload?(:Rubocop)).to be_nil
+      expect { DocsKit::Rubocop }.to raise_error(NameError)
+      expect(described_class.const_defined?(:Rubocop, false)).to be(false)
+    end
+
+    it "loads the cops under the RuboCop namespace when the entry point is required" do
+      require "docs_kit/rubocop"
+
+      expect(RuboCop::Cop::DocsKit::RenderComponentPreferred.ancestors).to include(RuboCop::Cop::Base)
+      expect(RuboCop::Cop::DocsKit::EscapedInterpolationInHeredoc.ancestors).to include(RuboCop::Cop::Base)
+    end
+  end
 end
