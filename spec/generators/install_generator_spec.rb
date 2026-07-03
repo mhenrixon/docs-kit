@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "stringio"
 require "tmpdir"
 require "rails/generators"
 require "generators/docs_kit/install/install_generator"
@@ -11,11 +12,12 @@ require "generators/docs_kit/install/install_generator"
 # controllers/index.js, assets.rb) built per-example, run the generator, and assert
 # the produced file manifest + key contents.
 #
-# These specs assert CURRENT behavior. Most steps guard against re-runs (Thor's
-# `route`/`inject_into_file` skip a line that's already present; several methods
-# `say_status(:skip)` when a target exists), so the generator is largely
-# idempotent; `create_initializer` is the exception (it re-renders the template
-# on every run). If a later change tightens idempotency, update these assertions.
+# The generator is fully idempotent — safe on a fresh app AND a years-old site.
+# Every step guards against a re-run: `create_initializer` skips a site's edited
+# config; `add_routes` skips a route the site already has even when it's written
+# with different quotes / `to:` vs `=>`; several methods `say_status(:skip)` when
+# a target exists. A `--sync` run does ONLY the additive/wiring steps and prints
+# a drift checklist for manual cleanup it can't safely automate.
 RSpec.describe DocsKit::Generators::InstallGenerator do
   # A named destination dir so app_brand humanizes deterministically
   # ("my_app_docs" → "My app docs"). Rails isn't booted, so app_brand falls back
@@ -58,20 +60,34 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
   def read(rel) = File.read(File.join(destination, rel))
   def exist?(rel) = File.exist?(File.join(destination, rel))
 
-  # Run the generator quietly against the skeleton.
-  def run_generator
-    generator = described_class.new([], {}, destination_root: destination)
-    silence_stream { generator.invoke_all }
+  # Run the generator quietly against the skeleton. Pass generator options
+  # (e.g. `sync: true`) through to the Thor invocation.
+  def run_generator(**opts)
+    generator = described_class.new([], opts, destination_root: destination)
+    capture_stream { generator.invoke_all }
   end
 
-  # Thor writes progress to $stdout; keep the suite output clean.
-  def silence_stream
-    original = $stdout
-    $stdout = File.open(File::NULL, "w")
+  # Run the generator and RETURN its $stdout (Thor progress + any drift
+  # checklist), for asserting on printed drift warnings.
+  def capture_generator(**opts)
+    generator = described_class.new([], opts, destination_root: destination)
+    capture_stream { generator.invoke_all }
+  end
+
+  # Thor writes progress to $stdout; capture it so the suite stays quiet AND
+  # specs can assert on what was printed. $stdin is closed so an unexpected
+  # collision prompt fails fast (EOF) rather than hanging the suite waiting on
+  # input — an idempotent generator never prompts, so this never fires in GREEN.
+  def capture_stream
+    original_out = $stdout
+    original_in = $stdin
+    $stdout = StringIO.new
+    $stdin = StringIO.new("")
     yield
+    $stdout.string
   ensure
-    $stdout.close
-    $stdout = original
+    $stdout = original_out
+    $stdin = original_in
   end
 
   before { FileUtils.rm_rf(destination) }
@@ -127,6 +143,42 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
         expect(initializer).to include(theme)
         expect(css).to include(theme)
       end
+    end
+  end
+
+  # The initializer is the ONE file a site is expected to edit heavily (brand,
+  # themes, nav). Re-running the generator (the sanctioned upgrade path) must
+  # NEVER clobber it — a re-run skips it and points the upgrader at the current
+  # template for a manual diff.
+  describe "config/initializers/docs_kit.rb is never clobbered on re-run" do
+    let(:edited_config) do
+      <<~RUBY
+        # frozen_string_literal: true
+        DocsKit.configure do |c|
+          c.brand = "My Hand-Edited Brand"
+          c.themes = %w[my-custom-theme]
+        end
+      RUBY
+    end
+
+    before do
+      build_skeleton
+      run_generator
+      # Simulate a site heavily editing its config after the first install.
+      write("config/initializers/docs_kit.rb", edited_config)
+    end
+
+    it "preserves the site's edited config byte-for-byte on re-run" do
+      run_generator
+
+      expect(read("config/initializers/docs_kit.rb")).to eq(edited_config)
+    end
+
+    it "reports the skip and hints at the template for an upgrade diff" do
+      output = capture_generator
+
+      expect(output).to include("docs_kit.rb")
+      expect(output).to match(/skip|exist/i)
     end
   end
 
@@ -193,6 +245,46 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
     end
   end
 
+  # A years-old site wrote its routes by hand, in its OWN style (single quotes,
+  # `to:` instead of `=>`, no `.:format`). Thor's `route` only skips a
+  # byte-identical line, so a naive re-run would DUPLICATE these. The guard
+  # matches on the route's controller#action (quote/arrow/whitespace tolerant),
+  # so re-running is a genuine no-op.
+  describe "route idempotency against a hand-written (differently-styled) routes.rb" do
+    let(:handwritten_routes) do
+      <<~ROUTES
+        Rails.application.routes.draw do
+          root 'landings#show'
+          get 'docs/:doc' => 'docs#show', as: :doc
+          get '/docs/search', to: 'docs_kit/search#index', as: :docs_search
+        end
+      ROUTES
+    end
+
+    before do
+      build_skeleton
+      write("config/routes.rb", handwritten_routes)
+      run_generator
+    end
+
+    it "does not add a second root route" do
+      expect(read("config/routes.rb").scan(/root\b/).size).to eq(1)
+    end
+
+    it "does not add a second docs#show route" do
+      expect(read("config/routes.rb").scan(/["']docs#show["']/).size).to eq(1)
+    end
+
+    it "does not add a second docs_kit/search#index route" do
+      expect(read("config/routes.rb").scan(%r{docs_kit/search#index}).size).to eq(1)
+    end
+
+    it "leaves the site's hand-written route syntax untouched" do
+      # We warn about drift, we never rewrite a route the site already drew.
+      expect(read("config/routes.rb")).to include(%(get 'docs/:doc' => 'docs#show', as: :doc))
+    end
+  end
+
   describe "controller injection (include_controller_helper)" do
     it "injects include DocsKit::Controller into ApplicationController" do
       build_skeleton
@@ -251,6 +343,25 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       run_generator
 
       expect(exist?("app/javascript/controllers/index.js")).to be(false)
+    end
+
+    it "does not double-register when the site already lazy-loads the docs_kit path" do
+      # A years-old site wired the docs-nav controller with lazyLoadControllersFrom
+      # (valid — the engine auto-pins it). Re-running must NOT add a second, eager
+      # registration on top.
+      build_skeleton(stimulus_index: false)
+      write("app/javascript/controllers/index.js", <<~JS)
+        import { application } from "controllers/application"
+        import { eagerLoadControllersFrom, lazyLoadControllersFrom } from "@hotwired/stimulus-loading"
+        eagerLoadControllersFrom("controllers", application)
+        lazyLoadControllersFrom("docs_kit/controllers", application)
+      JS
+
+      run_generator
+
+      index = read("app/javascript/controllers/index.js")
+      expect(index.scan("docs_kit/controllers").size).to eq(1)
+      expect(index).to include(%(lazyLoadControllersFrom("docs_kit/controllers", application)))
     end
   end
 
@@ -463,6 +574,134 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       it "does not duplicate the docs-kit inherit_gem entry" do
         expect(rubocop_config.dig("inherit_gem", "docs-kit").count("config/rubocop/docs_kit.yml")).to eq(1)
       end
+    end
+  end
+
+  # `--sync` is the documented upgrade path for an existing site: it runs ONLY
+  # the additive/wiring steps (routes, initializer hint, importmap/stimulus,
+  # AGENTS.md, .rubocop.yml) and prints a checklist of manual drift it detected.
+  # It never scaffolds site content (the doc registry, pages, the CSS build) —
+  # those already exist and are site-owned — and it never overwrites site files,
+  # so a re-run causes ZERO Thor conflict prompts.
+  describe "--sync mode (the upgrade path for an existing site)" do
+    context "when the site already has the chrome files" do
+      before do
+        build_skeleton
+        run_generator # first, full install
+        run_generator(sync: true) # then a sync run
+      end
+
+      it "does not re-scaffold the docs registry or pages" do
+        # Delete a site-owned file, then sync: sync must NOT recreate it.
+        FileUtils.rm(File.join(destination, "app/models/doc.rb"))
+        FileUtils.rm(File.join(destination, "app/views/docs/pages/installation.rb"))
+
+        run_generator(sync: true)
+
+        expect(exist?("app/models/doc.rb")).to be(false)
+        expect(exist?("app/views/docs/pages/installation.rb")).to be(false)
+      end
+
+      it "does not re-scaffold the site-owned CSS build" do
+        FileUtils.rm(File.join(destination, "app/assets/stylesheets/application.tailwind.css"))
+
+        run_generator(sync: true)
+
+        expect(exist?("app/assets/stylesheets/application.tailwind.css")).to be(false)
+      end
+
+      it "still keeps the wiring in place (routes, stimulus, rubocop)" do
+        routes = read("config/routes.rb")
+        expect(routes).to include(%(get "docs/:doc(.:format)" => "docs#show", as: :doc))
+        expect(read("app/javascript/controllers/index.js"))
+          .to include(%(eagerLoadControllersFrom("docs_kit/controllers", application)))
+        expect(read(".rubocop.yml")).to include("docs_kit/rubocop")
+      end
+    end
+
+    context "when run on a fresh skeleton (no prior full install)" do
+      before { build_skeleton }
+
+      it "wires routes without scaffolding site content" do
+        run_generator(sync: true)
+
+        # Wiring happened...
+        expect(read("config/routes.rb")).to include(%("docs#show"))
+        # ...but no site-owned content was scaffolded.
+        expect(exist?("app/models/doc.rb")).to be(false)
+        expect(exist?("app/views/docs/pages/installation.rb")).to be(false)
+      end
+
+      it "is idempotent: a second sync duplicates no routes" do
+        run_generator(sync: true)
+        run_generator(sync: true)
+
+        routes = read("config/routes.rb")
+        expect(routes.scan(%(get "docs/:doc(.:format)" => "docs#show", as: :doc)).size).to eq(1)
+      end
+    end
+  end
+
+  # Drift detection: `--sync` reads the site (string-level, conservatively) and
+  # warns about manual cleanup it can NOT safely automate — a hand-written
+  # `render_page` (DocsKit::Controller now provides it) and a dead `IconHelper`
+  # copy. It warns, never deletes, and always exits zero.
+  describe "--sync drift detection" do
+    # An ApplicationController that hand-defines render_page (the pre-generator
+    # pattern) — the audit's #1 drift item.
+    def seed_handwritten_render_page
+      write("app/controllers/application_controller.rb", <<~RUBY)
+        class ApplicationController < ActionController::Base
+          include DocsKit::Controller
+
+          private
+
+          def render_page(view)
+            render view, layout: false
+          end
+        end
+      RUBY
+    end
+
+    it "warns when ApplicationController hand-defines render_page" do
+      build_skeleton
+      seed_handwritten_render_page
+
+      output = capture_generator(sync: true)
+
+      expect(output).to include("render_page")
+      expect(output).to include("DocsKit::Controller")
+    end
+
+    it "warns when a dead IconHelper copy is present" do
+      build_skeleton
+      write("app/helpers/icon_helper.rb", "module IconHelper\nend\n")
+
+      output = capture_generator(sync: true)
+
+      expect(output).to include("IconHelper")
+    end
+
+    it "does NOT delete the drifted files (warn, never auto-delete)" do
+      build_skeleton
+      seed_handwritten_render_page
+      write("app/helpers/icon_helper.rb", "module IconHelper\nend\n")
+
+      capture_generator(sync: true)
+
+      expect(exist?("app/controllers/application_controller.rb")).to be(true)
+      expect(read("app/controllers/application_controller.rb")).to include("def render_page")
+      expect(exist?("app/helpers/icon_helper.rb")).to be(true)
+    end
+
+    it "reports a clean bill on a site with no drift" do
+      build_skeleton
+      run_generator # full install: ApplicationController only gets `include`, no render_page
+
+      output = capture_generator(sync: true)
+
+      expect(output).not_to include("render_page")
+      expect(output).not_to include("IconHelper")
     end
   end
 end
