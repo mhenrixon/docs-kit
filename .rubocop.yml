@@ -102,6 +102,10 @@ Metrics/BlockLength:
     - "*.gemspec"
     # Rails app template — one big after_bundle block by design.
     - "lib/docs_kit/templates/**/*"
+    # The `rake release[X.Y.Z]` task is one long sequential release script
+    # (version bump → build → commit → push → gh release), matching the sibling
+    # gems (daisyui/phlex-reactive/pgbus). Its length is steps, not complexity.
+    - "Rakefile"
 
 # Generators are procedural wiring — one method per install step — so they're
 # naturally long and flat, not complex. Configuration is the per-site config

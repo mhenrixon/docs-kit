@@ -4,6 +4,14 @@
 
 ### Added
 
+- Release tooling matching the sibling gems (daisyui/phlex-reactive/pgbus): a
+  `rake release[X.Y.Z]` task (version bump → lockfile update → build-verify →
+  commit → push → GitHub Release; `pre`/`force` supported, `main`-only, clean-tree
+  guard) and `.github/workflows/release.yml`, which on `release: published` runs
+  the suite, content-checks the built gem, signs it with Sigstore, and publishes
+  to RubyGems over **OIDC trusted publishing** (no stored API token). See the
+  README "Releasing (maintainers)" section for the one-time trusted-publisher +
+  `rubygems` environment setup.
 - Initial extraction of the shared docs-site chrome into `docs-kit`.
 - `Docs::*` Phlex component kit: `Shell` (full-document drawer layout), `Sidebar`
   (config-driven nav), `ThemeSwitcher`, `Icon`, `Code` (Rouge + inline theme),
