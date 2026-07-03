@@ -21,6 +21,7 @@ module Views
           code_section
           example_section
           table_section
+          endpoint_section
           callout_section
           icon_section
           on_this_page_section
@@ -318,6 +319,87 @@ module Views
                 [ "DocsUI::PropTable rows", "Array", "—", "Rows; the first cell is auto-wrapped in <code>." ],
                 [ "DocsUI::PropTable headers:", "Array", "Option/Type/Default/Description", "Override the header labels." ]
               ]
+            )
+          end
+        end
+
+        def endpoint_section
+          DocsUI::Section(
+            "Endpoint, FieldTable & ErrorTable",
+            description: "The API-reference kit — a method+path line, a fields table, and an error table."
+          ) do
+            prose do
+              p do
+                code { "DocsUI::Endpoint" }
+                plain " renders an HTTP method badge (coloured per verb) plus a monospace path, inline — so it drops straight into a "
+                code { "Section" }
+                plain " description. "
+                code { "FieldTable" }
+                plain " and "
+                code { "ErrorTable" }
+                plain " are keyword-schema presets over "
+                code { "Table" }
+                plain " for an object's fields and an endpoint's errors."
+              end
+            end
+
+            # A Section whose description IS a live Endpoint — the real component,
+            # not a mock-up.
+            DocsUI::Section(
+              "Create a webhook endpoint",
+              description: DocsUI::Endpoint.new(:post, "/api/webhook_endpoints")
+            ) do
+              prose { p { "Registers a destination URL for outbound event notifications." } }
+              render DocsUI::FieldTable.new(
+                [
+                  { name: "url", type: "string", required: true, description: "HTTPS destination URL." },
+                  { name: "description", type: "string", description: "Optional internal label." },
+                  { name: "events", type: "array", required: true, description: [ :md, "Event types, e.g. `payment_link.paid`." ] }
+                ]
+              )
+              render DocsUI::ErrorTable.new(
+                [
+                  { scenario: "Missing or invalid API key", status: "401", type: "authentication_error" },
+                  { scenario: "Non-HTTPS URL", status: "422", type: "validation_error", param: "url" },
+                  { scenario: "Unknown event name", status: "422", type: "validation_error", param: "events" }
+                ]
+              )
+            end
+
+            prose { p { "The calls that produced the block above:" } }
+            DocsUI::Code(<<~RUBY)
+              DocsUI::Section("Create a webhook endpoint",
+                description: DocsUI::Endpoint.new(:post, "/api/webhook_endpoints")) do
+                render DocsUI::FieldTable.new([
+                  { name: "url", type: "string", required: true, description: "HTTPS destination URL." },
+                  { name: "events", type: "array", required: true, description: [:md, "e.g. `payment_link.paid`."] }
+                ])
+                render DocsUI::ErrorTable.new([
+                  { scenario: "Non-HTTPS URL", status: "422", type: "validation_error", param: "url" }
+                ])
+              end
+            RUBY
+
+            DocsUI::Callout(:tip) do
+              plain "Verb → colour is a frozen Hash of literal badge classes ("
+              code { "GET" }
+              plain " → success, "
+              code { "POST" }
+              plain " → primary, "
+              code { "PATCH/PUT" }
+              plain " → warning, "
+              code { "DELETE" }
+              plain " → error). An unknown verb renders a neutral badge — no raise."
+            end
+
+            render DocsUI::PropTable.new(
+              [
+                [ "DocsUI::Endpoint.new(method, path)", "Symbol/String, String", "—", "Method badge + monospace path; renders inline." ],
+                [ "DocsUI::FieldTable.new(fields)", "Array<Hash>", "—", "Each: { name:, type:, required: false, description: }." ],
+                [ "DocsUI::ErrorTable.new(errors)", "Array<Hash>", "—", "Each: { scenario:, status:, type:, param: nil }; Param column auto-hidden." ],
+                [ "Section(description:)", "String, proc, or component", "nil", "Now also accepts a Phlex component instance." ]
+              ],
+              headers: [ "Call", "Type", "Default", "Description" ]
             )
           end
         end

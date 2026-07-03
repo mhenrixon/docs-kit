@@ -18,6 +18,10 @@ module DocsUI
   #     code(class: "badge badge-sm") { "POST" }; plain " /v1/messages"
   #   }) { render DocsUI::Prose.new { … } }
   #
+  #   # or pass a renderable Phlex component directly (e.g. DocsUI::Endpoint)
+  #   render DocsUI::Section.new("Create a message",
+  #     description: DocsUI::Endpoint.new(:post, "/v1/messages")) { … }
+  #
   # The description is rendered only when present, so plain sections are unchanged.
   class Section < Phlex::HTML
     def initialize(title, id: nil, description: nil)
@@ -45,16 +49,19 @@ module DocsUI
       end
     end
 
-    # The optional description: a String is rendered as text; a callable (proc/
-    # lambda) is instance_exec'd so it can emit rich Phlex markup (code, badges).
+    # The optional description, rendered under the title. Three accepted forms:
+    #   * a Phlex component instance (e.g. DocsUI::Endpoint) → rendered in place;
+    #   * a proc/lambda → instance_exec'd so it can emit rich Phlex markup;
+    #   * a String → plain, Phlex-escaped text.
+    # A Phlex component also responds to #call, so it MUST be matched before the
+    # callable branch (else it would be instance_exec'd, not rendered).
     def description
       return unless @description
 
       p(class: "mb-4 text-base leading-relaxed text-base-content/70") do
-        if @description.respond_to?(:call)
-          instance_exec(&@description)
-        else
-          plain @description
+        case @description
+        when Phlex::SGML then render @description
+        else @description.respond_to?(:call) ? instance_exec(&@description) : plain(@description)
         end
       end
     end
