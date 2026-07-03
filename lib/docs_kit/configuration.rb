@@ -181,6 +181,15 @@ module DocsKit
     # Read the effective map via #api_clients (which merges), never @api_clients.
     attr_writer :api_clients
 
+    # External links rendered in the topbar next to the theme switcher — a repo
+    # link, a chat invite, a social profile. Each entry is a Hash
+    # ({ href:, label:, icon: }) or a DocsKit::TopbarLink; #topbar_links
+    # normalizes them into TopbarLink value objects. Defaults to [] → the topbar
+    # is byte-identical to before, so a site that sets nothing is unchanged.
+    # `icon` is a shipped brand mark (:github, :discord, …) or a lucide icon
+    # name. Read the normalized list via #topbar_links, never @topbar_links.
+    attr_writer :topbar_links
+
     # The OpenAPI spec the `operation` page helper / DocsUI::OpenApiOperation read
     # from: a String/Pathname path (`.json` parsed as JSON, else YAML) or an
     # already-parsed Hash. Defaults to nil → the bridge is off and a site that
@@ -250,7 +259,15 @@ module DocsKit
       @api_base_url = "https://api.example.com"
       @api_auth_header = nil
       @api_clients = {}
+      @topbar_links = []
       @openapi = nil
+    end
+
+    # The normalized topbar links (DocsKit::TopbarLink list), in declaration
+    # order. Each configured Hash/TopbarLink is coerced via TopbarLink.from, so
+    # the Shell only ever sees value objects. Blank/nil config yields [].
+    def topbar_links
+      Array(@topbar_links).map { |link| DocsKit::TopbarLink.from(link) }
     end
 
     # The loaded DocsKit::OpenApi::Document for #openapi. Memoized; when #openapi

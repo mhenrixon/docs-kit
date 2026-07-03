@@ -14,6 +14,12 @@ Rails.application.config.to_prepare do
     c.tagline      = "Shared Phlex/daisyUI chrome for documentation sites — one shell, sidebar, code kit, and page kit across every docs site."
     c.themes       = %w[dark light synthwave retro cyberpunk dracula night nord sunset]
 
+    # A link to the source repo in the topbar (next to the theme switcher),
+    # rendered with the shipped GitHub brand mark. Dogfoods c.topbar_links.
+    c.topbar_links = [
+      { href: "https://github.com/mhenrixon/docs-kit", label: "GitHub", icon: :github },
+    ]
+
     # Code blocks carry a light theme by default and swap to a dark theme when the
     # switcher lands on a dark daisyUI theme (dark/synthwave/dracula/night/sunset
     # here). Dogfooded so the light↔dark restyle is visible across all 9 themes;

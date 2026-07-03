@@ -149,7 +149,10 @@ module DocsUI
           a(href: config.brand_href, class: "btn btn-ghost text-lg font-bold") { config.brand }
         end
         render DocsUI::SearchBox.new if config.search_enabled?
-        div(class: "flex-none") do
+        div(class: "flex-none items-center") do
+          # Config-driven repo/social links (config.topbar_links) render as
+          # icon-only ghost buttons BEFORE the switcher; nothing when unset.
+          render DocsUI::TopbarLinks.new
           render DocsUI::ThemeSwitcher.new
         end
       end
