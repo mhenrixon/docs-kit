@@ -1,0 +1,26 @@
+Description:
+    Scaffold one docs page: a Phlex page class under app/views/docs/pages/ AND
+    its one-line registry entry, both derived from the title, in one command.
+    The unit of work for "add a docs page" drops to this command plus writing
+    content.
+
+    The page class uses the compact form
+    `class Views::Docs::Pages::Title < DocsUI::Page` (Zeitwerk resolves it
+    through the directory-implied namespaces) with title/eyebrow/lead and a
+    starter Section containing a Markdown island.
+
+    The registry line `page "Title", group: "Group"` is injected into the
+    Registry-v2 class (default: Doc). A legacy hash-`entries` registry is left
+    untouched with an instruction printed instead of corrupting it.
+
+    Idempotent — re-running does not duplicate the registry line or clobber the
+    page file (in --skip mode).
+
+Example:
+    rails generate docs_kit:page "Getting Started" --group=Guide
+
+    rails generate docs_kit:page "OAuth" --group=Guide --slug=auth --view=OauthGuide
+    rails generate docs_kit:page "Metrics" --group=Reference --eyebrow="Advanced" --registry=Doc
+
+    After running:
+      # edit app/views/docs/pages/getting_started.rb — write your content

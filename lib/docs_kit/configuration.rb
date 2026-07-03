@@ -33,7 +33,19 @@ module DocsKit
     # { "Heading" => { "Subgroup" => [items] } }. Each item must respond to
     # the duck type the Sidebar renders (see Docs::Sidebar#nav_link): #href,
     # #label, and optional #icon. Defaults to an empty nav.
+    #
+    # Prefer #nav_registries for the common case — an explicit #nav lambda is
+    # only needed for bespoke nav (multiple registries interleaved, custom
+    # subgroups). When #nav is left at its default, the sidebar derives from
+    # #nav_registries instead.
     attr_accessor :nav
+
+    # An ordered { "Heading" => registry_class } map. Each registry responds to
+    # .nav_items (Registry v2) → { group => [NavItem] } for its authored pages.
+    # #nav_groups derives the whole sidebar from this with zero site code, so a
+    # site never hand-writes the nav lambda. Defaults to {}. An explicit #nav
+    # lambda still wins (full backwards compatibility).
+    attr_accessor :nav_registries
 
     # Optional callable returning a short version-badge string for the sidebar
     # header (e.g. -> { "v#{DaisyUI::VERSION}" }). nil renders no badge.
@@ -83,6 +95,10 @@ module DocsKit
     # (e.g. { elixir: "Elixir", curl: "cURL" }). Unknown tokens humanize.
     attr_accessor :code_language_labels
 
+    # The sentinel "no explicit nav" lambda. #nav_groups compares against this
+    # identity to decide whether to derive the sidebar from #nav_registries.
+    DEFAULT_NAV = -> { {} }
+
     # Built-in friendly aliases (kept small — Rouge resolves most names itself).
     DEFAULT_LEXER_ALIASES = { curl: "console", console: "console" }.freeze
 
@@ -98,7 +114,11 @@ module DocsKit
       @title_suffix = nil
       @themes = %w[dark light]
       @default_theme = nil
-      @nav = -> { {} }
+      # The sentinel default nav lambda. #nav_groups treats it as "unset" and
+      # derives the sidebar from #nav_registries instead; an explicit c.nav
+      # replaces this object so the derivation steps aside (backwards compat).
+      @nav = DEFAULT_NAV
+      @nav_registries = {}
       @version_badge = nil
       @stylesheets = %w[application]
       @code_theme = "Rouge::Themes::Monokai"
@@ -146,6 +166,15 @@ module DocsKit
 
     private
 
+    # { heading => registry.nav_items }, dropping headings with no authored
+    # pages so the sidebar never shows an empty group.
+    def nav_groups_from_registries
+      @nav_registries.each_with_object({}) do |(heading, registry), acc|
+        items = registry.nav_items
+        acc[heading] = items unless items.empty?
+      end
+    end
+
     def coerce_on_page_mode(value)
       case value
       when false, nil then false
@@ -171,7 +200,14 @@ module DocsKit
     end
 
     # The resolved nav Hash for this request. Always returns a Hash.
+    #
+    # An explicit #nav lambda wins. Otherwise the sidebar derives from
+    # #nav_registries: each heading maps to its registry's .nav_items, and a
+    # heading whose pages are all unauthored (empty nav_items) is dropped so no
+    # empty group renders.
     def nav_groups
+      return nav_groups_from_registries if @nav.equal?(DEFAULT_NAV)
+
       result = @nav.respond_to?(:call) ? @nav.call : @nav
       result || {}
     end

@@ -3,15 +3,16 @@
 module Views
   module Docs
     module Pages
-# How to write a documentation page: a Phlex class, a registry entry, and
+      # How to write a documentation page: a Phlex class, a registry entry, and
       # the DocsUI building blocks, plus the automatic "On this page" TOC.
       class Authoring < DocsUI::Page
         title "Authoring pages"
         eyebrow "Getting started"
 
-        def lead = "Write a page as a Phlex class, register it, and the shell, masthead, and TOC come free."
+        def lead = "One command scaffolds a page — the class and its registry line. Then write content; the shell, masthead, and TOC come free."
 
         def content
+          one_command_section
           page_is_a_class_section
           register_section
           building_blocks_section
@@ -20,35 +21,60 @@ module Views
 
         private
 
+        def one_command_section
+          DocsUI::Section("One command",
+                          description: "rails g docs_kit:page writes the class AND registers it — both derived from the title.") do
+            DocsUI::Code(<<~SHELL, lexer: :shell)
+              rails g docs_kit:page "Getting Started" --group=Guide
+            SHELL
+
+            md <<~'MD'
+              That writes `app/views/docs/pages/getting_started.rb` (slug
+              `getting-started`, class `GettingStarted`) and injects
+              `page "Getting Started", group: "Guide"` into the `Doc` registry, so
+              the page is routed and in the sidebar the moment you fill in
+              `#content`. Every derivation is overridable:
+
+              - `--slug=auth` — the URL slug,
+              - `--view=OauthGuide` — the class basename,
+              - `--eyebrow="Advanced"` — the eyebrow (defaults to the group),
+              - `--registry=Guide` — a differently-named registry class.
+
+              Re-running is idempotent, and a legacy hash-`entries` registry is
+              left untouched (the generator prints the entry to add by hand).
+            MD
+
+            DocsUI::Callout(:tip) do
+              "The rest of this page is what the generator produces — the shape to reach for when you hand-write or edit a page."
+            end
+          end
+        end
+
         def page_is_a_class_section
           DocsUI::Section("A page is a Phlex class",
                           description: "Subclass DocsUI::Page, declare its metadata, fill in #content.") do
             DocsUI::Code(<<~RUBY, filename: "app/views/docs/pages/guide.rb")
               # frozen_string_literal: true
 
-              module Views
-                module Docs
-                  module Pages
-                    class Guide < DocsUI::Page
-                      title "Guide"
-                      eyebrow "Getting started"
+              # Compact class reference — Zeitwerk resolves it through the
+              # directory-implied namespaces, so no nested-module ceremony.
+              class Views::Docs::Pages::Guide < DocsUI::Page
+                title "Guide"
+                eyebrow "Getting started"
 
-                      def lead = "One sentence that sits under the page title."
+                def lead = "One sentence that sits under the page title."
 
-                      def content
-                        DocsUI::Section("First steps", description: "What this section covers.") do
-                          prose do
-                            p { "Hand-authored prose with consistent reading rhythm." }
-                          end
+                def content
+                  DocsUI::Section("First steps", description: "What this section covers.") do
+                    md <<~'MD'
+                      Prose written as Markdown, styled with the reading rhythm.
+                    MD
 
-                          DocsUI::Code(<<~SOURCE, filename: "config/routes.rb")
-                            Rails.application.routes.draw do
-                              mount DocsKit::Engine, at: "/docs"
-                            end
-                          SOURCE
-                        end
+                    DocsUI::Code(<<~SOURCE, filename: "config/routes.rb")
+                      Rails.application.routes.draw do
+                        mount DocsKit::Engine, at: "/docs"
                       end
-                    end
+                    SOURCE
                   end
                 end
               end
@@ -76,34 +102,34 @@ module Views
 
         def register_section
           DocsUI::Section("Register the page",
-                          description: "Add an entry so it appears in the nav and resolves at /docs/<slug>.") do
-            prose do
-              p do
-                plain "A page shows up once it has a row in the "
-                code { "Doc" }
-                plain " registry. The "
-                code { "view:" }
-                plain " maps to your class name under "
-                code { "Views::Docs::Pages" }
-                plain "; the "
-                code { "group:" }
-                plain " sets its sidebar heading."
-              end
-            end
+                          description: "One line in the Doc registry — slug and view derive from the title.") do
+            md <<~'MD'
+              A page shows up once it has a `page` line in the `Doc` registry.
+              `slug` and `view` derive from the title (both overridable per line),
+              and `group:` sets its sidebar heading. The generator injects this
+              line for you.
+            MD
 
             DocsUI::Code(<<~RUBY, filename: "app/models/doc.rb")
               class Doc
                 extend DocsKit::Registry
+                path_prefix    "/docs"
+                view_namespace "Views::Docs::Pages"
 
-                entries [
-                  { slug: "overview", title: "Overview", group: "Getting started", view: "Overview" },
-                  { slug: "guide",    title: "Guide",    group: "Getting started", view: "Guide" }
-                ]
+                page "Overview", group: "Getting started"
+                page "Guide",    group: "Getting started"
+                # overrides win: page "OAuth", group: "Guide", slug: "auth", view: "OauthGuide"
               end
             RUBY
 
+            md <<~'MD'
+              The sidebar derives from the registry — set
+              `c.nav_registries = { "Docs" => Doc }` in the initializer and never
+              hand-write a nav lambda again.
+            MD
+
             DocsUI::Callout(:note) do
-              "The sidebar only links a page whose class exists, so an entry without its class yet is a no-op — no dead links."
+              "The sidebar only links a page whose class exists, so a page line without its class yet is a no-op — no dead links."
             end
           end
         end

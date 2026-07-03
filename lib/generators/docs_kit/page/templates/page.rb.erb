@@ -1,0 +1,21 @@
+# frozen_string_literal: true
+
+# Zeitwerk resolves this compact reference through the directory-implied
+# namespaces (app/views/docs/pages/ → Views::Docs::Pages), so there's no need
+# for the 4-level nested-module ceremony.
+class Views::Docs::Pages::<%= view_name %> < DocsUI::Page
+  title "<%= title %>"
+  eyebrow "<%= eyebrow %>"
+
+  def lead = "A one-sentence summary of this page."
+
+  def content
+    DocsUI::Section("Overview") do
+      md <<~'MD'
+        Write your content here as Markdown — headings, lists, `inline code`,
+        and fenced code blocks all render as prose. Add more `DocsUI::Section`s
+        for each part of the page; each becomes an "On this page" TOC entry.
+      MD
+    end
+  end
+end
