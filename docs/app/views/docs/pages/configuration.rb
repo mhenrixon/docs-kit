@@ -20,7 +20,7 @@ module Views
 
         def configure_section
           DocsUI::Section("DocsKit.configure", description: "Set it once; the shared chrome reads it everywhere.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Everything that differs between sites lives here — "
                 code { "brand" }
@@ -87,7 +87,7 @@ module Views
 
         def sidebar_nav_section
           DocsUI::Section("The sidebar nav", description: "A callable that maps your registry into the shared sidebar shape.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Set "
                 code { "c.nav" }
@@ -126,7 +126,7 @@ module Views
 
         def themes_section
           DocsUI::Section("Themes", description: "The theme list is the contract between config and CSS.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "The values in "
                 code { "c.themes" }

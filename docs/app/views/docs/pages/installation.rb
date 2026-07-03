@@ -111,7 +111,7 @@ module Views
         # authoring styles to prove Prose stays fully supported alongside md.
         def verify_section
           DocsUI::Section("Verify") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Boot the app with "
                 code { "bin/dev" }

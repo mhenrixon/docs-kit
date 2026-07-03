@@ -24,7 +24,7 @@ module Views
 
         def automatic_toc_section
           DocsUI::Section("Automatic TOC") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "docs-kit builds an "
                 strong { "On this page" }
@@ -60,7 +60,7 @@ module Views
                 c.on_page_default = :panel
               end
             RUBY
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Sets the placement for "
                 strong { "every" }
@@ -82,7 +82,7 @@ module Views
                 end
               end
             RUBY
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Declare "
                 code { "on_page" }
@@ -104,7 +104,7 @@ module Views
 
         def how_it_works_section
           DocsUI::Section("How it works") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "The TOC is pure client-side. The docs-nav Stimulus controller reads "
                 code { "section[id]" }

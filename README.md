@@ -91,15 +91,46 @@ class Views::Docs::Pages::Installation < DocsUI::Page
   def lead = "Add the gem and render your first component."
 
   def content
-    render DocsUI::Section.new("Add the gem") do
-      render DocsUI::Prose.new { p { "Components are plain Ruby classes." } }
-      render DocsUI::Code.new(<<~RUBY, filename: "Gemfile")
+    DocsUI::Section("Add the gem") do
+      prose { p { "Components are plain Ruby classes." } }
+      DocsUI::Code(<<~RUBY, filename: "Gemfile")
         gem "docs-kit"
       RUBY
     end
   end
 end
 ```
+
+`DocsUI::Page` includes the kit, so inside `#content` you call the components
+directly — `DocsUI::Section(...)`, `DocsUI::Code(...)` — no `render … .new`.
+
+### The authoring convention
+
+One rule covers the whole kit: **the primary argument is positional; modifiers
+are keyword arguments.**
+
+```ruby
+DocsUI::Header("Installation", eyebrow: "Guide")      # title positional
+DocsUI::Section("Add the gem", id: "add", description: …)  # title positional
+DocsUI::Code(source, lexer: :ruby, filename: "Gemfile")   # source positional
+```
+
+For the two wrappers that take **no** positional argument — prose and a
+multi-language example — `DocsUI::Page` gives you lowercase helpers so a block
+needs no parens:
+
+```ruby
+prose   { p { "Hand-authored prose." } }          # → DocsUI::Prose
+example { |ex| ex.code(:ruby) { source } }         # → DocsUI::Example
+md(<<~'MD')                                         # → DocsUI::Markdown
+  A block of **Markdown**.
+MD
+```
+
+The kit forms `DocsUI::Prose() { … }` / `DocsUI::Example() { … }` still work —
+they just need the empty `()`, because a bare `DocsUI::Prose do … end` parses as
+a constant reference (a Ruby `SyntaxError`). The lowercase helpers sidestep that
+entirely, so they're the everyday path.
 
 ## Authoring with Markdown
 
@@ -138,9 +169,8 @@ hand-written `DocsUI::Code`; an unknown fence language falls back to plaintext.
 
 Two things to know:
 
-- **`md` is a lowercase method, so `md <<~MD … MD` needs no parens** — unlike
-  `DocsUI::Prose()` / `DocsUI::Example()`, which take a block and so require the
-  empty-parens form.
+- **`md` is a lowercase page helper (like `prose`/`example`), so `md <<~MD … MD`
+  needs no parens** — see [the authoring convention](#the-authoring-convention).
 - **Use a single-quoted heredoc, `<<~'MD'`.** Then `#{…}` in your prose is
   literal text (Phlex escapes author text — no `html_safe`, no interpolation).
 

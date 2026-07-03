@@ -11,7 +11,7 @@ module Views
 
         def content
           DocsUI::Section("The canonical build", description: "docs-kit ships no compiled CSS — you build it.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "docs-kit ships "
                 strong { "no compiled CSS" }
@@ -38,7 +38,7 @@ module Views
           end
 
           DocsUI::Section("application.tailwind.css", description: "Your Tailwind entry point wires up daisyUI and the sources.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "The "
                 code { "themes:" }
@@ -66,7 +66,7 @@ module Views
           end
 
           DocsUI::Section("Adding a theme") do
-            DocsUI::Prose() do
+            prose do
               p { "Themes come from daisyUI. To add one:" }
               ol do
                 li do
@@ -102,7 +102,7 @@ module Views
           end
 
           DocsUI::Section("Custom styles") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Add your own CSS below the imports in "
                 code { "application.tailwind.css" }

@@ -19,6 +19,9 @@ module DocsUI
     # Authored pages subclass this, so include the kit here: a page body can call
     # DocsUI::Section(...) / DocsUI::Code(...) directly, no render ... .new.
     include DocsUI
+    # The lowercase, block-friendly authoring helpers (md/prose/example) — the
+    # friction-free path that never trips the parens-with-blocks gotcha.
+    include DocsUI::PageHelpers
 
     class << self
       def title(value = nil)
@@ -46,7 +49,7 @@ module DocsUI
           a(href: root_path, class: "link link-hover text-sm opacity-70") { "← Home" }
         end
 
-        render DocsUI::Header.new(title: self.class.title, eyebrow: self.class.eyebrow) do
+        render DocsUI::Header.new(self.class.title, eyebrow: self.class.eyebrow) do
           plain lead if lead
         end
 
@@ -54,14 +57,9 @@ module DocsUI
       end
     end
 
-    # Render a block of GFM Markdown as Prose-styled prose (see DocsUI::Markdown).
-    # A lowercase method + heredoc sidesteps the parens-with-blocks gotcha:
-    #   md <<~'MD'
-    #     Write **prose** as Markdown. Single-quoted heredoc so #{} stays literal.
-    #   MD
-    def md(source)
-      render DocsUI::Markdown.new(source)
-    end
+    # The lowercase authoring helpers md/prose/example come from DocsUI::PageHelpers
+    # (included above) — the parens-free path that never hits the constant-reference
+    # SyntaxError. The kit forms (DocsUI::Prose(), DocsUI::Example()) stay valid too.
 
     # Override in subclasses for the lead paragraph (optional).
     def lead = nil

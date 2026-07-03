@@ -33,7 +33,7 @@ module Views
 
         def shell_section
           DocsUI::Section("Shell", description: "The whole HTML document you're looking at right now.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 code { "DocsUI::Shell" }
                 plain " is the top-level page: the topbar (brand + "
@@ -62,7 +62,7 @@ module Views
 
         def page_section
           DocsUI::Section("Page", description: "The base class you subclass for every docs page — including this one.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Subclass "
                 code { "DocsUI::Page" }
@@ -88,7 +88,7 @@ module Views
                 on_page :toggle          # :panel | :toggle | :sidebar | false
 
                 def lead = "One-sentence summary."
-                def content = DocsUI::Section("Hello") { DocsUI::Prose() { p { "..." } } }
+                def content = DocsUI::Section("Hello") { prose { p { "..." } } }
               end
             RUBY
             render PropTable.new(
@@ -106,7 +106,7 @@ module Views
 
         def header_section
           DocsUI::Section("Header", description: "The masthead: eyebrow + h1 + optional lead.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "The block at the top of this page — kicker, heading, summary — is a "
                 code { "DocsUI::Header" }
@@ -122,14 +122,14 @@ module Views
               end
             end
             DocsUI::Code(<<~RUBY)
-              DocsUI::Header(title: "My guide", eyebrow: "Reference") do
+              DocsUI::Header("My guide", eyebrow: "Reference") do
                 plain "An optional lead paragraph."
               end
             RUBY
             render PropTable.new(
               [ "Arg", "Type", "Default", "Description" ],
               [
-                [ "title", "String", "—", "The h1 text." ],
+                [ "title", "String (positional)", "—", "The h1 text. Legacy title: kwarg still accepted." ],
                 [ "eyebrow", "String, nil", "nil", "Small kicker above the h1." ],
                 [ "block", "Phlex block", "nil", "Optional lead paragraph rendered under the h1." ]
               ]
@@ -141,7 +141,7 @@ module Views
 
         def section_section
           DocsUI::Section("Section", description: "An anchored section wrapper — this description is its description: arg.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Every block on this page is a "
                 code { "DocsUI::Section" }
@@ -160,7 +160,7 @@ module Views
             end
             DocsUI::Code(<<~RUBY)
               DocsUI::Section("Getting started", id: "start", description: "Read me first.") do
-                DocsUI::Prose() { p { "Section body." } }
+                prose { p { "Section body." } }
               end
             RUBY
             render PropTable.new(
@@ -176,7 +176,7 @@ module Views
 
         def prose_section
           DocsUI::Section("Prose", description: "A typographic wrapper for hand-authored HTML.") do
-            DocsUI::Prose() do
+            prose do
               p { "Prose gives hand-authored text a consistent reading rhythm without a typography plugin." }
               ul do
                 li { "lists," }
@@ -184,19 +184,25 @@ module Views
                 li { "links — all styled." }
               end
             end
-            DocsUI::Prose() { p { "The call that produced the block above:" } }
+            prose { p { "The call that produced the block above:" } }
             DocsUI::Code(<<~RUBY)
-              DocsUI::Prose() do
+              prose do
                 p { "Prose gives hand-authored text a consistent reading rhythm." }
                 ul { li { "lists," }; li { "inline code," }; li { "links." } }
               end
             RUBY
-            DocsUI::Callout(:warning) do
-              plain "A kit call with a block needs parens: "
-              code { "DocsUI::Prose() do" }
-              plain ". Bare "
+            DocsUI::Callout(:tip) do
+              plain "On a "
+              code { "DocsUI::Page" }
+              plain " use the lowercase "
+              code { "prose do … end" }
+              plain " helper — a method call, no parens needed. The kit form "
+              code { "DocsUI::Prose() do … end" }
+              plain " also works, but bare "
               code { "DocsUI::Prose do" }
-              plain " is a Ruby SyntaxError."
+              plain " is a SyntaxError, so it needs the empty "
+              code { "()" }
+              plain "."
             end
             render PropTable.new(
               [ "Arg", "Type", "Default", "Description" ],
@@ -214,7 +220,7 @@ module Views
                 has_many :posts
               end
             RUBY
-            DocsUI::Prose() { p { "The call that produced the block above:" } }
+            prose { p { "The call that produced the block above:" } }
             DocsUI::Code(%(DocsUI::Code(source, lexer: :ruby, filename: "app/models/user.rb")))
             render PropTable.new(
               [ "Arg", "Type", "Default", "Description" ],
@@ -229,7 +235,7 @@ module Views
 
         def example_section
           DocsUI::Section("Example", description: "Multi-language tabbed code with a sticky, global language choice.") do
-            DocsUI::Example() do |ex|
+            example do |ex|
               ex.code(:ruby, filename: "client.rb") do
                 %(Anthropic::Client.new.messages.create(model: "claude-opus-4-8", messages: msgs))
               end
@@ -237,9 +243,9 @@ module Views
                 %(anthropic.Anthropic().messages.create(model="claude-opus-4-8", messages=msgs))
               end
             end
-            DocsUI::Prose() { p { "The call that produced the tabs above:" } }
+            prose { p { "The call that produced the tabs above:" } }
             DocsUI::Code(<<~RUBY)
-              DocsUI::Example() do |ex|
+              example do |ex|
                 ex.code(:ruby, filename: "client.rb")   { ruby_source }
                 ex.code(:python, filename: "client.py") { python_source }
               end
@@ -261,7 +267,7 @@ module Views
             DocsUI::Callout(:note) { "This is a note callout." }
             DocsUI::Callout(:tip) { "A tip callout — for handy asides." }
             DocsUI::Callout(:warning) { "A warning callout — for gotchas." }
-            DocsUI::Prose() { p { "The calls that produced the boxes above:" } }
+            prose { p { "The calls that produced the boxes above:" } }
             DocsUI::Code(<<~RUBY)
               DocsUI::Callout(:note)    { "This is a note callout." }
               DocsUI::Callout(:tip)     { "A tip callout." }
@@ -285,7 +291,7 @@ module Views
               DocsUI::Icon("book-open", class: "size-6")
               DocsUI::Icon("paintbrush", class: "size-6")
             end
-            DocsUI::Prose() { p { "The calls that produced the icons above:" } }
+            prose { p { "The calls that produced the icons above:" } }
             DocsUI::Code(<<~RUBY)
               DocsUI::Icon("rocket", class: "size-6")
               DocsUI::Icon("book-open", class: "size-6")
@@ -308,7 +314,7 @@ module Views
 
         def on_this_page_section
           DocsUI::Section("OnThisPage", description: "The auto-TOC — the panel Shell renders from your on_page setting.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "The TOC is built from the page's "
                 code { "Section" }
@@ -336,7 +342,7 @@ module Views
 
         def sidebar_section
           DocsUI::Section("Sidebar", description: "The left nav — built from your config, rendered by Shell.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "The sidebar is driven entirely by "
                 code { "DocsKit.configuration.nav" }
@@ -363,7 +369,7 @@ module Views
 
         def theme_switcher_section
           DocsUI::Section("ThemeSwitcher", description: "The theme dropdown — built from your config, rendered by Shell.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "The dropdown in the topbar is a "
                 code { "DocsUI::ThemeSwitcher" }

@@ -171,17 +171,17 @@ RSpec.describe DocsUI::Markdown do
     expect(html).not_to include("<td")
   end
 
-  # The `md(source)` helper on DocsUI::Page delegates to this component. Page
-  # itself needs a Rails view context (Shell composes CSRF/url helpers) and can't
-  # load standalone, so exercise the exact delegation through a bare Phlex host
-  # that includes the same DocsUI kit a Page does.
+  # The `md(source)` helper lives in DocsUI::PageHelpers (mixed into DocsUI::Page).
+  # Page itself needs a Rails view context (Shell composes CSRF/url helpers) and
+  # can't load standalone, so exercise the REAL helper module through a bare Phlex
+  # host that includes it plus the same DocsUI kit a Page does.
   describe "the DocsUI::Page#md helper delegation" do
     def render_md_helper(source)
       md_source = source
       Class.new(Phlex::HTML) do
         include DocsUI
+        include DocsUI::PageHelpers
 
-        define_method(:md) { |src| render DocsUI::Markdown.new(src) }
         define_method(:view_template) { md(md_source) }
       end.new.call
     end
