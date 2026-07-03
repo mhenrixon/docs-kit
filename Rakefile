@@ -102,28 +102,29 @@ task :release, %i[version force] do |_t, args|
     success "Updated #{version_file}"
   end
 
-  # Step 2: Update lockfiles and verify gem builds cleanly. docs/ is the dogfood
-  # site — bump its lock too so it tracks the new gem version.
+  # Step 2: Refresh lockfiles and verify the gem builds cleanly. docs/ is the
+  # dogfood site — refresh its lock too so `bundle install` there resolves the
+  # new gem version. The lockfiles are gitignored (a gem doesn't commit them),
+  # so this is verification only; nothing here gets committed.
   header "Build verification"
   sh("bundle install --quiet")
-  success "Gemfile.lock updated"
+  success "Gemfile.lock refreshed"
   if File.exist?("docs/Gemfile.lock")
     sh("cd docs && bundle install --quiet")
-    success "docs/Gemfile.lock updated"
+    success "docs/Gemfile.lock refreshed"
   end
   sh("gem build docs-kit.gemspec --strict")
   sh("rm -f docs-kit-*.gem")
   success "Gem builds cleanly"
 
-  # Step 3: Commit version bump
+  # Step 3: Commit version bump. Only version.rb is committed — Gemfile.lock and
+  # docs/Gemfile.lock are gitignored (conventional for a gem), so staging them
+  # would abort on `git add`. The build above already verified they resolve.
   header "Git commit"
-  files_to_stage = [version_file, "Gemfile.lock"]
-  files_to_stage << "docs/Gemfile.lock" if File.exist?("docs/Gemfile.lock")
-  version_changed = files_to_stage.any? do |f|
-    !`git diff #{f}`.strip.empty? || !`git diff --cached #{f}`.strip.empty?
-  end
+  version_changed =
+    !`git diff #{version_file}`.strip.empty? || !`git diff --cached #{version_file}`.strip.empty?
   if version_changed
-    sh("git add #{files_to_stage.join(' ')}")
+    sh("git add #{version_file}")
     sh("git commit -m 'chore: bump version to #{new_version}'")
     success "Committed version bump"
   else
