@@ -13,8 +13,10 @@ module DocsUI
   #
   # Any language Rouge knows (~200 lexers) works by its name or alias — python,
   # go, rust, elixir, kotlin, swift, json, dockerfile, ... — no allowlist. Add
-  # friendly aliases/labels via DocsKit.configure (code_lexer_aliases). An unknown
-  # language falls back to plaintext (never raises).
+  # friendly lexer aliases via DocsKit.configure (code_lexer_aliases). An unknown
+  # language falls back to plaintext (never raises). (Tab labels are a
+  # DocsUI::Example concern — set via code_language_labels, not here; Code has no
+  # label, only a filename.)
   class Code < Phlex::HTML
     include Phlex::Rails::Helpers::ContentSecurityPolicyNonce
 
@@ -53,7 +55,12 @@ module DocsUI
     def csp_nonce = view_context && content_security_policy_nonce
 
     def title_bar
-      div(class: "flex items-center gap-2 border-b border-base-300 bg-base-300/60 px-4 py-2") do
+      # data-md-skip: the title bar is chrome. MarkdownExport strips it whole
+      # before the visitor runs, so the filename never leaks into the .md twin as
+      # a stray line above the fence. The visible HTML is unaffected (DROP_SELECTOR
+      # is applied only inside #to_md).
+      div(class: "flex items-center gap-2 border-b border-base-300 bg-base-300/60 px-4 py-2",
+          data: { md_skip: true }) do
         render DocsUI::Icon.new("file-code", class: "size-3.5 opacity-60")
         span(class: "font-mono text-xs opacity-70") { @filename }
       end

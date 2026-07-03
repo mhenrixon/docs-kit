@@ -83,7 +83,10 @@ module DocsKit
     # The body as compact single-line JSON, for inlining in a JS literal.
     def compact_json(request)
       require "json"
-      JSON.generate(JSON.parse(request.pretty_body_json))
+      json = request.pretty_body_json
+      JSON.generate(JSON.parse(json))
+    rescue JSON::ParserError
+      json
     end
   end
 end

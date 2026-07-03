@@ -195,7 +195,7 @@ RSpec.describe DocsKit::Configuration do
       expect(DocsKit.configuration.code_theme_class).to eq(Rouge::Themes::Github)
     end
 
-    it "degrades to the default theme when a typo'd theme name doesn't resolve, rather than crashing every code block" do
+    it "degrades to the default theme when a typo'd theme name doesn't resolve (not a crash)" do
       DocsKit.configure { |c| c.code_theme = "Rouge::Themes::Doesnotexist" }
 
       expect { DocsKit.configuration.code_theme_class }.not_to raise_error

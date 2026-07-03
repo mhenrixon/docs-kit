@@ -81,6 +81,13 @@ RSpec.describe DocsUI::FieldTable do
     expect(html).not_to include("<td")
   end
 
+  it "degrades a field with no :description to the em-dash placeholder" do
+    html = render_field_table([{ name: "url", type: "string" }])
+
+    expect(html).to include("—")
+    expect(html).to include(">url</code>")
+  end
+
   it "escapes HTML in a plain-string description" do
     html = render_field_table([{ name: "x", type: "string", description: "see <title>" }])
 

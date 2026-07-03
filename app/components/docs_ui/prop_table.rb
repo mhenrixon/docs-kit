@@ -36,7 +36,7 @@ module DocsUI
     # left as the author wrote it.
     def code_first_column(cells)
       first, *rest = cells
-      first = [:code, first] unless first.is_a?(Array)
+      first = [:code, first] unless first.nil? || first.is_a?(Array)
       [first, *rest]
     end
   end

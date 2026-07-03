@@ -97,11 +97,25 @@ module DocsKit
     end
 
     # → [intro_text, [[heading, body], ...]]. Splits on lines that are exactly a
-    # level-2 ATX heading (`## Foo`), matching MarkdownExport's twin output.
+    # level-2 ATX heading (`## Foo`), matching MarkdownExport's twin output. Scans
+    # line-by-line and toggles an in-fence flag on ``` / ~~~ fences so a `## `
+    # inside a code block stays body text — the rendered page never ids it, so a
+    # section entry there would carry a dead anchor.
     def split_sections(markdown)
-      parts = markdown.split(/^\#\#[ \t]+(.+?)[ \t]*$/)
-      intro = parts.shift.to_s
-      sections = parts.each_slice(2).map { |heading, body| [heading.to_s.strip, body.to_s] }
+      intro = +""
+      sections = []
+      in_fence = false
+      markdown.each_line do |line|
+        in_fence = !in_fence if line.match?(/^[ \t]*(```|~~~)/)
+        heading = line.match(/^\#\#[ \t]+(.+?)[ \t]*$/) unless in_fence
+        if heading
+          sections << [heading[1].strip, +""]
+        elsif sections.empty?
+          intro << line
+        else
+          sections.last[1] << line
+        end
+      end
       [intro, sections]
     end
 

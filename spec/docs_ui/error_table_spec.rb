@@ -60,6 +60,26 @@ RSpec.describe DocsUI::ErrorTable do
     end
   end
 
+  context "when a param is a blank string" do
+    it "treats it as absent — no Param column when every param is blank" do
+      html = render_error_table([{ scenario: "x", status: "422", type: "validation_error", param: "" }])
+
+      expect(html).not_to include(">Param")
+    end
+
+    it "fills the em-dash placeholder for a blank param when the column is shown" do
+      html = render_error_table(
+        [
+          { scenario: "Non-HTTPS URL", status: "422", type: "validation_error", param: "url" },
+          { scenario: "Blank param", status: "422", type: "validation_error", param: "" }
+        ]
+      )
+
+      expect(html).to include("—")
+      expect(html).not_to include(%(<code class="text-sm"></code>))
+    end
+  end
+
   context "when no row has a param" do
     it "hides the Param column entirely" do
       html = render_error_table(errors_without_param)

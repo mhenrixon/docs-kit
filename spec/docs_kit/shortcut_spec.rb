@@ -79,6 +79,11 @@ RSpec.describe DocsKit::Shortcut do
     it "spells out explicit modifiers in order" do
       expect(described_class.parse("ctrl+shift+f").label).to eq("Ctrl Shift F")
     end
+
+    it "de-duplicates a label that maps two flags to the same text (mod+ctrl → one Ctrl)" do
+      # :mod and :ctrl both render as "Ctrl"; the badge must not read "Ctrl Ctrl K".
+      expect(described_class.parse("mod+ctrl+k").label).to eq("Ctrl K")
+    end
   end
 
   describe "#to_h — the shape docs-nav matches against" do

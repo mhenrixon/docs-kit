@@ -70,7 +70,7 @@ module DocsKit
     # "Ctrl K"); a BARE key is shown exactly as authored ("/", "s"). A named key
     # (e.g. "escape") is left as-is either way.
     def label
-      mods = LABEL_ORDER.select { |flag| @mods.include?(flag) }.map { |flag| MODIFIER_LABELS[flag] }
+      mods = LABEL_ORDER.select { |flag| @mods.include?(flag) }.map { |flag| MODIFIER_LABELS[flag] }.uniq
       (mods << key_label(chord: !mods.empty?)).join(" ")
     end
 

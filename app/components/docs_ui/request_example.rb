@@ -67,6 +67,8 @@ module DocsUI
       return @headers if auth_header.nil? || auth_header.strip.empty?
 
       name, value = auth_header.split(":", 2).map(&:strip)
+      return @headers if value.nil? || value.empty?
+
       { name => value }.merge(@headers)
     end
 

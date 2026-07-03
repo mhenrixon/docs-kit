@@ -71,6 +71,23 @@ RSpec.describe DocsKit::Registry do
     expect(klass.grouped.keys).to eq(%w[Actions])
   end
 
+  it "builds nav_items honoring a custom group_by_attribute (no #view_class/#group required)" do
+    klass = Class.new do
+      extend DocsKit::Registry
+
+      entries [{ slug: "a", category: "Actions" }]
+      group_by_attribute :category
+      attr_reader :slug, :category
+
+      def initialize(entry)
+        @slug = entry[:slug]
+        @category = entry[:category]
+      end
+    end
+
+    expect(klass.nav_items).to eq({})
+  end
+
   # ---------------------------------------------------------------------------
   # Registry v2: the one-line `page` DSL. A site declares pages with a single
   # line; slug/view derive from the title (both overridable), instances get the

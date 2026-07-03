@@ -39,7 +39,7 @@ module DocsUI
         [:code, field.fetch(:name)],
         field.fetch(:type),
         field.fetch(:required, false) ? REQUIRED_YES : REQUIRED_NO,
-        field.fetch(:description)
+        field.fetch(:description, REQUIRED_NO)
       ]
     end
   end

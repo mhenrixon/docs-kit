@@ -179,6 +179,24 @@ RSpec.describe DocsKit::SearchIndex do
       expect(hit.href).to eq("/docs/empty")
     end
 
+    it "treats a `## ` line inside a fenced code block as body, not a section" do
+      # The bash fence contains `## install the gem`; it must NOT become a phantom
+      # section entry with a `#install-the-gem` anchor (a slug the rendered page
+      # never stamps — DocsUI::Section only ids real headings). Only the real
+      # `## Real Section` heading below the fence is a section.
+      corpus = [["Guide", "/guide", "Intro.\n\n```bash\n## install the gem\n```\n\n## Real Section\n\nBody.\n"]]
+      index = described_class.new(corpus)
+
+      # No entry carries the in-fence text as its section title / anchor.
+      fence = index.entries.find { |e| e.section_title == "install the gem" }
+      expect(fence).to be_nil
+      expect(index.entries.map(&:href)).not_to include("/guide#install-the-gem")
+
+      # The in-fence text stays with the intro, and only the real heading is a section.
+      section_titles = index.entries.map(&:section_title)
+      expect(section_titles).to contain_exactly(nil, "Real Section")
+    end
+
     it "snippets from the head when the match is a section-title, not body text" do
       corpus = [["P", "/docs/p", "Intro.\n\n## Widgets\n\n"]]
       # 'widgets' matches the heading; the section body is empty, so the snippet

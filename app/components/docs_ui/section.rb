@@ -26,11 +26,14 @@ module DocsUI
   class Section < Phlex::HTML
     def initialize(title, id: nil, description: nil)
       @title = title
-      @id = id || slugify(title)
+      @explicit_id = id
       @description = description
     end
 
     def view_template(&)
+      # Resolve the anchor id at render time so it can be de-duplicated against
+      # sibling sections sharing this page's render context (see #resolve_id).
+      @id = @explicit_id || unique_id(slugify(@title))
       section(id: @id, class: "mb-10 scroll-mt-20") do
         heading
         description
@@ -72,6 +75,20 @@ module DocsUI
       return text.parameterize if text.respond_to?(:parameterize)
 
       text.to_s.downcase.gsub(/[^a-z0-9]+/, "-").gsub(/\A-+|-+\z/, "")
+    end
+
+    # De-duplicate the anchor id across every Section on the page. Phlex's render
+    # `context` is a Hash shared by the whole render tree, so sibling sections see
+    # the same used-id counter without any shared parent state. A title that
+    # slugifies to "" (e.g. "C++" → "c" is fine, but "+++" → "") falls back to
+    # "section"; colliding bases get a "-1", "-2", … sequence suffix so in-page
+    # anchors and the auto-TOC/scroll-spy resolve to distinct headings.
+    def unique_id(base)
+      base = "section" if base.empty?
+      used = (context[:__docs_ui_section_ids__] ||= Hash.new(0))
+      n = used[base]
+      used[base] += 1
+      n.zero? ? base : "#{base}-#{n}"
     end
   end
 end

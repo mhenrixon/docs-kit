@@ -104,6 +104,18 @@ RSpec.describe DocsKit::MarkdownExport do
       expect(md).to include("`inline`")
     end
 
+    it "round-trips inline code containing a backtick through GFM" do
+      # A single-backtick fence closes at an interior backtick, corrupting the
+      # span. The fence run must be longer than the longest run inside the text
+      # (and padded when the content starts/ends with a backtick).
+      require "commonmarker"
+      md = html_to_md("<p>run <code>a`b</code> now.</p>")
+
+      code_span = md[/`+ ?a`b ?`+/]
+      expect(code_span).not_to be_nil
+      expect(Commonmarker.to_html(code_span)).to include("<code>a`b</code>")
+    end
+
     it "renders a link as [text](href)" do
       page = docs_content { p { a(href: "https://example.com/docs") { "the guide" } } }
 
@@ -158,6 +170,17 @@ RSpec.describe DocsKit::MarkdownExport do
       expect(md).not_to include("&lt;")
       expect(md).not_to include("&amp;")
     end
+
+    it "does not leak a Code(filename:) title into the twin as a stray line" do
+      page = docs_content { render DocsUI::Code.new("puts 1", lexer: :ruby, filename: "app.rb") }
+
+      md = to_md(page)
+
+      # The title bar is chrome — the fence must be bare, with no loose "app.rb"
+      # paragraph above it.
+      expect(md).to eq("```ruby\nputs 1\n```")
+      expect(md).not_to include("app.rb")
+    end
   end
 
   describe "callouts" do
@@ -176,6 +199,15 @@ RSpec.describe DocsKit::MarkdownExport do
 
       expect(note).to include("> **Note:**")
       expect(warn).to include("> **Warning:**")
+    end
+
+    it "uses the author's title as the label and never fuses it into the body" do
+      page = docs_content { render DocsUI::Callout.new(:tip, title: "Heads up") { "Body here." } }
+
+      md = to_md(page)
+
+      expect(md).to include("> **Heads up:** Body here.")
+      expect(md).not_to include("Heads upBody here.")
     end
   end
 
@@ -239,6 +271,19 @@ RSpec.describe DocsKit::MarkdownExport do
       expect(md).to match(/\|\s*-+\s*\|/) # the header separator row
       expect(md).to include("brand")
       expect(md).to include("Topbar heading.")
+    end
+
+    it "keeps a rectangular GFM table when a body row has more cells than the header" do
+      md = html_to_md(
+        "<table>" \
+        "<thead><tr><th>A</th><th>B</th></tr></thead>" \
+        "<tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody>" \
+        "</table>"
+      )
+
+      # Every line must declare the same number of columns as the widest row (3).
+      pipe_counts = md.each_line.map { |line| line.count("|") }
+      expect(pipe_counts.uniq).to eq([4])
     end
   end
 

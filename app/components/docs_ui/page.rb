@@ -41,7 +41,7 @@ module DocsUI
       # or :panel/:toggle/:sidebar to override per page.
       def on_page(value = :__unset__)
         @on_page = value unless value == :__unset__
-        defined?(@on_page) ? @on_page : true
+        defined?(@on_page) ? @on_page : DocsKit.configuration.on_page_default
       end
     end
 

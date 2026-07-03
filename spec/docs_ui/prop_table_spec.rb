@@ -56,4 +56,11 @@ RSpec.describe DocsUI::PropTable do
     expect(html).to include(">Option")
     expect(html).not_to include("<td")
   end
+
+  it "does not emit an empty <code> for a malformed empty row" do
+    html = render_prop_table([[]])
+
+    # A nil first cell must not be wrapped into an empty <code> element.
+    expect(html).not_to include("<code class=\"text-sm\"></code>")
+  end
 end

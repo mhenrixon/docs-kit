@@ -218,7 +218,18 @@ module DocsKit
         inject_into_file index, after: /eagerLoadControllersFrom\([^\n]*\n/ do
           "#{REGISTER_LINE}\n"
         end
-        append_to_file(index, "\n#{REGISTER_LINE}\n") unless stimulus_registered?(index)
+        return if stimulus_registered?(index) # inject handled it
+
+        # No eager anchor to inject after: only append the eager line if the file
+        # actually imports eagerLoadControllersFrom — appending it to a lazy-only
+        # index.js writes a call with no import, a ReferenceError that aborts the
+        # module and registers ZERO controllers (the failure REGISTER_LINE warns
+        # of). A lazy-only file is valid, so warn instead of breaking it.
+        unless File.read(index).match?(/import\s*\{[^}]*eagerLoadControllersFrom/)
+          return say_status(:skip, "#{relative(index)} doesn't eager-load — add: #{REGISTER_LINE}", :yellow)
+        end
+
+        append_to_file(index, "\n#{REGISTER_LINE}\n")
       end
 
       # Detect + print manual drift the generator can't safely automate (a
