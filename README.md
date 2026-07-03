@@ -409,6 +409,60 @@ get "/llms-full.txt" => "docs_kit/llms#full", as: :llms_full
 **Existing sites:** re-run `bin/rails g docs_kit:install` (it adds the two routes
 idempotently), or paste the two lines above into `config/routes.rb`.
 
+## Add your docs to an agent (MCP)
+
+`llms.txt` covers fetch-style consumption; **MCP** (the Model Context Protocol) is
+the native one — a reader adds one URL and your docs become first-class agent
+tools instead of scraped text. docs-kit ships a **read-only, stateless** MCP
+server that any site can turn on with one gem + one route. It exposes three tools
+over the SAME registry the docs render from (so an agent queries live docs, never
+a stale copy):
+
+| Tool | Returns |
+|------|---------|
+| `list_pages` | every authored page — `slug`, `title`, `group`, `url` |
+| `get_page(slug:)` | one page's Markdown twin (the same `.md` twin `/llms.txt` links) |
+| `search_docs(query:)` | ranked hits — `page_title`, `section_title`, `url`, `snippet` |
+
+The `mcp` gem is **optional** — docs-kit depends on it in no gemspec list, and the
+endpoint stays off (byte-identical to before) unless you opt in. Two steps:
+
+```ruby
+# Gemfile
+gem "mcp"
+```
+
+```ruby
+# config/routes.rb — the install generator scaffolds these COMMENTED; uncomment.
+post  "/mcp" => "docs_kit/mcp#create", as: :mcp
+match "/mcp" => "docs_kit/mcp#method_not_allowed", via: %i[get delete]
+```
+
+Then a reader connects — for Claude Code:
+
+```bash
+claude mcp add --transport http docs https://your-docs.example/mcp
+```
+
+and can ask Claude to search or read your docs, which now appear as tools. The
+JSON-RPC is stateless (each `POST` is independent — no SSE session), so it works
+behind the existing Kamal/Cloudflare deploy unchanged; `GET`/`DELETE` return
+`405`. When enabled, `/llms.txt` grows a final `## MCP` line advertising the
+endpoint so agents discover it.
+
+`c.mcp` defaults to `true`, so once the gem + route are present the endpoint is
+live. Set it `false` to keep it off even on a site that bundles the gem:
+
+```ruby
+DocsKit.configure { |c| c.mcp = false }
+```
+
+The endpoint is read-only over already-public content — writing docs is still
+git, and private-docs auth is a host concern (the route is yours to wrap). Rate
+limiting is the host's responsibility too (e.g. `rate_limit` in your base
+controller). The server ships in the gem (`DocsKit::McpServer` /
+`DocsKit::McpController`); the **route lives in your app**, like `llms.txt`.
+
 ## API docs — one request, every client tab
 
 An endpoint example is a request shown in several clients (curl, JavaScript,

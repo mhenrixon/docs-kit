@@ -36,3 +36,28 @@ jobs:
 
       - name: Run the suite + lint
         run: bundle exec rake
+
+  # The optional-dependency gate: docs-kit's MCP server is built on the `mcp`
+  # gem, which is NOT a runtime dependency (a consuming site adds it itself). This
+  # leg installs WITHOUT the `mcp` group and runs the suite — proving the feature
+  # no-ops cleanly (the MCP specs self-skip) when the gem is absent, so a site
+  # that never bundles `mcp` is byte-identical to before this feature.
+  without-mcp:
+    name: gate (no mcp gem)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Install without the optional mcp gem
+        run: |
+          bundle config set --local without mcp
+          bundle install
+
+      - name: Run the suite (must stay green with mcp absent)
+        run: bundle exec rspec

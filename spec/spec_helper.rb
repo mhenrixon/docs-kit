@@ -34,6 +34,17 @@ require "daisy_ui"
 
 require "docs_kit"
 
+# The MCP server (DocsKit::McpServer) is an OPTIONAL, runtime-detected feature
+# built on the `mcp` gem — docs-kit never depends on it at runtime. The suite
+# loads it (dev/test group) so the MCP specs exercise the real SDK; MCP-integration
+# examples guard on `defined?(MCP)`, so a `bundle install --without mcp` run
+# (the optional-dependency gate) simply skips them and the rest stays green.
+begin
+  require "mcp"
+rescue LoadError
+  # mcp not bundled (the without-mcp gate leg) — the MCP specs self-skip.
+end
+
 RSpec.configure do |config|
   config.expect_with(:rspec) { |c| c.syntax = :expect }
   config.disable_monkey_patching!

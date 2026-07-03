@@ -128,6 +128,14 @@ module DocsKit
     # works). See DocsKit::MarkdownExport / DocsKit::Controller#render_page.
     attr_accessor :page_markdown_action
 
+    # Whether the built-in read-only MCP endpoint (DocsKit::McpController, a
+    # POST /mcp JSON-RPC server exposing list_pages / get_page / search_docs over
+    # the same registry the docs render from) is active. Defaults to true, but the
+    # endpoint only turns on when the optional `mcp` gem is ALSO present and the
+    # host draws the route — #mcp_enabled? gates on both. Set false to keep the
+    # endpoint off even on a site that bundles the gem. See DocsKit::McpServer.
+    attr_accessor :mcp
+
     # Whether the topbar renders the docs-search form (and the docs-nav palette
     # markup). Defaults to true. Set false to hide search site-wide — the route
     # can stay drawn, but no affordance points at it. Gated together with a
@@ -219,6 +227,7 @@ module DocsKit
       @code_lexer_fallback = "plaintext"
       @code_language_labels = {}
       @page_markdown_action = true
+      @mcp = true
       @search = true
       @search_path = "/docs/search"
       @search_shortcuts = DEFAULT_SEARCH_SHORTCUTS
@@ -270,6 +279,24 @@ module DocsKit
 
     private
 
+    # True when the optional `mcp` gem can be loaded. Memoized across both
+    # outcomes so a site without the gem doesn't pay a failed require per request.
+    # We attempt the require lazily (rather than only checking defined?(MCP)) so a
+    # bundled-but-not-yet-required gem still counts as present — the same
+    # degrade-gracefully-on-a-missing-optional-gem posture as DocsUI::Icon's
+    # rails_icons guard.
+    def mcp_gem_present?
+      return @mcp_gem_present if defined?(@mcp_gem_present)
+
+      @mcp_gem_present =
+        begin
+          require "mcp"
+          defined?(::MCP::Server) ? true : false
+        rescue LoadError
+          false
+        end
+    end
+
     # { heading => registry.nav_items }, dropping headings with no authored
     # pages so the sidebar never shows an empty group.
     def nav_groups_from_registries
@@ -297,6 +324,15 @@ module DocsKit
 
     def title_suffix
       @title_suffix || @brand
+    end
+
+    # Whether the built-in MCP endpoint is active: the #mcp toggle is on AND the
+    # optional `mcp` gem is loadable — the same "toggle AND capability" shape as
+    # #search_enabled?. Read by DocsKit::LlmsText (to advertise /mcp in llms.txt)
+    # and DocsKit::McpController (to 404 when off), so a site without the gem, or
+    # one that set c.mcp = false, is byte-identical to before this feature.
+    def mcp_enabled?
+      !!@mcp && mcp_gem_present?
     end
 
     # Whether the Shell renders the search affordance: search is on AND a path is

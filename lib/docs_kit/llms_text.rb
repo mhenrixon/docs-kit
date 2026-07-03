@@ -36,13 +36,22 @@ module DocsKit
       blocks = ["# #{config.brand}"]
       tagline = config.tagline
       blocks << "> #{tagline}" if tagline && !tagline.to_s.empty?
+      blocks.concat(section_blocks(config, base_url))
 
-      groups(config).each do |group, links|
-        section = ["## #{group}", *links.map { |link| link_line(link, base_url) }]
-        blocks << section.join("\n")
-      end
+      # Advertise the built-in MCP endpoint last, so an agent that reads llms.txt
+      # discovers it can also connect over the protocol (native tools vs fetching
+      # text). Only when the endpoint is actually live (gem present + c.mcp on).
+      blocks << mcp_block(base_url) if config.mcp_enabled?
 
       blocks.join("\n\n")
+    end
+
+    # One `## {group}` block per nav group, each a tight bullet list of its
+    # authored pages' `.md` links, in registry order.
+    def section_blocks(config, base_url)
+      groups(config).map do |group, links|
+        ["## #{group}", *links.map { |link| link_line(link, base_url) }].join("\n")
+      end
     end
 
     # The authored pages across every registry, in config/registry order — each
@@ -65,6 +74,17 @@ module DocsKit
       config.nav_registries.values.each_with_object({}) do |registry, acc|
         registry.nav_items.each { |group, links| (acc[group] ||= []).concat(links) }
       end
+    end
+
+    # The `## MCP` section pointing an agent at the read-only MCP endpoint. The
+    # `/mcp` URL is absolutized against base_url when available (agents connect to
+    # a portable URL); relative otherwise.
+    def mcp_block(base_url)
+      url = base_url ? "#{base_url.chomp('/')}/mcp" : "/mcp"
+      "## MCP\n" \
+        "This documentation is also available over the Model Context Protocol " \
+        "(search, page retrieval) at #{url} — add it to an MCP client " \
+        "(Claude Code, Claude.ai, Cursor) to query these docs as tools."
     end
 
     # `- [label](absolute .md url)`. The `.md` suffix targets the page's Markdown

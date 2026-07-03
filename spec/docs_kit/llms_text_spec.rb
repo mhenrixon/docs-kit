@@ -116,13 +116,14 @@ RSpec.describe DocsKit::LlmsText do
 
     context "with an empty registry (all pages unwritten)" do
       subject(:index) do
-        described_class.index(
-          configure(nav_registries: { "Docs" => registry(nav_items: {}) }),
-          base_url: "https://acme.dev"
-        )
+        config = configure(nav_registries: { "Docs" => registry(nav_items: {}) })
+        # Isolate the page-group behavior from the (gem-dependent) MCP block, which
+        # legitimately adds its own `## MCP` section when the endpoint is live.
+        allow(config).to receive(:mcp_enabled?).and_return(false)
+        described_class.index(config, base_url: "https://acme.dev")
       end
 
-      it "renders a valid index with no sections (never an empty ## group)" do
+      it "renders a valid index with no page sections (never an empty ## group)" do
         expect(index).to start_with("# docs-kit")
         expect(index).not_to include("##")
       end
@@ -132,6 +133,43 @@ RSpec.describe DocsKit::LlmsText do
       index = described_class.index(configure(tagline: nil))
 
       expect(index).to include("- [Overview](/docs/overview.md)")
+    end
+
+    context "when the MCP endpoint is enabled" do
+      subject(:index) do
+        config = configure(tagline: nil)
+        allow(config).to receive(:mcp_enabled?).and_return(true)
+        described_class.index(config, base_url: "https://acme.dev")
+      end
+
+      it "advertises the MCP endpoint so agents can discover it" do
+        expect(index).to include("## MCP")
+        expect(index).to include("https://acme.dev/mcp")
+      end
+
+      it "puts the MCP block last (after the page sections)" do
+        expect(index.index("## Getting started")).to be < index.index("## MCP")
+      end
+
+      it "uses a relative /mcp path when no base_url is given" do
+        config = configure(tagline: nil)
+        allow(config).to receive(:mcp_enabled?).and_return(true)
+
+        expect(described_class.index(config)).to include("/mcp")
+      end
+    end
+
+    context "when the MCP endpoint is disabled (default / no gem)" do
+      subject(:index) do
+        config = configure(tagline: nil)
+        allow(config).to receive(:mcp_enabled?).and_return(false)
+        described_class.index(config, base_url: "https://acme.dev")
+      end
+
+      it "omits the MCP advertisement entirely (byte-identical to before)" do
+        expect(index).not_to include("## MCP")
+        expect(index).not_to include("/mcp")
+      end
     end
   end
 

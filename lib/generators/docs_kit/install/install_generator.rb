@@ -84,6 +84,19 @@ module DocsKit
         # skips a line already present, so re-running the generator is idempotent.
         route %(get "/llms.txt" => "docs_kit/llms#index", as: :llms)
         route %(get "/llms-full.txt" => "docs_kit/llms#full", as: :llms_full)
+
+        add_mcp_route
+      end
+
+      # The read-only MCP endpoint (DocsKit::McpController), drawn COMMENTED OUT
+      # because it needs the OPTIONAL `mcp` gem — the generator can't assume it's
+      # bundled. A site opts in by adding `gem "mcp"` and uncommenting these. POST
+      # speaks JSON-RPC; GET/DELETE 405 (read-only, stateless — no SSE session).
+      # `route` prepends, so drawing `match` before `post` leaves `post` on top.
+      def add_mcp_route
+        route %(# match "/mcp" => "docs_kit/mcp#method_not_allowed", via: %i[get delete])
+        route %(# post "/mcp" => "docs_kit/mcp#create")
+        route %(# Add your docs to an agent over MCP (needs `gem "mcp"`):)
       end
 
       def create_css_build
