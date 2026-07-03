@@ -111,8 +111,7 @@ module Views
         def building_blocks_section
           DocsUI::Section("The building blocks",
                           description: "The DocsUI kit you compose inside #content.") do
-            render PropTable.new(
-              [ "Helper", "Use for" ],
+            render DocsUI::PropTable.new(
               [
                 [ "DocsUI::Section(title)", "an anchored subsection with a heading (+ optional description)" ],
                 [ "md(source)", "a block of GFM Markdown, styled like Prose" ],
@@ -120,7 +119,8 @@ module Views
                 [ "DocsUI::Code(source)", "a syntax-highlighted code block" ],
                 [ "example { |ex| … }", "multi-language tabbed code" ],
                 [ "DocsUI::Callout(level)", "note / tip / warning boxes" ]
-              ]
+              ],
+              headers: [ "Helper", "Use for" ]
             )
 
             prose do

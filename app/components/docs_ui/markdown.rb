@@ -34,14 +34,24 @@ module DocsUI
     TABLE_WRAPPER = "not-prose my-4 overflow-x-auto rounded-box border border-base-300"
     TABLE_CLASSES = "table table-sm table-zebra"
 
-    def initialize(source)
+    # Render source as INLINE markdown: no Prose wrapper div, and a single
+    # top-level paragraph is unwrapped so its inline children (strong/em/code/
+    # link) sit directly in the surrounding element. Used for a [:md, "…"] table
+    # cell — the cell's <td> is the container, so a block <p>/typography div would
+    # be wrong there.
+    def self.inline(source) = new(source, inline: true)
+
+    def initialize(source, inline: false)
       # commonmarker v2 raises unless the text is UTF-8. Author heredocs already
       # are, but nil.to_s / a US-ASCII string would crash the render — normalize
       # at the boundary so any input parses.
       @source = source.to_s.encode(Encoding::UTF_8)
+      @inline = inline
     end
 
     def view_template
+      return visit_inline(document) if @inline
+
       div(class: CLASSES) { visit(document) }
     end
 
@@ -49,6 +59,18 @@ module DocsUI
 
     def document
       Commonmarker.parse(@source)
+    end
+
+    # Inline render: unwrap each top-level paragraph to its inline children (no
+    # <p>), so `[:md, "a **note**"]` becomes `a <strong>note</strong>` inside the
+    # cell rather than a block paragraph. Non-paragraph blocks (a stray list) still
+    # render as themselves. Adjacent blocks get a joining space so unwrapping never
+    # fuses text ("one" + "two" → "one two", not "onetwo").
+    def visit_inline(node)
+      node.each_with_index do |child, i|
+        whitespace unless i.zero?
+        child.type == :paragraph ? visit_children(child) : visit(child)
+      end
     end
 
     # Emit each child of a node in order.

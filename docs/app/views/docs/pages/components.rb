@@ -20,6 +20,7 @@ module Views
           prose_section
           code_section
           example_section
+          table_section
           callout_section
           icon_section
           on_this_page_section
@@ -50,12 +51,12 @@ module Views
                 # page body
               end
             RUBY
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "title", "String, nil", "nil", "Document + topbar title. Falls back to the site brand." ],
                 [ "on_page", "Symbol, false", "false", "TOC placement — :panel / :toggle / :sidebar / false." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end
@@ -91,15 +92,15 @@ module Views
                 def content = DocsUI::Section("Hello") { prose { p { "..." } } }
               end
             RUBY
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "title", "String (class DSL)", "—", "Sets the document + masthead title." ],
                 [ "eyebrow", "String (class DSL)", "nil", "Small kicker above the h1 (e.g. the group)." ],
                 [ "on_page", "Symbol (class DSL)", "config default", "TOC placement — :panel / :toggle / :sidebar / false." ],
                 [ "#lead", "instance method", "nil", "Muted summary paragraph under the h1." ],
                 [ "#content", "instance method", "—", "The page body — call kit components here." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end
@@ -126,13 +127,13 @@ module Views
                 plain "An optional lead paragraph."
               end
             RUBY
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "title", "String (positional)", "—", "The h1 text. Legacy title: kwarg still accepted." ],
                 [ "eyebrow", "String, nil", "nil", "Small kicker above the h1." ],
                 [ "block", "Phlex block", "nil", "Optional lead paragraph rendered under the h1." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end
@@ -163,13 +164,13 @@ module Views
                 prose { p { "Section body." } }
               end
             RUBY
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "title", "String", "—", "The h2 text; auto-slugs into the anchor id." ],
                 [ "id", "String, nil", "slug of title", "Override the section anchor." ],
                 [ "description", "String, callable, nil", "nil", "Muted lead paragraph under the h2." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end
@@ -204,11 +205,11 @@ module Views
               code { "()" }
               plain "."
             end
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "block", "Phlex block", "—", "Hand-authored HTML — p, ul/li, code, strong, a, plain text." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end
@@ -222,13 +223,13 @@ module Views
             RUBY
             prose { p { "The call that produced the block above:" } }
             DocsUI::Code(%(DocsUI::Code(source, lexer: :ruby, filename: "app/models/user.rb")))
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "source", "String", "—", "The code to highlight." ],
                 [ "lexer", "Symbol", ":ruby", "Any Rouge language — :shell, :yaml, :erb, :python, :go, etc." ],
                 [ "filename", "String, nil", "nil", "Optional filename bar above the block." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end
@@ -250,13 +251,72 @@ module Views
                 ex.code(:python, filename: "client.py") { python_source }
               end
             RUBY
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "block", "Phlex block", "—", "Yields an object with #code — one call per language." ],
                 [ "ex.code lang", "Symbol", "—", "The Rouge language for this tab." ],
                 [ "ex.code filename:", "String, nil", "nil", "Optional filename bar for this tab." ],
                 [ "ex.code lexer:", "Symbol", "lang", "Override the Rouge lexer if it differs from the tab label." ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
+            )
+          end
+        end
+
+        def table_section
+          DocsUI::Section("Table & PropTable", description: "Reference tables — generic headers+rows, and a name/type/default/description preset.") do
+            prose do
+              p do
+                code { "DocsUI::Table" }
+                plain " renders headers + rows in the kit's daisyUI look. A cell is a "
+                code { "String" }
+                plain " (plain, escaped), a "
+                code { "[:code, \"x\"]" }
+                plain " pair (inline "
+                code { "<code>" }
+                plain "), or a "
+                code { "[:md, \"…\"]" }
+                plain " pair (inline Markdown). "
+                code { "DocsUI::PropTable" }
+                plain " is the preset every args table on this page uses — the same shape, first column auto code-styled, default "
+                code { "Option/Type/Default/Description" }
+                plain " headers."
+              end
+            end
+            DocsUI::Table(
+              [ "Cell", "Renders as" ],
+              [
+                [ "brand", "plain, escaped text" ],
+                [ [ :code, "%w[dark light]" ], "inline code" ],
+                [ [ :md, "a **bold** note" ], "inline markdown" ]
+              ]
+            )
+            prose { p { "The call that produced the table above:" } }
+            DocsUI::Code(<<~RUBY)
+              DocsUI::Table(
+                [ "Cell", "Renders as" ],
+                [
+                  [ "brand", "plain, escaped text" ],
+                  [ [ :code, "%w[dark light]" ], "inline code" ],
+                  [ [ :md, "a **bold** note" ], "inline markdown" ]
+                ]
+              )
+            RUBY
+            DocsUI::Callout(:tip) do
+              plain "Every args table on this page is a "
+              code { "DocsUI::PropTable" }
+              plain " — pass just the rows; the headers default to "
+              code { "Option/Type/Default/Description" }
+              plain " (override with "
+              code { "headers:" }
+              plain ")."
+            end
+            render DocsUI::PropTable.new(
+              [
+                [ "DocsUI::Table headers", "Array", "—", "Header labels — one per column." ],
+                [ "DocsUI::Table rows", "Array", "—", "Rows; each a cell array (String / [:code, x] / [:md, …])." ],
+                [ "DocsUI::PropTable rows", "Array", "—", "Rows; the first cell is auto-wrapped in <code>." ],
+                [ "DocsUI::PropTable headers:", "Array", "Option/Type/Default/Description", "Override the header labels." ]
               ]
             )
           end
@@ -273,13 +333,13 @@ module Views
               DocsUI::Callout(:tip)     { "A tip callout." }
               DocsUI::Callout(:warning) { "A warning callout." }
             RUBY
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "level", "Symbol", ":note", "Alert style — :note / :tip / :warning." ],
                 [ "title", "String, nil", "nil", "Optional heading above the body." ],
                 [ "block", "Phlex block", "—", "The callout body." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end
@@ -302,12 +362,12 @@ module Views
               code { "rails_icons" }
               plain " isn't configured — nothing renders, no error."
             end
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "name", "String", "—", "The lucide icon name, e.g. \"rocket\"." ],
                 [ "**attributes", "Hash", "{}", "Extra HTML attributes (class:, etc.) passed to the icon." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end
@@ -330,12 +390,12 @@ module Views
                 on_page :toggle   # :panel | :toggle | :sidebar | false
               end
             RUBY
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "mode", "Symbol", ":panel", "Placement — :panel (aside) / :toggle (button) / :sidebar." ],
                 [ "title", "String", '"On this page"', "The TOC heading." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end
@@ -358,11 +418,11 @@ module Views
                 c.nav = -> { { "Docs" => Doc.grouped } }
               end
             RUBY
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "(none)", "—", "—", "No args — reads DocsKit.configuration.nav." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end
@@ -387,11 +447,11 @@ module Views
                 c.themes = %w[dark light synthwave dracula night]
               end
             RUBY
-            render PropTable.new(
-              [ "Arg", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "(none)", "—", "—", "No args — reads DocsKit.configuration.themes." ]
-              ]
+              ],
+              headers: [ "Arg", "Type", "Default", "Description" ]
             )
           end
         end

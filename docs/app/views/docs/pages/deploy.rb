@@ -84,13 +84,13 @@ module Views
           end
 
           DocsUI::Section("Secrets") do
-            render PropTable.new(
-              [ "Secret", "Purpose" ],
+            render DocsUI::PropTable.new(
               [
                 [ "SSH_PRIVATE_KEY", "Deploy key for the Kamal SSH user." ],
                 [ "DEPLOY_HOST", "The deploy host (IP or DNS)." ],
                 [ "DEPLOY_DOMAIN", "The public host kamal-proxy routes." ]
-              ]
+              ],
+              headers: [ "Secret", "Purpose" ]
             )
             prose do
               p do
