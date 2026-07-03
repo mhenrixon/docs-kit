@@ -3,7 +3,7 @@
 module DocsKit
   # Per-site configuration for the shared docs chrome. Everything that differs
   # between two otherwise-identical docs sites lives here, so the Phlex shell
-  # (Docs::Shell, Docs::Sidebar, Docs::ThemeSwitcher) is byte-identical across
+  # (DocsUI::Shell, DocsUI::Sidebar, DocsUI::ThemeSwitcher) is byte-identical across
   # sites and only the config changes.
   #
   #   DocsKit.configure do |c|
@@ -42,14 +42,22 @@ module DocsKit
 
     # A callable returning the sidebar nav as an ordered Hash of
     # { "Heading" => { "Subgroup" => [items] } }. Each item must respond to
-    # the duck type the Sidebar renders (see Docs::Sidebar#nav_link): #href,
+    # the duck type the Sidebar renders (see DocsUI::Sidebar#nav_link): #href,
     # #label, and optional #icon. Defaults to an empty nav.
     #
     # Prefer #nav_registries for the common case — an explicit #nav lambda is
     # only needed for bespoke nav (multiple registries interleaved, custom
     # subgroups). When #nav is left at its default, the sidebar derives from
     # #nav_registries instead.
-    attr_accessor :nav
+    attr_reader :nav
+
+    # Assigning #nav marks it explicit, so #nav_groups uses it verbatim rather
+    # than deriving from #nav_registries — tracked by a flag, not object
+    # identity, so ANY assigned lambda wins (even one that resolves to {}).
+    def nav=(value)
+      @nav_explicit = true
+      @nav = value
+    end
 
     # An ordered { "Heading" => registry_class } map. Each registry responds to
     # .nav_items (Registry v2) → { group => [NavItem] } for its authored pages.
@@ -67,14 +75,14 @@ module DocsKit
     # stylesheets (e.g. a separate rouge theme) lists them here.
     attr_accessor :stylesheets
 
-    # The Rouge theme class used by Docs::Code for inline syntax-highlight CSS.
+    # The Rouge theme class used by DocsUI::Code for inline syntax-highlight CSS.
     # This is the BASE (light) theme, emitted un-scoped so it applies to every
     # theme unless a dark override wins (see #code_theme_dark).
     attr_accessor :code_theme
 
     # An optional second Rouge theme (String name or Class) used for the site's
     # DARK daisyUI themes. Default nil → single-theme behavior, fully backwards
-    # compatible. When set, Docs::Code additionally emits this theme's CSS scoped
+    # compatible. When set, DocsUI::Code additionally emits this theme's CSS scoped
     # under [data-theme=X] .code-highlight for each shipped dark theme (see
     # #dark_themes), so code blocks stay readable when the switcher flips to a
     # dark theme — CSS-only, no JS, no flash.
@@ -103,7 +111,7 @@ module DocsKit
     # the brand.
     attr_writer :nav_storage_key
 
-    # The default "On this page" (auto-TOC) placement, used by Docs::Page when a
+    # The default "On this page" (auto-TOC) placement, used by DocsUI::Page when a
     # page doesn't pass its own on_page:. One of the ON_PAGE_MODES, or false to
     # render no auto-TOC by default.
     attr_writer :on_page_default
@@ -118,7 +126,7 @@ module DocsKit
     # "plaintext" (no highlighting, never raises).
     attr_accessor :code_lexer_fallback
 
-    # Human labels for language tabs in Docs::Example, merged over the built-ins
+    # Human labels for language tabs in DocsUI::Example, merged over the built-ins
     # (e.g. { elixir: "Elixir", curl: "cURL" }). Unknown tokens humanize.
     attr_accessor :code_language_labels
 
@@ -209,10 +217,11 @@ module DocsKit
       @title_suffix = nil
       @themes = %w[dark light]
       @default_theme = nil
-      # The sentinel default nav lambda. #nav_groups treats it as "unset" and
-      # derives the sidebar from #nav_registries instead; an explicit c.nav
-      # replaces this object so the derivation steps aside (backwards compat).
+      # The default nav lambda. Until a site assigns #nav (which sets
+      # @nav_explicit), #nav_groups treats nav as "unset" and derives the sidebar
+      # from #nav_registries instead; an explicit c.nav (any lambda) then wins.
       @nav = DEFAULT_NAV
+      @nav_explicit = false
       @nav_registries = {}
       @version_badge = nil
       @stylesheets = %w[application]
@@ -360,42 +369,65 @@ module DocsKit
     # heading whose pages are all unauthored (empty nav_items) is dropped so no
     # empty group renders.
     def nav_groups
-      return nav_groups_from_registries if @nav.equal?(DEFAULT_NAV)
+      return nav_groups_from_registries unless @nav_explicit
 
       result = @nav.respond_to?(:call) ? @nav.call : @nav
       result || {}
     end
 
     # The resolved version badge string, or nil.
+    # The rendered version badge. A callable is invoked; a plain String (or any
+    # non-nil value) is coerced to its string form — so `c.version_badge = "v1.2"`
+    # renders, not only a lambda.
     def version_badge_text
-      return unless @version_badge.respond_to?(:call)
+      return if @version_badge.nil?
+      return @version_badge.call if @version_badge.respond_to?(:call)
 
-      @version_badge.call
+      @version_badge.to_s
     end
 
-    # The Rouge theme class resolved from #code_theme (String or class).
+    # The default Rouge theme both #code_theme_class and #code_theme_dark_class
+    # fall back to when a configured theme name can't be resolved — so a typo'd
+    # theme name degrades gracefully instead of raising on every code block.
+    DEFAULT_CODE_THEME = "Rouge::Themes::Monokai"
+
+    # The Rouge theme class resolved from #code_theme (String or class). A String
+    # name that doesn't resolve degrades to the default theme rather than raising
+    # NameError on every DocsUI::Code render.
     def code_theme_class
       return @code_theme if @code_theme.is_a?(Class)
 
-      Object.const_get(@code_theme.to_s)
+      resolve_theme(@code_theme) || Object.const_get(DEFAULT_CODE_THEME)
     end
 
     # The dark Rouge theme class resolved from #code_theme_dark (String or
-    # class), or nil when unset — mirrors #code_theme_class. Docs::Code emits
-    # dark code CSS only when this is non-nil.
+    # class), or nil when unset — mirrors #code_theme_class. DocsUI::Code emits
+    # dark code CSS only when this is non-nil, so an unresolvable name degrades to
+    # nil (no dark restyle) rather than raising.
     def code_theme_dark_class
       return if @code_theme_dark.nil?
       return @code_theme_dark if @code_theme_dark.is_a?(Class)
 
-      Object.const_get(@code_theme_dark.to_s)
+      resolve_theme(@code_theme_dark)
     end
 
     # The dark themes the site actually ships: #dark_themes intersected with
-    # #themes, in #themes declaration order. Docs::Code scopes the dark theme's
+    # #themes, in #themes declaration order. DocsUI::Code scopes the dark theme's
     # CSS under [data-theme=X] for each of these, so a dark theme that isn't in
     # the Tailwind build never emits dead CSS.
     def dark_themes_shipped
       Array(@themes) & Array(@dark_themes)
+    end
+
+    private
+
+    # Resolve a Rouge theme constant from its String name, returning nil (not
+    # raising) when the name doesn't resolve — a typo'd or unloaded theme must
+    # not crash every code block on the page.
+    def resolve_theme(name)
+      Object.const_get(name.to_s)
+    rescue NameError
+      nil
     end
   end
 end
