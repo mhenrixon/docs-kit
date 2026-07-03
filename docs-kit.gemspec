@@ -49,14 +49,16 @@ Gem::Specification.new do |s|
   s.required_ruby_version = ">= 3.2"
 
   # The daisyUI Phlex component kit (Drawer/Menu/Card/...). Gemfile name is
-  # `daisyui`; require path is `daisy_ui`; module is `DaisyUI`.
-  s.add_dependency "daisyui", ">= 1.2"
+  # `daisyui`; require path is `daisy_ui`; module is `DaisyUI`. Bounded below the
+  # next major (a breaking release) so `gem build --strict` accepts it while the
+  # floor stays low enough for existing hosts.
+  s.add_dependency "daisyui", ">= 1.2", "< 2"
   # Phlex 2 + the Rails view glue (helper mixins, render_in, dom_id).
   s.add_dependency "phlex-rails", ">= 2.0", "< 3"
   # lucide icons synced into the host app's assets.
   s.add_dependency "rails_icons", "~> 1.1"
   # Syntax highlighting for Docs::Code.
-  s.add_dependency "rouge", ">= 4.0"
+  s.add_dependency "rouge", ">= 4.0", "< 5"
   # GFM parsing for DocsUI::Markdown (v2 = Rust/comrak, precompiled; GFM tables +
   # strikethrough + autolink on by default). We walk its AST to Phlex nodes, so
   # commonmarker never renders HTML we'd have to html_safe.
@@ -64,7 +66,7 @@ Gem::Specification.new do |s|
   # HTML→Markdown export (DocsKit::MarkdownExport): we render a page, then walk
   # the HTML with a Nokogiri visitor to derive its GFM twin. Universally present
   # in Rails hosts already (loofah/rails-html-sanitizer depend on it).
-  s.add_dependency "nokogiri", ">= 1.15"
+  s.add_dependency "nokogiri", ">= 1.15", "< 2"
   s.add_dependency "zeitwerk", "~> 2.6"
 
   # phlex-reactive (reactive demos) and pgbus (Postgres-SSE transport) are
@@ -76,5 +78,5 @@ Gem::Specification.new do |s|
   # lazily, so it is never pulled into a host app's runtime. A consuming site
   # already has `rubocop` in its Gemfile (every generated site does) — that is
   # what runs the shipped cops. Pinned here so the gem's own cop specs can run.
-  s.add_development_dependency "rubocop", ">= 1.75"
+  s.add_development_dependency "rubocop", ">= 1.75", "< 2"
 end
