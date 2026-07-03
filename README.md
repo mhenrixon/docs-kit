@@ -802,6 +802,42 @@ import ReactiveController from "phlex/reactive/reactive_controller"
 application.register("reactive", ReactiveController)
 ```
 
+## Releasing (maintainers)
+
+Cut a release with the version-bumping Rake task — never `gem push` by hand:
+
+```bash
+rake release[1.0.0]           # bump → build-verify → commit → push → GitHub Release
+rake release[1.1.0.rc1]       # a pre-release (auto-flagged --prerelease)
+rake release[1.0.0,force]     # delete + re-create an existing tag/release
+```
+
+The task (on `main`, clean tree only) bumps `lib/docs_kit/version.rb`, updates the
+lockfiles (incl. `docs/Gemfile.lock`), verifies `gem build --strict`, commits,
+pushes, and creates the GitHub Release. Publishing the tag fires
+`.github/workflows/release.yml`, which runs the suite, rebuilds + content-checks
+the gem, signs it with Sigstore, and pushes to RubyGems over **OIDC trusted
+publishing** (no API token stored anywhere).
+
+### One-time setup (before the first release)
+
+Trusted publishing needs two things wired once — the first release fails without
+them:
+
+1. **RubyGems pending trusted publisher.** On [rubygems.org](https://rubygems.org)
+   → your profile → *Trusted Publishers* → *Create*, add a **pending** publisher
+   (works for a gem not yet pushed) with:
+   - Gem name: `docs-kit`
+   - Repository: `mhenrixon/docs-kit`
+   - Workflow filename: `release.yml`
+   - Environment: `rubygems`
+2. **GitHub `rubygems` environment.** Repo *Settings → Environments → New
+   environment* named `rubygems` (the `publish-rubygems` job pins it and requests
+   `id-token: write`). Add reviewers there if you want a manual gate before a push.
+
+After the first successful push the pending publisher converts to a normal one; no
+further setup is needed for later releases.
+
 ## License
 
 MIT.
