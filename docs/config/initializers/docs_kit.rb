@@ -17,12 +17,10 @@ Rails.application.config.to_prepare do
     # c.code_lexer_aliases  = { curl: "console" }
     # c.code_language_labels = { elixir: "Elixir" }
 
-    # The sidebar nav: an ordered { "Heading" => { "Subgroup" => [NavItem] } }.
-    c.nav = lambda do
-      docs = Doc.all.select(&:view_class).group_by(&:group).transform_values do |items|
-        items.map { |d| DocsKit::NavItem.new(href: "/docs/#{d.slug}", label: d.title) }
-      end
-      { "Docs" => docs }.reject { |_, v| v.empty? }
-    end
+    # The sidebar nav derives from the registry — one heading → one registry.
+    # Each registry's authored pages become NavItems automatically (an unwritten
+    # page is skipped, so no dead links). For bespoke nav (interleaved
+    # registries, custom subgroups) set a `c.nav` lambda instead; it wins.
+    c.nav_registries = { "Docs" => Doc }
   end
 end

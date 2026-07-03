@@ -53,16 +53,31 @@ DocsKit.configure do |c|
   c.title_suffix = "phlex-reactive"
   c.themes       = %w[dark light synthwave retro cyberpunk dracula night nord sunset]
   c.version_badge = -> { "v#{Phlex::Reactive::VERSION}" }   # optional
-  c.nav = lambda do
-    {
-      "Demos" => Demo.grouped.transform_values { |demos|
-        demos.map { |d| DocsKit::NavItem.new(href: "/demos/#{d.slug}", label: d.title, icon: d.icon) }
-      },
-      "Docs" => Doc.all.select(&:view_class).group_by(&:group).transform_values { |docs|
-        docs.map { |d| DocsKit::NavItem.new(href: "/docs/#{d.slug}", label: d.title) }
-      }
-    }
-  end
+
+  # The sidebar derives from your registries — one heading → one registry.
+  c.nav_registries = { "Docs" => Doc }
+end
+```
+
+The nav is **derived from the registry**, so you never hand-write it. Each
+registry maps a heading to its authored pages (`Doc.nav_items`); a page that
+isn't written yet is skipped, so there are no dead links. Register a page with
+one line (see [Add a page](#add-a-page)) and it appears in the sidebar.
+
+### Custom nav (advanced)
+
+Sites that interleave several registries under a heading, or need custom
+subgroups, set an explicit `c.nav` lambda instead — it wins over
+`nav_registries`:
+
+```ruby
+c.nav = lambda do
+  {
+    "Demos" => Demo.grouped.transform_values { |demos|
+      demos.map { |d| DocsKit::NavItem.new(href: "/demos/#{d.slug}", label: d.title, icon: d.icon) }
+    },
+    "Docs" => Doc.nav_items
+  }
 end
 ```
 
@@ -83,22 +98,65 @@ def show = render_page(Views::Docs::Pages::Installation.new)
 view context, so CSRF, `dom_id`, url helpers, and the reactive token signer all
 work inside components.
 
-A page composes the shell + kit:
+### Add a page
+
+One command scaffolds the page class **and** its registry line, both derived
+from the title:
+
+```bash
+rails g docs_kit:page "Getting Started" --group=Guide
+```
+
+That writes `app/views/docs/pages/getting_started.rb` (a `DocsUI::Page` subclass
+with a starter Markdown section) and injects `page "Getting Started", group:
+"Guide"` into your `Doc` registry — so the page is routed and in the sidebar the
+moment you write its content. Every derivation is overridable:
+
+```bash
+rails g docs_kit:page "OAuth" --group=Guide --slug=auth --view=OauthGuide
+rails g docs_kit:page "Metrics" --group=Reference --eyebrow="Advanced"
+rails g docs_kit:page "Guides Intro" --group=Guide --registry=Guide  # a differently-named registry
+```
+
+Re-running is idempotent (no duplicate registry line, no clobbered file). If your
+registry still uses the legacy hash `entries [...]` form, the generator writes
+the page but prints the entry for you to add by hand instead of corrupting it.
+
+#### Under the hood
+
+A page is a `DocsUI::Page` subclass — the generator just writes this for you:
 
 ```ruby
-class Views::Docs::Pages::Installation < DocsUI::Page
-  title "Installation"
+# app/views/docs/pages/getting_started.rb — Zeitwerk resolves the compact
+# reference through the directory-implied namespaces (no nested modules).
+class Views::Docs::Pages::GettingStarted < DocsUI::Page
+  title "Getting Started"
   eyebrow "Guide"
   def lead = "Add the gem and render your first component."
 
   def content
     DocsUI::Section("Add the gem") do
-      prose { p { "Components are plain Ruby classes." } }
+      md <<~'MD'
+        Components are plain Ruby classes.
+      MD
       DocsUI::Code(<<~RUBY, filename: "Gemfile")
         gem "docs-kit"
       RUBY
     end
   end
+end
+```
+
+…plus one line in the registry (`view_namespace` lets it derive the class):
+
+```ruby
+# app/models/doc.rb
+class Doc
+  extend DocsKit::Registry
+  path_prefix    "/docs"
+  view_namespace "Views::Docs::Pages"
+
+  page "Getting Started", group: "Guide"   # slug "getting-started", view "GettingStarted"
 end
 ```
 
@@ -205,6 +263,9 @@ rails g docs_kit:install
 rails g rails_icons:sync --library=lucide
 bun install && bun run build:css
 ```
+
+Then add pages one command at a time — `rails g docs_kit:page "Title"
+--group=Guide` (see [Add a page](#add-a-page)).
 
 ## Deploy a new docs site
 

@@ -1,37 +1,25 @@
 # frozen_string_literal: true
 
-# In-memory registry of the reference docs. Each entry maps a URL slug to its
-# title, sidebar group, and the Phlex page class that renders it. Add a page by
-# adding an entry here and a class under app/views/docs/pages/.
+# In-memory registry of the reference docs. One line per page — slug and view
+# derive from the title (both overridable), and the sidebar nav derives from
+# this registry with zero extra code (see config/initializers/docs_kit.rb's
+# `nav_registries`). Add a page with `rails g docs_kit:page "Title" --group=…`,
+# which appends the `page` line here and writes the class under
+# app/views/docs/pages/.
 #
-# Uses DocsKit::Registry for the shared all/from_slug/grouped API.
+# Uses DocsKit::Registry for the shared all/from_slug/grouped/nav_items API.
 class Doc
   extend DocsKit::Registry
+  path_prefix    "/docs"
+  view_namespace "Views::Docs::Pages"
 
-  entries [
-    { slug: "overview",      title: "Overview",       group: "Getting started", view: "Overview" },
-    { slug: "installation",  title: "Installation",   group: "Getting started", view: "Installation" },
-    { slug: "configuration", title: "Configuration",  group: "Getting started", view: "Configuration" },
-    { slug: "authoring",     title: "Authoring pages", group: "Getting started", view: "Authoring" },
-    { slug: "styling",       title: "Styling & CSS",  group: "Getting started", view: "Styling" },
-    { slug: "components",    title: "Components",     group: "Reference", view: "Components" },
-    { slug: "languages",     title: "Code languages", group: "Reference", view: "Languages" },
-    { slug: "on-this-page",  title: "On this page",   group: "Reference", view: "OnThisPage" },
-    { slug: "deploy",        title: "Deploy",         group: "Reference", view: "Deploy" }
-  ]
-
-  attr_reader :slug, :title, :group, :view_name
-
-  def initialize(entry)
-    @slug = entry[:slug]
-    @title = entry[:title]
-    @group = entry[:group]
-    @view_name = entry[:view]
-  end
-
-  # The hand-authored Phlex page class (nil until the class exists — the sidebar
-  # only links docs whose page is written, so no dead links).
-  def view_class
-    "Views::Docs::Pages::#{view_name}".safe_constantize
-  end
+  page "Overview",        group: "Getting started"
+  page "Installation",    group: "Getting started"
+  page "Configuration",   group: "Getting started"
+  page "Authoring pages", group: "Getting started", slug: "authoring", view: "Authoring"
+  page "Styling & CSS",   group: "Getting started", slug: "styling", view: "Styling"
+  page "Components",      group: "Reference"
+  page "Code languages",  group: "Reference", slug: "languages", view: "Languages"
+  page "On this page",    group: "Reference"
+  page "Deploy",          group: "Reference"
 end
