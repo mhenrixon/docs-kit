@@ -80,12 +80,33 @@ module DocsUI
     end
 
     # Static Rouge theme CSS — no user input. Phlex safe(), not html_safe.
+    #
+    # The base (light) theme is emitted un-scoped so it applies to every theme.
+    # When a dark theme is configured (config.code_theme_dark), its CSS is
+    # additionally emitted scoped under [data-theme=X] .code-highlight for each
+    # shipped dark theme, so daisyUI's more-specific [data-theme] selector wins
+    # and code blocks restyle with the switcher — CSS-only, no JS, no flash.
+    # With no dark theme configured this reduces to the original single-theme
+    # output byte-for-byte (backwards compatible).
     def highlight_css
       theme = DocsKit.configuration.code_theme_class
       raw(safe(<<~CSS))
-        #{theme.render(scope: '.code-highlight')}
+        #{theme.render(scope: '.code-highlight')}#{dark_highlight_css}
         .code-highlight pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
       CSS
+    end
+
+    # The dark theme's CSS, one block per shipped dark theme, each scoped under
+    # [data-theme=X] .code-highlight. Empty string when no dark theme is
+    # configured (or no shipped theme is dark) so #highlight_css is unchanged.
+    def dark_highlight_css
+      config = DocsKit.configuration
+      dark = config.code_theme_dark_class
+      return "" if dark.nil?
+
+      config.dark_themes_shipped.map do |name|
+        "\n#{dark.render(scope: "[data-theme=#{name}] .code-highlight")}"
+      end.join
     end
   end
 end

@@ -36,6 +36,61 @@ RSpec.describe DocsUI::Code do
     end
   end
 
+  describe "dark-theme code CSS (code_theme_dark)" do
+    it "is byte-identical to the single-theme output when code_theme_dark is nil" do
+      # Regression guard: the default (nil) path must not change existing output.
+      before = described_class.new("puts 'hi'").call
+
+      DocsKit.configure { |c| c.code_theme_dark = nil }
+      after = described_class.new("puts 'hi'").call
+
+      expect(after).to eq(before)
+    end
+
+    it "emits dark-theme CSS scoped under [data-theme=X] for each shipped dark theme" do
+      DocsKit.configure do |c|
+        c.themes = %w[light dark]
+        c.code_theme_dark = "Rouge::Themes::Github"
+      end
+      html = described_class.new("puts 'hi'").call
+
+      expect(html).to include("[data-theme=dark] .code-highlight")
+    end
+
+    it "does NOT emit CSS for a dark theme the site doesn't ship" do
+      DocsKit.configure do |c|
+        c.themes = %w[light dark] # synthwave is dark but NOT shipped
+        c.code_theme_dark = "Rouge::Themes::Github"
+      end
+      html = described_class.new("puts 'hi'").call
+
+      expect(html).not_to include("[data-theme=synthwave]")
+    end
+
+    it "still emits the base (light) theme CSS alongside the dark rules" do
+      DocsKit.configure do |c|
+        c.themes = %w[light dark]
+        c.code_theme_dark = "Rouge::Themes::Github"
+      end
+      html = described_class.new("puts 'hi'").call
+
+      # The un-scoped base rule (light) and the data-theme-scoped dark rule
+      # coexist, so the switcher restyles code blocks per theme with no JS.
+      expect(html).to include(".code-highlight")
+      expect(html).to include("[data-theme=dark] .code-highlight")
+    end
+
+    it "emits no dark rules when no shipped theme is a dark theme" do
+      DocsKit.configure do |c|
+        c.themes = %w[light retro]
+        c.code_theme_dark = "Rouge::Themes::Github"
+      end
+      html = described_class.new("puts 'hi'").call
+
+      expect(html).not_to include("[data-theme=")
+    end
+  end
+
   it "renders a title bar with the filename when given" do
     html = described_class.new("x = 1", filename: "app/models/x.rb").call
 

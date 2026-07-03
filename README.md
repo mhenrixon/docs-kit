@@ -54,9 +54,14 @@ gem "rouge"
 # config/initializers/docs_kit.rb
 DocsKit.configure do |c|
   c.brand        = "phlex-reactive"
+  c.brand_href   = "/docs"                                  # brand link target (default "/")
   c.title_suffix = "phlex-reactive"
   c.themes       = %w[dark light synthwave retro cyberpunk dracula night nord sunset]
   c.version_badge = -> { "v#{Phlex::Reactive::VERSION}" }   # optional
+
+  # Code blocks: a light theme by default, a dark theme on dark daisyUI themes.
+  c.code_theme      = "Rouge::Themes::Github"               # base (light) theme
+  c.code_theme_dark = "Rouge::Themes::Monokai"              # optional dark override
 
   # The sidebar derives from your registries — one heading → one registry.
   c.nav_registries = { "Docs" => Doc }
@@ -67,6 +72,22 @@ The nav is **derived from the registry**, so you never hand-write it. Each
 registry maps a heading to its authored pages (`Doc.nav_items`); a page that
 isn't written yet is skipped, so there are no dead links. Register a page with
 one line (see [Add a page](#add-a-page)) and it appears in the sidebar.
+
+### Brand link and dark code themes
+
+Three knobs cover what sites used to shim by subclassing `DocsUI::Shell`:
+
+| Knob | Default | What it does |
+|------|---------|--------------|
+| `c.brand_href` | `"/"` | The href of the topbar brand link. Set it (e.g. `"/docs"`) instead of subclassing `Shell` to copy-paste `#topbar`. |
+| `c.code_theme_dark` | `nil` | A second Rouge theme for **dark** daisyUI themes. `nil` keeps the single-theme behavior (fully backwards compatible). When set, `DocsUI::Code` also emits this theme's CSS scoped under `[data-theme=X] .code-highlight` for each shipped dark theme, so code blocks stay readable when the switcher flips to a dark theme. |
+| `c.dark_themes` | daisyUI's built-in dark theme names | Which theme names count as dark for `code_theme_dark`. Intersected with `c.themes` at render time, so only shipped themes emit CSS. Override to name custom dark themes (e.g. `%w[zazu-dark]`). |
+
+The dark restyle is **CSS-only** — daisyUI's `[data-theme]` selector is more
+specific than the un-scoped base rule, so the theme switcher restyles code
+blocks with no JavaScript and no flash. The Rouge CSS is inlined per block
+(not part of the Tailwind build), so the [theme-sync invariant](#css--the-canonical-build)
+is unaffected — a `code_theme_dark` doesn't need a CSS rebuild.
 
 ### Custom nav (advanced)
 
