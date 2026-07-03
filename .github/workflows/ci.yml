@@ -1,0 +1,38 @@
+# CI for the docs-kit gem: run the suite + lint on every supported Ruby.
+#
+# `bundle exec rake` is `spec + rubocop` (see Rakefile) — the same command run
+# locally. SimpleCov enforces the 80% coverage floor from within the suite, so a
+# coverage regression fails this job too. The generator specs run in the same job:
+# they invoke the install generator against a tmp skeleton via plain Thor (no Rails
+# boot), so they need no heavier harness than the rest of the suite.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref (a force-push / new commit to a PR).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rake:
+    name: rake (Ruby ${{ matrix.ruby }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.2", "3.3", "3.4"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby ${{ matrix.ruby }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+
+      - name: Run the suite + lint
+        run: bundle exec rake

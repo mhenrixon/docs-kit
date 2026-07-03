@@ -7,6 +7,16 @@ AllCops:
   TargetRubyVersion: 3.2
   NewCops: enable
   SuggestExtensions: false
+  Exclude:
+    # SimpleCov's HTML report — generated, not source.
+    - "coverage/**/*"
+    - "tmp/**/*"
+    # The dogfood docs site is a separate consuming app with its own bundle and
+    # .rubocop.yml (it inherits rubocop-rails-omakase, not installed in the gem's
+    # bundle). Linting it from here crashes config loading; it lints itself.
+    - "docs/**/*"
+    # Agent scratch worktrees — never source.
+    - ".claude/**/*"
 
 Style/Documentation:
   Enabled: false
@@ -67,3 +77,9 @@ RSpec/MultipleExpectations:
 
 RSpec/NestedGroups:
   Max: 4
+
+# Generator specs live under spec/generators/ (the conventional Rails location),
+# not a path mirroring the DocsKit::Generators:: namespace.
+RSpec/SpecFilePathFormat:
+  Exclude:
+    - "spec/generators/**/*"
