@@ -53,11 +53,13 @@ export default class extends Controller {
   // searchScope: the dropdown root (so a click outside closes the palette).
   // searchInput: the topbar query field ("/" and Cmd/Ctrl+K focus it).
   // searchResults: the empty <ul> the controller fills with fetched hits.
+  // shortcutHint: the <kbd> badge(s); the controller refines the modifier label
+  // to the platform (⌘K on mac). Server-rendered, so correct with JS off.
   static targets = [
     "tocLink", "toc", "tocRoot", "tocPopover",
     "codeGroup", "codeTab", "codePanel",
     "markdownLink",
-    "searchScope", "searchInput", "searchResults",
+    "searchScope", "searchInput", "searchResults", "shortcutHint",
   ]
 
   connect() {
@@ -365,22 +367,48 @@ export default class extends Controller {
     if (!this.hasSearchInputTarget) return
     this.onSearchKeydown = this.handleSearchShortcut.bind(this)
     this.onSearchClickOut = this.closeOnClickOutside.bind(this)
-    document.addEventListener("keydown", this.onSearchKeydown)
+    // Capture phase: run before any content script that might stopPropagation()
+    // the event, so the palette shortcut can't be swallowed on a page with
+    // third-party JS. (preventDefault below is what actually cancels the
+    // browser's native Cmd/Ctrl+K — capture just wins the race for the event.)
+    document.addEventListener("keydown", this.onSearchKeydown, true)
     document.addEventListener("click", this.onSearchClickOut)
+    this.refreshShortcutHint()
   }
 
   disconnectSearch() {
-    if (this.onSearchKeydown) document.removeEventListener("keydown", this.onSearchKeydown)
+    if (this.onSearchKeydown) document.removeEventListener("keydown", this.onSearchKeydown, true)
     if (this.onSearchClickOut) document.removeEventListener("click", this.onSearchClickOut)
     clearTimeout(this.searchTimer)
   }
 
-  // "/" (when not already typing in a field) or Cmd/Ctrl+K focuses search.
+  // "/" (when not already typing) or Cmd/Ctrl+K focuses search; Escape blurs it.
+  //
+  // preventDefault() on this keydown is what cancels the browser's native
+  // Cmd/Ctrl+K search bar — in EVERY current browser including Firefox (the combo
+  // is a cancellable accelerator, not a reserved shortcut), so there's no
+  // per-browser branch. `event.key` can be undefined (autofill / IME
+  // composition); calling .toLowerCase() on it would THROW and kill the handler
+  // before preventDefault() ran — which lets the browser's own Cmd+K fire. Guard
+  // it (this is the bug that made Cmd+K "do nothing" in Firefox).
   handleSearchShortcut(event) {
-    const cmdK = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k"
-    const slash = event.key === "/" && !this.isTypingField(event.target)
+    const key = (event.key || "").toLowerCase()
+    const focused = document.activeElement === this.searchInputTarget
+
+    // Escape leaves the palette: close results, drop focus back to the page.
+    if (key === "escape" && (focused || this.resultsOpen)) {
+      this.closeResults()
+      if (focused) this.searchInputTarget.blur()
+      return
+    }
+
+    const cmdK =
+      (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && key === "k"
+    const slash = key === "/" && !this.isTypingField(event.target)
     if (!cmdK && !slash) return
-    event.preventDefault()
+
+    event.preventDefault() // cancels the browser's native Cmd/Ctrl+K search bar
+    event.stopPropagation() // hide from other content-level keydown handlers
     this.searchInputTarget.focus()
     this.searchInputTarget.select()
   }
@@ -388,6 +416,29 @@ export default class extends Controller {
   isTypingField(el) {
     const tag = (el?.tagName || "").toLowerCase()
     return tag === "input" || tag === "textarea" || el?.isContentEditable
+  }
+
+  get resultsOpen() {
+    return this.hasSearchResultsTarget && !this.searchResultsTarget.classList.contains("hidden")
+  }
+
+  // The shortcut-hint <kbd> badge is server-rendered with a sensible default
+  // ("Ctrl K" + "/") so it's correct with JS off. Here we only refine the
+  // MODIFIER label to the actual platform (⌘K on mac); "/" is left as-is (it
+  // works everywhere). This adjusts the LABEL only — never the key binding.
+  get isMac() {
+    return /\b(Mac|iPhone|iPad|iPod)\b/i.test(navigator.platform || navigator.userAgent || "")
+  }
+
+  get modifierHint() {
+    return this.isMac ? "⌘K" : "Ctrl K"
+  }
+
+  refreshShortcutHint() {
+    if (!this.hasShortcutHintTarget) return
+    this.shortcutHintTargets.forEach((el) => {
+      if (el.dataset.hint === "modifier") el.textContent = this.modifierHint
+    })
   }
 
   // Debounced query → fetch JSON → render. An empty query just closes the palette.

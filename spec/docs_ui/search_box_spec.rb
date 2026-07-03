@@ -44,4 +44,42 @@ RSpec.describe DocsUI::SearchBox do
     # The palette starts hidden; with JS off it stays hidden and the form submits.
     expect(html).to match(/dropdown-content[^"]*\bhidden\b/)
   end
+
+  describe "the keyboard-shortcut hint" do
+    it "renders a server-side <kbd> hint so the reader sees how to open search" do
+      html = render_box
+
+      expect(html).to include("<kbd")
+    end
+
+    it "always advertises \"/\" — the shortcut no browser hijacks" do
+      html = render_box
+
+      # "/" works in every browser (unlike Cmd+K, which some browsers bind), so
+      # it's the guaranteed-visible fallback. It must be present with JS off.
+      expect(html).to match(%r{<kbd[^>]*>/?</kbd>|<kbd[^>]*>\s*/\s*</kbd>})
+      expect(html).to include(">/</kbd>").or include("> / </kbd>")
+    end
+
+    it "renders a modifier hint the controller refines per platform" do
+      html = render_box
+
+      # Server default is the majority platform ("Ctrl K"); docs-nav swaps it to
+      # ⌘K on mac. Tagged data-hint=modifier so the controller knows which to swap.
+      expect(html).to include("Ctrl K")
+      expect(html).to include('data-hint="modifier"')
+    end
+
+    it "tags the hint badges as docs-nav shortcutHint targets" do
+      html = render_box
+
+      expect(html).to include("shortcutHint")
+    end
+
+    it "hides the decorative hint from assistive tech (the input has aria-label)" do
+      html = render_box
+
+      expect(html).to include('aria-hidden="true"')
+    end
+  end
 end

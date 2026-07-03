@@ -26,6 +26,7 @@ module DocsUI
           label(class: "input input-sm flex items-center gap-2") do
             render DocsUI::Icon.new("search", class: "size-4 opacity-60")
             search_input
+            shortcut_hint
           end
         end
         results_dropdown
@@ -45,6 +46,28 @@ module DocsUI
           action: "input->docs-nav#performSearch keydown->docs-nav#navigateResults"
         }
       )
+    end
+
+    # The keyboard-shortcut hint the reader SEES — two <kbd> badges:
+    #   Ctrl K / ⌘K  — focus search (docs-nav refines the modifier to the OS)
+    #   /            — always works; no browser hijacks "/"
+    #
+    # Server-rendered with a sensible default (the majority "Ctrl K") so the hint
+    # is correct and honest with JS off; docs-nav#refreshShortcutHint only swaps
+    # the modifier label to ⌘K on mac — it never changes the key BINDING. Both
+    # keys work in every current browser (Cmd/Ctrl+K is a cancellable accelerator,
+    # not a reserved shortcut), and "/" carries the reader through any residual
+    # edge. aria-hidden: the badges are decorative — the input has aria-label.
+    #
+    # The class strings are render-time LITERALS so Tailwind's file scan keeps
+    # them (kbd/kbd-sm are also @source inline'd in the CSS, belt-and-suspenders).
+    def shortcut_hint
+      span(class: "ml-1 hidden items-center gap-1 sm:flex", aria_hidden: "true") do
+        kbd(class: "kbd kbd-sm opacity-60",
+            data: { docs_nav_target: "shortcutHint", hint: "modifier" }) { "Ctrl K" }
+        kbd(class: "kbd kbd-sm opacity-60",
+            data: { docs_nav_target: "shortcutHint", hint: "slash" }) { "/" }
+      end
     end
 
     # The palette results list — server-rendered EMPTY + hidden; docs-nav fills it.

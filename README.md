@@ -320,10 +320,12 @@ lands on a fully server-rendered results page (`DocsUI::SearchResults`) through
 the normal chrome, and each result's link jumps to the section anchor.
 
 **Enhanced with JavaScript on.** The one `docs-nav` controller upgrades the box
-into a command palette: press `/` or `⌘K` (`Ctrl+K`) to focus it, type to see
-results appear inline (debounced, fetched as JSON from the same route), and use
-the arrow keys + Enter to jump to a result. If the fetch ever fails, Enter still
-submits the form to the results page — search is never a dead end.
+into a command palette: press `/` (works in every browser) or `⌘K` / `Ctrl+K` to
+focus it, type to see results appear inline (debounced, fetched as JSON from the
+same route), arrow keys + Enter to jump to a result, and `Escape` to close. The
+box shows both shortcuts as `<kbd>` badges (server-rendered, so the hint is right
+with JS off too; the controller swaps `Ctrl K` → `⌘K` on macOS). If the fetch
+ever fails, Enter still submits the form to the results page — never a dead end.
 
 The controller ships in the gem (`DocsKit::SearchController`, `html` + `json`);
 like llms.txt, the **route lives in your app**. The install generator scaffolds
