@@ -95,6 +95,23 @@ module DocsKit
     # (e.g. { elixir: "Elixir", curl: "cURL" }). Unknown tokens humanize.
     attr_accessor :code_language_labels
 
+    # The API base URL prefixed onto a DocsUI::RequestExample path so copy-pasted
+    # snippets point at a real host. Defaults to a neutral example host; a site
+    # sets its own (e.g. "https://api.acme.com").
+    attr_accessor :api_base_url
+
+    # An example Authorization header line merged into every generated request
+    # snippet (e.g. "Authorization: Bearer sk_live_..."). Defaults to nil → no
+    # auth line, so a site with no auth example renders clean snippets.
+    attr_accessor :api_auth_header
+
+    # Site overrides/extensions for the DocsUI::RequestExample client tabs — an
+    # ordered { token => DocsKit::ApiClient } Hash merged OVER the four shipped
+    # defaults (curl, javascript, ruby, python). Reusing a default token replaces
+    # that client (SDK-flavored snippet); a new token appends a tab (e.g. a `cli`).
+    # Read the effective map via #api_clients (which merges), never @api_clients.
+    attr_writer :api_clients
+
     # The sentinel "no explicit nav" lambda. #nav_groups compares against this
     # identity to decide whether to derive the sidebar from #nav_registries.
     DEFAULT_NAV = -> { {} }
@@ -129,6 +146,17 @@ module DocsKit
       @code_lexer_aliases = {}
       @code_lexer_fallback = "plaintext"
       @code_language_labels = {}
+      @api_base_url = "https://api.example.com"
+      @api_auth_header = nil
+      @api_clients = {}
+    end
+
+    # The effective client map for DocsUI::RequestExample: the four shipped
+    # defaults with site overrides/extensions merged over them. Hash#merge keeps
+    # a reused token in its original position and appends new tokens in
+    # declaration order, so tab order is stable and predictable.
+    def api_clients
+      DocsKit::ApiClient::DEFAULTS.merge(@api_clients || {})
     end
 
     # The effective alias map (built-ins + site overrides), symbol-keyed.
