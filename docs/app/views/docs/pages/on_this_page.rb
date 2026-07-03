@@ -41,14 +41,14 @@ module Views
         def placements_section
           DocsUI::Section("Three placements",
                           description: "The TOC renders in one of three spots, or not at all.") do
-            render PropTable.new(
-              [ "Mode", "Placement" ],
+            render DocsUI::PropTable.new(
               [
                 [ ":panel",   "A sticky card top-right of the content column (default)." ],
                 [ ":toggle",  "A floating button top-right that opens a dropdown." ],
                 [ ":sidebar", "Nested under the active nav item in the left sidebar." ],
                 [ "false",    "No auto-TOC." ]
-              ]
+              ],
+              headers: [ "Mode", "Placement" ]
             )
           end
         end

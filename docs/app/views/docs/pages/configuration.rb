@@ -63,8 +63,7 @@ module Views
 
         def all_options_section
           DocsUI::Section("All options", description: "Every setting on the config object, with its default.") do
-            render PropTable.new(
-              [ "Option", "Type", "Default", "Description" ],
+            render DocsUI::PropTable.new(
               [
                 [ "brand", "String", '"Docs"', "Topbar + sidebar heading." ],
                 [ "title_suffix", "String", "= brand", %(Appended to <title> ("Installation · brand").) ],

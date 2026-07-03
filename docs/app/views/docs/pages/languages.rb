@@ -137,8 +137,7 @@ module Views
               end
             end
 
-            render PropTable.new(
-              [ "Option", "Purpose" ],
+            render DocsUI::PropTable.new(
               [
                 [ "code_lexer_aliases",
                  "Map friendly names onto real Rouge lexers, e.g. { curl: \"console\" }. Merged over the built-in aliases." ],
@@ -146,7 +145,8 @@ module Views
                  "Lexer used when a requested name is unknown. Defaults to \"plaintext\" — no highlighting, no error." ],
                 [ "code_language_labels",
                  "Override the tab caption per language in DocsUI::Example, e.g. { elixir: \"Elixir\" }." ]
-              ]
+              ],
+              headers: [ "Option", "Purpose" ]
             )
 
             DocsUI::Callout(:tip) do

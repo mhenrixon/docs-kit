@@ -25,6 +25,7 @@ A `DocsUI::` Phlex kit, configured once per site:
 | `DocsUI::Page` | Base class for a hand-authored doc page; renders inside `DocsUI::Shell`. |
 | `DocsUI::Header` / `Section` / `Prose` / `Callout` | The page-authoring kit. |
 | `DocsUI::Markdown` | GFM Markdown island — prose as Markdown, styled like `Prose`, fenced code through Rouge. |
+| `DocsUI::Table` / `PropTable` | Reference tables — generic headers+rows, and a name/type/default/description preset. |
 | `DocsUI::Example` | Base for a live example with `method_source`-extracted source. |
 
 Plus `DocsKit::Registry` (in-memory docs registry mixin), `DocsKit::NavItem`

@@ -171,6 +171,42 @@ RSpec.describe DocsUI::Markdown do
     expect(html).not_to include("<td")
   end
 
+  # DocsUI::Markdown.inline renders inline markdown for a [:md, "…"] table cell:
+  # no Prose wrapper div, and a single top-level paragraph is unwrapped so its
+  # inline children sit directly in the surrounding element.
+  describe ".inline" do
+    def render_inline(source)
+      described_class.inline(source).call
+    end
+
+    it "emits inline children without a <p> or the Prose wrapper div" do
+      html = render_inline("a **bold** note")
+
+      expect(html).to include("a <strong>bold</strong> note")
+      expect(html).not_to include("<p>")
+      expect(html).not_to include("text-base-content/80") # no Prose wrapper
+    end
+
+    it "keeps a soft line break within a paragraph as a single space" do
+      html = render_inline("line one\nline two")
+
+      expect(html).to include("line one line two")
+    end
+
+    it "separates multiple top-level paragraphs instead of fusing their text" do
+      html = render_inline("para one\n\npara two")
+
+      # Without a separator the words would glue into "onepara".
+      expect(html).not_to include("onepara")
+      expect(html).to include("para one")
+      expect(html).to include("para two")
+    end
+
+    it "renders an empty string without raising" do
+      expect { render_inline("") }.not_to raise_error
+    end
+  end
+
   # The `md(source)` helper lives in DocsUI::PageHelpers (mixed into DocsUI::Page).
   # Page itself needs a Rails view context (Shell composes CSRF/url helpers) and
   # can't load standalone, so exercise the REAL helper module through a bare Phlex

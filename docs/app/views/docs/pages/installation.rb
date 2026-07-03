@@ -95,14 +95,14 @@ module Views
 
         def requirements_section
           DocsUI::Section("Requirements") do
-            render PropTable.new(
-              [ "Requirement", "Version/Note" ],
+            render DocsUI::PropTable.new(
               [
                 [ "Ruby", ">= 3.2" ],
                 [ "Rails", ">= 7.1" ],
                 [ "Bun", "for the Tailwind CSS build" ],
                 [ "PostgreSQL", "not required (docs sites are stateless)" ]
-              ]
+              ],
+              headers: [ "Requirement", "Version/Note" ]
             )
           end
         end
