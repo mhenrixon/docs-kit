@@ -3,6 +3,7 @@
 require "erb"
 require "yaml"
 require "rails/generators/base"
+require_relative "sync_report"
 
 module DocsKit
   module Generators
@@ -14,9 +15,21 @@ module DocsKit
     # a fresh `rails new` app (the new-site template does exactly this), or on top
     # of an existing app to add a docs section.
     #
-    # Everything is idempotent — re-running skips files that already exist.
+    # Fully idempotent — safe on a fresh app AND a years-old site, which makes
+    # re-running it the sanctioned upgrade path. Every step guards a re-run: the
+    # config initializer is skipped (never clobbered); routes are skipped even
+    # when the site wrote them in its own style (single quotes, `to:` vs `=>`);
+    # file creations skip what already exists. `--sync` runs ONLY the additive
+    # wiring (routes, initializer hint, importmap/stimulus, AGENTS.md, .rubocop)
+    # and prints a checklist of manual drift it can't safely automate.
     class InstallGenerator < ::Rails::Generators::Base
       source_root File.expand_path("templates", __dir__)
+
+      # `--sync`: the upgrade path for an existing site. Runs the wiring steps
+      # (idempotent) and skips scaffolding site-owned content (the doc registry,
+      # sample pages, the CSS build) — those already exist and are the site's.
+      class_option :sync, type: :boolean, default: false,
+                          desc: "Upgrade an existing site: re-run wiring only, report drift, scaffold no content"
 
       # eagerLoadControllersFrom (NOT lazy) — the default controllers/index.js only
       # imports eagerLoadControllersFrom; injecting a lazyLoadControllersFrom call
@@ -70,8 +83,18 @@ module DocsKit
         template "rails_icons.rb.erb", icons
       end
 
+      # The site's config (brand, themes, nav) lives here and is heavily edited,
+      # so a re-run must NEVER clobber it. Skip when present and point an upgrader
+      # at the current template for a manual diff. (create_rails_icons_initializer
+      # and create_phlex_initializer already follow this skip-if-exists pattern.)
       def create_initializer
-        template "docs_kit.rb.erb", "config/initializers/docs_kit.rb"
+        initializer = "config/initializers/docs_kit.rb"
+        if File.exist?(File.join(destination_root, initializer))
+          template_path = File.join(self.class.source_root, "docs_kit.rb.erb")
+          return say_status(:skip, "#{initializer} exists — compare with #{template_path} if upgrading", :blue)
+        end
+
+        template "docs_kit.rb.erb", initializer
       end
 
       def include_controller_helper
@@ -86,7 +109,12 @@ module DocsKit
         inject_into_class controller, "ApplicationController", "  include DocsKit::Controller\n"
       end
 
+      # Site-owned content — the doc registry, its controllers, the sample guide
+      # page, the landing. A `--sync` upgrade never scaffolds these: they exist
+      # and are the site's to edit.
       def create_registry_and_pages
+        return say_status(:skip, "site content (--sync: registry/pages are yours)", :blue) if options[:sync]
+
         template "doc.rb.erb", "app/models/doc.rb"
         template "docs_controller.rb.erb", "app/controllers/docs_controller.rb"
         template "landings_controller.rb.erb", "app/controllers/landings_controller.rb"
@@ -99,20 +127,19 @@ module DocsKit
         # docs#show with request.format.md?, so DocsKit::Controller#render_page
         # returns the page's GFM. No `defaults: { format: "html" }` — that would
         # pin html and defeat the .md route.
-        route %(get "docs/:doc(.:format)" => "docs#show", as: :doc)
+        route_once %(get "docs/:doc(.:format)" => "docs#show", as: :doc)
         # Docs search, served from the registry by the gem's DocsKit::SearchController
         # (matches the default c.search_path). Thor's `route` PREPENDS, so this call
         # — after the docs route above — lands ABOVE `docs/:doc` in the file, where
         # it must be: otherwise `docs/:doc` would swallow /docs/search as :doc.
-        route %(get "/docs/search" => "docs_kit/search#index", as: :docs_search)
-        route %(root "landings#show")
+        route_once %(get "/docs/search" => "docs_kit/search#index", as: :docs_search)
+        route_once %(root "landings#show")
 
         # AI-readable docs (llmstxt.org), served from the registry by the gem's
         # DocsKit::LlmsController — zero authoring. /llms.txt is the index;
-        # /llms-full.txt concatenates every page's Markdown twin. Thor's `route`
-        # skips a line already present, so re-running the generator is idempotent.
-        route %(get "/llms.txt" => "docs_kit/llms#index", as: :llms)
-        route %(get "/llms-full.txt" => "docs_kit/llms#full", as: :llms_full)
+        # /llms-full.txt concatenates every page's Markdown twin.
+        route_once %(get "/llms.txt" => "docs_kit/llms#index", as: :llms)
+        route_once %(get "/llms-full.txt" => "docs_kit/llms#full", as: :llms_full)
 
         add_mcp_route
       end
@@ -128,7 +155,12 @@ module DocsKit
         route %(# Add your docs to an agent over MCP (needs `gem "mcp"`):)
       end
 
+      # The CSS build — its stylesheet carries the site's theme @plugin block, so
+      # a `--sync` upgrade leaves it alone (an existing site has already built +
+      # customized it).
       def create_css_build
+        return say_status(:skip, "CSS build (--sync: application.tailwind.css is yours)", :blue) if options[:sync]
+
         template "application.tailwind.css.erb", "app/assets/stylesheets/application.tailwind.css"
         template "build-css", "bin/build-css"
         chmod "bin/build-css", 0o755
@@ -178,15 +210,32 @@ module DocsKit
       def register_stimulus_controller
         index = stimulus_index_path
         return say_status(:skip, "no controllers/index.js — add: #{REGISTER_LINE}", :yellow) unless index
-        return say_status(:identical, relative(index), :blue) if File.read(index).include?(REGISTER_LINE)
+        # Skip if the docs_kit path is already registered via EITHER loader — a
+        # site that wired it lazily is valid (the engine auto-pins it); injecting
+        # our eager line would duplicate the registration. Quote-style tolerant.
+        return say_status(:identical, relative(index), :blue) if stimulus_registered?(index)
 
         inject_into_file index, after: /eagerLoadControllersFrom\([^\n]*\n/ do
           "#{REGISTER_LINE}\n"
         end
-        append_to_file(index, "\n#{REGISTER_LINE}\n") unless File.read(index).include?(REGISTER_LINE)
+        append_to_file(index, "\n#{REGISTER_LINE}\n") unless stimulus_registered?(index)
+      end
+
+      # Detect + print manual drift the generator can't safely automate (a
+      # hand-written render_page, a dead IconHelper). String-level and
+      # conservative — it warns, never deletes, and never fails the run. Runs on
+      # every invocation; it's the headline deliverable of a `--sync` upgrade.
+      def report_drift
+        report = SyncReport.new(destination_root)
+        return if report.clean?
+
+        say_status :warn, "manual cleanup needed (docs-kit now provides these):", :yellow
+        report.items.each { |item| say "  • #{item}" }
       end
 
       def show_post_install
+        return show_sync_summary if options[:sync]
+
         say_status :info, "docs-kit installed.", :green
         say <<~MSG
 
@@ -203,6 +252,17 @@ module DocsKit
       end
 
       private
+
+      def show_sync_summary
+        say_status :info, "docs-kit synced.", :green
+        say <<~MSG
+
+          Next:
+            1. Act on any drift warnings above (delete the flagged files).
+            2. bun run build:css   # pick up any new emitted classes
+            3. bundle exec rspec   # confirm the site still boots + renders
+        MSG
+      end
 
       # Create AGENTS.md whole when absent; otherwise replace only the delimited
       # docs-kit block (or append it if the file predates docs-kit), leaving the
@@ -283,6 +343,40 @@ module DocsKit
         ERB.new(source, trim_mode: "-").result(binding)
       end
 
+      # Draw a route unless the site already has one for the same endpoint —
+      # tolerant of the site's own style (single vs double quotes, `to:` vs `=>`,
+      # extra whitespace). Thor's `route` only skips a BYTE-IDENTICAL line, so a
+      # years-old hand-written routes.rb would get a duplicate; this guard makes
+      # re-running a genuine no-op. We never rewrite the site's line — drift is
+      # warned, not auto-edited.
+      def route_once(routing_code)
+        return route(routing_code) unless route_present?(routing_code)
+
+        say_status(:identical, "route #{route_endpoint(routing_code)} (already drawn)", :blue)
+      end
+
+      # True if config/routes.rb already draws this route's endpoint. Matches the
+      # `controller#action` string in any quote style, or — for `root` — the bare
+      # `root` keyword (a file has at most one).
+      def route_present?(routing_code)
+        path = File.join(destination_root, "config/routes.rb")
+        return false unless File.exist?(path)
+
+        endpoint = route_endpoint(routing_code)
+        routes = File.read(path)
+        return routes.match?(/^\s*root\b/) if endpoint == :root
+
+        routes.match?(/["']#{Regexp.escape(endpoint)}["']/)
+      end
+
+      # The endpoint a route targets: `:root` for a root route, else its
+      # `controller#action` string (e.g. "docs#show", "docs_kit/search#index").
+      def route_endpoint(routing_code)
+        return :root if routing_code.match?(/\Aroot\b/)
+
+        routing_code[%r{["']([\w/]+#\w+)["']}, 1]
+      end
+
       def add_package_json_scripts
         pkg = File.join(destination_root, "package.json")
         return create_file("package.json", package_json_stub) unless File.exist?(pkg)
@@ -320,6 +414,13 @@ module DocsKit
       def stimulus_index_path
         %w[app/javascript/controllers/index.js]
           .map { |rel| File.join(destination_root, rel) }.find { |p| File.exist?(p) }
+      end
+
+      # True if the index already registers the docs_kit controllers path — via
+      # eager OR lazy loading, any quote style. A site that wired it lazily is
+      # valid; we must not inject a second (eager) registration on top.
+      def stimulus_registered?(index)
+        File.read(index).match?(%r{(?:eager|lazy)LoadControllersFrom\(\s*["']docs_kit/controllers["']})
       end
 
       def relative(path) = path.sub("#{destination_root}/", "")

@@ -21,3 +21,18 @@
   `DocsKit/EscapedInterpolationInHeredoc` (steer `\#{...}` escapes in a
   double-quoted heredoc to a single-quoted delimiter). RuboCop stays a
   development-time dependency of the host — never a runtime dependency.
+- `rails g docs_kit:install --sync`: the sanctioned upgrade path for an existing
+  site. Runs only the additive/wiring steps (routes, initializer hint,
+  importmap/Stimulus registration, AGENTS.md, `.rubocop.yml`) — never
+  re-scaffolds site-owned content (the `Doc` registry, pages, the themed CSS
+  build) — and prints a conservative drift checklist (a hand-written
+  `render_page`, a dead `IconHelper`) it warns about but never auto-deletes. See
+  the README "Keeping a site in sync" section.
+
+### Fixed
+
+- `rails g docs_kit:install` is now fully idempotent, making re-running it the
+  safe upgrade path: `create_initializer` no longer clobbers a site's edited
+  `config/initializers/docs_kit.rb` (it skips + hints at the template for a
+  diff), and `add_routes` no longer duplicates a route the site already drew when
+  it was written in a different style (single vs double quotes, `to:` vs `=>`).

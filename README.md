@@ -53,6 +53,43 @@ gem "rouge"
 # gem "phlex-reactive"
 ```
 
+## Keeping a site in sync
+
+The install generator is the **upgrade path**, not a one-shot. Every step is
+idempotent — safe to re-run on a years-old site — so bumping the gem and
+re-running it pulls in whatever wiring newer docs-kit versions added (routes,
+initializer hints, the AGENTS.md authoring block, the RuboCop cops) without
+touching a byte you've edited. Your config initializer is skipped (never
+clobbered); routes you already drew are skipped even if you wrote them in your
+own style (single quotes, `to:` vs `=>`).
+
+To upgrade an existing site:
+
+```bash
+bundle update docs-kit
+bin/rails g docs_kit:install --sync   # wiring only — scaffolds no site content
+# → act on any "manual cleanup needed" warnings it prints (see below)
+bun run build:css                     # pick up any newly emitted classes
+bundle exec rspec                     # confirm the site still boots + renders
+```
+
+`--sync` runs only the additive/wiring steps and **never** re-scaffolds
+site-owned content (your `Doc` registry, your pages, your themed
+`application.tailwind.css`). Drop `--sync` to also (re)scaffold missing content
+files — Thor prompts before overwriting anything that exists.
+
+### One-time cleanup for sites created before these landed
+
+`--sync` detects drift it can't safely automate and prints a checklist — it
+**warns, never deletes**. The common items on sites scaffolded by older
+generators:
+
+| Drift | Why it's dead | Fix |
+|-------|---------------|-----|
+| `ApplicationController#render_page` defined by hand | `DocsKit::Controller#render_page` is included (the generator injects `include DocsKit::Controller`) | Delete the method — keep the `include`. |
+| `app/helpers/icon_helper.rb` | docs-kit renders icons via rails_icons (`DocsUI::Icon`) | Delete the file. |
+| Hand-pinned docs-kit lines in `config/importmap.rb` | the engine auto-pins the `docs-nav` controller and its assets | Delete the manual `pin`/`pin_all_from` lines for docs-kit. |
+
 ## Configure (per site)
 
 ```ruby
