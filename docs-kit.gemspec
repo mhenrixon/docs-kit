@@ -57,6 +57,10 @@ Gem::Specification.new do |s|
   s.add_dependency "rails_icons", "~> 1.1"
   # Syntax highlighting for Docs::Code.
   s.add_dependency "rouge", ">= 4.0"
+  # GFM parsing for DocsUI::Markdown (v2 = Rust/comrak, precompiled; GFM tables +
+  # strikethrough + autolink on by default). We walk its AST to Phlex nodes, so
+  # commonmarker never renders HTML we'd have to html_safe.
+  s.add_dependency "commonmarker", "~> 2.0"
   s.add_dependency "zeitwerk", "~> 2.6"
 
   # phlex-reactive (reactive demos) and pgbus (Postgres-SSE transport) are

@@ -1,0 +1,196 @@
+# frozen_string_literal: true
+
+RSpec.describe DocsUI::Markdown do
+  def render_md(source)
+    described_class.new(source).call
+  end
+
+  it "wraps output in the Prose typography classes" do
+    html = render_md("Just a paragraph.")
+
+    # The wrapper reuses DocsUI::Prose's child-selector vocabulary so Markdown
+    # prose is styled identically to hand-authored Prose.
+    expect(html).to include("text-base-content/80")
+    expect(html).to include("[&_p]:my-4")
+    expect(html).to include("[&_code]:bg-base-300")
+  end
+
+  it "renders paragraphs, strong, em, and links" do
+    html = render_md("A **bold** and *italic* word, plus a [link](https://example.com).")
+
+    expect(html).to include("<p>")
+    expect(html).to include("<strong>bold</strong>")
+    expect(html).to include("<em>italic</em>")
+    expect(html).to include('<a href="https://example.com">link</a>')
+  end
+
+  it "renders inline code as a <code> element (gets the [&_code] Prose treatment)" do
+    html = render_md("Call `bundle install` first.")
+
+    expect(html).to include("<code>bundle install</code>")
+  end
+
+  it "routes a fenced ```ruby block through DocsUI::Code (Rouge)" do
+    html = render_md(<<~MD)
+      ```ruby
+      puts "hi"
+      ```
+    MD
+
+    # DocsUI::Code's hallmarks: the .code-highlight wrapper and a Rouge token span.
+    expect(html).to include("code-highlight")
+    expect(html).to include("<pre>")
+    # Rouge emits token classes on spans (e.g. .s2 for a double-quoted string).
+    expect(html).to match(/<span class="[a-z0-9]+">/)
+  end
+
+  it "falls back to plaintext for an unknown fence language (never raises)" do
+    expect do
+      html = render_md(<<~MD)
+        ```wut-lang
+        not a real language
+        ```
+      MD
+      expect(html).to include("code-highlight")
+      expect(html).to include("not a real language")
+    end.not_to raise_error
+  end
+
+  it "renders a fenced block with no language through Code as plaintext" do
+    html = render_md(<<~MD)
+      ```
+      plain fenced text
+      ```
+    MD
+
+    expect(html).to include("code-highlight")
+    expect(html).to include("plain fenced text")
+  end
+
+  it "renders a GFM table with the kit's table classes" do
+    html = render_md(<<~MD)
+      | Name | Type |
+      |------|------|
+      | brand | String |
+    MD
+
+    expect(html).to include("<table")
+    expect(html).to include("<th")
+    expect(html).to include("<td")
+    expect(html).to include("brand")
+    expect(html).to include("String")
+    # The first row is the header (GFM semantics).
+    expect(html.index("Name")).to be < html.index("brand")
+  end
+
+  it "demotes headings — h1 becomes h3, h2 becomes h4, deeper stays h4" do
+    html = render_md("# Big\n\n## Medium\n\n#### Deep")
+
+    expect(html).to include("<h3>Big</h3>")
+    expect(html).to include("<h4>Medium</h4>")
+    expect(html).to include("<h4>Deep</h4>")
+    expect(html).not_to include("<h1")
+    expect(html).not_to include("<h2")
+  end
+
+  it "renders bullet and ordered lists" do
+    html = render_md("- one\n- two\n\n1. first\n2. second")
+
+    expect(html).to include("<ul>")
+    expect(html).to include("<ol>")
+    expect(html).to include("<li>one</li>")
+    expect(html).to include("<li>first</li>")
+  end
+
+  it "renders a block quote and a thematic break" do
+    html = render_md("> a quoted line\n\n---")
+
+    expect(html).to include("<blockquote>")
+    expect(html).to include("a quoted line")
+    expect(html).to include("<hr")
+  end
+
+  it "renders GFM strikethrough" do
+    html = render_md("This is ~~gone~~.")
+
+    expect(html).to include("<del>gone</del>")
+  end
+
+  it "drops raw HTML — <script> never appears in the output" do
+    html = render_md("Before <script>alert(1)</script> after.")
+
+    # The executable tag is dropped (AST html_inline nodes are skipped). The
+    # inner text may remain as inert, escaped text — but never as a live tag.
+    expect(html).not_to include("<script>")
+    expect(html).not_to include("</script>")
+    expect(html).to include("Before")
+    expect(html).to include("after")
+  end
+
+  it "drops a raw HTML block entirely" do
+    html = render_md("Text.\n\n<div onclick=\"evil()\">boom</div>")
+
+    expect(html).not_to include("<div onclick")
+    expect(html).not_to include("onclick")
+    expect(html).to include("Text.")
+  end
+
+  it "renders interpolation-looking text literally (Phlex escaping, no html_safe)" do
+    # A literal that LOOKS like Ruby interpolation but is plain author text.
+    literal = ["#", "{user}"].join
+    html = render_md("Use #{literal} in a template.")
+
+    expect(html).to include(literal)
+  end
+
+  it "escapes HTML-special characters in author text" do
+    html = render_md("A < B && C > D")
+
+    expect(html).to include("&lt;")
+    expect(html).to include("&gt;")
+    expect(html).to include("&amp;")
+  end
+
+  it "renders an empty wrapper for nil or empty source (never raises)" do
+    expect { described_class.new(nil).call }.not_to raise_error
+    expect(described_class.new("").call).to include("</div>")
+  end
+
+  it "normalizes a non-UTF-8 source (commonmarker requires UTF-8)" do
+    ascii = "Plain ASCII prose.".encode(Encoding::US_ASCII)
+
+    expect { render_md(ascii) }.not_to raise_error
+    expect(render_md(ascii)).to include("Plain ASCII prose.")
+  end
+
+  it "renders a header-only table without a body (no drop error)" do
+    html = render_md("| a | b |\n|---|---|")
+
+    expect(html).to include("<table")
+    expect(html).to include("<th")
+    expect(html).not_to include("<td")
+  end
+
+  # The `md(source)` helper on DocsUI::Page delegates to this component. Page
+  # itself needs a Rails view context (Shell composes CSRF/url helpers) and can't
+  # load standalone, so exercise the exact delegation through a bare Phlex host
+  # that includes the same DocsUI kit a Page does.
+  describe "the DocsUI::Page#md helper delegation" do
+    def render_md_helper(source)
+      md_source = source
+      Class.new(Phlex::HTML) do
+        include DocsUI
+
+        define_method(:md) { |src| render DocsUI::Markdown.new(src) }
+        define_method(:view_template) { md(md_source) }
+      end.new.call
+    end
+
+    it "renders Prose-styled Markdown from a page body" do
+      html = render_md_helper("A **markdown** paragraph.")
+
+      expect(html).to include("text-base-content/80") # the Prose wrapper classes
+      expect(html).to include("<strong>markdown</strong>")
+    end
+  end
+end

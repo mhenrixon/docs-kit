@@ -24,6 +24,7 @@ A `DocsUI::` Phlex kit, configured once per site:
 | `DocsUI::Code` | Rouge-highlighted code block (any of Rouge's ~200 languages) with an inline theme. |
 | `DocsUI::Page` | Base class for a hand-authored doc page; renders inside `DocsUI::Shell`. |
 | `DocsUI::Header` / `Section` / `Prose` / `Callout` | The page-authoring kit. |
+| `DocsUI::Markdown` | GFM Markdown island — prose as Markdown, styled like `Prose`, fenced code through Rouge. |
 | `DocsUI::Example` | Base for a live example with `method_source`-extracted source. |
 
 Plus `DocsKit::Registry` (in-memory docs registry mixin), `DocsKit::NavItem`
@@ -99,6 +100,54 @@ class Views::Docs::Pages::Installation < DocsUI::Page
   end
 end
 ```
+
+## Authoring with Markdown
+
+Prose is the most-written content type — and the noisiest to hand-build from
+`p`/`code`/`plain` calls. `DocsUI::Page` gives you `md(source)`: write a block of
+GitHub-Flavored Markdown and it renders styled identically to `DocsUI::Prose`,
+with fenced code routed through `DocsUI::Code` (Rouge).
+
+```ruby
+def content
+  DocsUI::Section("Configure") do
+    md <<~'MD'
+      Set `brand` and `themes` in the initializer. Everything that differs
+      between two sites is **configuration**, not markup:
+
+      - `brand` — the topbar/sidebar heading,
+      - `themes` — the ThemeSwitcher options.
+
+      ```ruby
+      DocsKit.configure { |c| c.brand = "My Docs" }
+      ```
+
+      | Option | Type   |
+      |--------|--------|
+      | brand  | String |
+      | themes | Array  |
+    MD
+  end
+end
+```
+
+That renders paragraphs, **bold**/*italic*, inline `code`, links, bullet/ordered
+lists, block quotes, GFM tables (with the kit's table classes), and
+strikethrough. A fenced ` ```ruby ` block is highlighted by Rouge exactly like a
+hand-written `DocsUI::Code`; an unknown fence language falls back to plaintext.
+
+Two things to know:
+
+- **`md` is a lowercase method, so `md <<~MD … MD` needs no parens** — unlike
+  `DocsUI::Prose()` / `DocsUI::Example()`, which take a block and so require the
+  empty-parens form.
+- **Use a single-quoted heredoc, `<<~'MD'`.** Then `#{…}` in your prose is
+  literal text (Phlex escapes author text — no `html_safe`, no interpolation).
+
+Markdown headings render as styled `h3`/`h4`. Document **structure and the "On
+this page" TOC still come from `DocsUI::Section`** — keep section titles as
+`Section`, and use Markdown headings only for sub-headings inside a section. Raw
+HTML in the Markdown source is dropped (no `<script>`, no passthrough).
 
 ## Scaffold a new docs site in one command
 
