@@ -70,4 +70,11 @@ Gem::Specification.new do |s|
   # phlex-reactive (reactive demos) and pgbus (Postgres-SSE transport) are
   # intentionally NOT dependencies — they are optional, runtime-detected. A site
   # that wants reactive examples adds phlex-reactive itself.
+
+  # RuboCop is a DEVELOPMENT-time dependency: docs-kit ships custom cops under
+  # lib/rubocop/cop/docs_kit/, but `require "docs_kit/rubocop"` loads rubocop
+  # lazily, so it is never pulled into a host app's runtime. A consuming site
+  # already has `rubocop` in its Gemfile (every generated site does) — that is
+  # what runs the shipped cops. Pinned here so the gem's own cop specs can run.
+  s.add_development_dependency "rubocop", ">= 1.75"
 end

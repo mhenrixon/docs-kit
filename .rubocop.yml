@@ -21,6 +21,26 @@ AllCops:
 Style/Documentation:
   Enabled: false
 
+# The custom RuboCop cops ship rubocop as a gemspec DEVELOPMENT dependency on
+# purpose: `docs_kit/rubocop` requires it lazily (never a runtime dep), and
+# pinning it here lets the gem's own cop specs run. This is a deliberate design
+# choice (see issue #22), not a stray dependency to move to the Gemfile.
+Gemspec/DevelopmentDependencies:
+  Exclude:
+    - "docs-kit.gemspec"
+
+# lib/rubocop/cop/** holds RuboCop cops. RenderComponentPreferred is upstreamed
+# VERBATIM from the proven consumer copy (issue #22 says: don't rewrite it), so
+# its on_send node-matching dispatch trips the size/complexity metrics by design.
+# Cops are inherently branchy AST walkers — exempt the tree from the two metrics
+# it doesn't already cover elsewhere (AbcSize/MethodLength are extended below).
+Metrics/CyclomaticComplexity:
+  Exclude:
+    - "lib/rubocop/cop/**/*"
+Metrics/PerceivedComplexity:
+  Exclude:
+    - "lib/rubocop/cop/**/*"
+
 # lib/docs-kit.rb must match the hyphenated gem name for Bundler's auto-require;
 # it just requires the underscored real entrypoint.
 Naming/FileName:
@@ -49,6 +69,8 @@ Metrics/AbcSize:
     - "app/components/docs_ui/shell.rb"
     - "app/components/docs_ui/page.rb"
     - "lib/docs_kit/configuration.rb"
+    # Verbatim-upstreamed cop (issue #22) — its AST dispatch is branchy by design.
+    - "lib/rubocop/cop/**/*"
 
 # ApiRequest/ApiClient are Data value objects and RequestExample is a public
 # component; their keyword-arg constructors mirror the documented API (method:,
@@ -70,6 +92,9 @@ Style/StringLiterals:
 
 Layout/LineLength:
   Max: 120
+  Exclude:
+    # Verbatim-upstreamed cop (issue #22) — one add_offense line runs to 122.
+    - "lib/rubocop/cop/**/*"
 
 Metrics/BlockLength:
   Exclude:
@@ -93,9 +118,15 @@ Metrics/MethodLength:
   # length is the knob count, not logic (AbcSize is excluded for the same reason).
   Exclude:
     - "lib/docs_kit/configuration.rb"
+    # Verbatim-upstreamed cop (issue #22) — on_send is one long dispatch method.
+    - "lib/rubocop/cop/**/*"
 
 RSpec/ExampleLength:
   Max: 12
+  # Cop specs pair an expect_offense fixture with an expect_correction fixture,
+  # both multi-line heredocs — the example length is the fixture size, not logic.
+  Exclude:
+    - "spec/rubocop/**/*"
 
 RSpec/MultipleExpectations:
   Max: 6

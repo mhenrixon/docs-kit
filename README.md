@@ -582,6 +582,36 @@ bun install && bun run build:css
 Then add pages one command at a time — `rails g docs_kit:page "Title"
 --group=Guide` (see [Add a page](#add-a-page)).
 
+## Lint — the docs-kit RuboCop cops
+
+docs-kit ships two custom cops so every site enforces the same authoring idioms
+instead of hand-copying a cop file that drifts:
+
+- **`DocsKit/RenderComponentPreferred`** — prefers the Phlex-kit helper form
+  `DocsUI::Code(...)` over `render DocsUI::Code.new(...)` (autocorrectable).
+- **`DocsKit/EscapedInterpolationInHeredoc`** — flags the `\#{...}` "escape tax"
+  inside a double-quoted heredoc and steers you to a single-quoted delimiter
+  (`<<~'RUBY'`), where `#{...}` is literal. Autocorrects when the heredoc has no
+  live interpolation; otherwise it reports and leaves the fix to you.
+
+Both are scoped to `app/views/docs/**/*` by default. The install generator wires
+them into your `.rubocop.yml` automatically — two lines, merged idempotently
+(your existing `inherit_gem` / `require` entries are preserved):
+
+```yaml
+# .rubocop.yml
+require:
+  - docs_kit/rubocop
+inherit_gem:
+  docs-kit: config/rubocop/docs_kit.yml
+```
+
+RuboCop is a **development-time** dependency of your app, never a runtime
+dependency of docs-kit — `docs_kit/rubocop` requires `rubocop` lazily. Every
+generated site already has `rubocop` in its Gemfile (via `rubocop-rails-omakase`
+from `rails new`); if yours doesn't, add `gem "rubocop"` to the `:development`
+group. Then `bundle exec rubocop` runs the docs-kit cops.
+
 ## Deploy a new docs site
 
 The build + deploy is defined **once** in this gem's reusable workflow

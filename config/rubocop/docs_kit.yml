@@ -1,0 +1,24 @@
+# docs-kit's custom RuboCop cops, shipped from the gem so consuming sites stop
+# hand-copying them. Wire this into a site's `.rubocop.yml` with two lines
+# (the install generator does it automatically):
+#
+#   require:
+#     - docs_kit/rubocop
+#   inherit_gem:
+#     docs-kit: config/rubocop/docs_kit.yml
+#
+# Both cops are scoped to the docs page tree (app/views/docs/**/*) by default —
+# that is where the kit-helper form and heredoc examples live. A site can widen
+# or narrow the `Include` in its own `.rubocop.yml`.
+
+DocsKit/RenderComponentPreferred:
+  Description: "Prefer the Phlex-kit helper form (DocsUI::Code(...)) over `render DocsUI::Code.new(...)`."
+  Enabled: true
+  Include:
+    - "app/views/docs/**/*"
+
+DocsKit/EscapedInterpolationInHeredoc:
+  Description: "Use a single-quoted heredoc delimiter instead of escaping `\\#{...}` in a double-quoted one."
+  Enabled: true
+  Include:
+    - "app/views/docs/**/*"

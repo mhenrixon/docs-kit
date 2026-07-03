@@ -54,6 +54,11 @@ loader.push_dir(File.expand_path("docs_kit", __dir__), namespace: DocsKit)
 loader.push_dir(File.expand_path("../app/components/docs_ui", __dir__), namespace: DocsUI)
 loader.ignore(File.expand_path("docs_kit/version.rb", __dir__))
 loader.ignore(File.expand_path("docs_kit/configuration.rb", __dir__))
+# docs_kit/rubocop.rb is the RuboCop-cop entry point: it defines cops under
+# RuboCop::Cop::DocsKit::*, not a DocsKit::Rubocop constant, so zeitwerk must not
+# manage it. It (and the cops under lib/rubocop/, which are outside the loader's
+# push_dirs entirely) load only when a `.rubocop.yml` requires "docs_kit/rubocop".
+loader.ignore(File.expand_path("docs_kit/rubocop.rb", __dir__))
 # engine.rb is required explicitly below only under Rails, so zeitwerk never
 # manages it (it would otherwise expect a DocsKit::Engine constant outside Rails).
 loader.ignore(File.expand_path("docs_kit/engine.rb", __dir__))
