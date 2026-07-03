@@ -15,6 +15,11 @@ module DocsUI
   # The Param column is shown only when at least one error names a param — an
   # endpoint whose errors are all param-free renders a clean three-column table.
   # When the column IS shown, a param-free row gets the canonical em-dash `—`.
+  #
+  # `type:` is optional — OpenAPI has no canonical error-type field, so an
+  # OpenAPI-derived error may carry none. A row without a (present) type gets the
+  # em-dash `—` in the Type column, not an empty <code>; a row with `type:`
+  # renders it code-styled exactly as before.
   class ErrorTable < Phlex::HTML
     BASE_HEADERS = %w[Scenario Status Type].freeze
     PARAM_HEADER = "Param"
@@ -41,10 +46,17 @@ module DocsUI
       cells = [
         error.fetch(:scenario),
         error.fetch(:status),
-        [:code, error.fetch(:type)]
+        type_cell(error)
       ]
       cells << param_cell(error) if @with_param
       cells
+    end
+
+    # The Type cell: code-styled when present, else the em-dash placeholder. A
+    # blank string counts as absent (same rule as #param_cell / #present_param?).
+    def type_cell(error)
+      type = error[:type]
+      present_param?(type) ? [:code, type] : NO_PARAM
     end
 
     def param_cell(error)

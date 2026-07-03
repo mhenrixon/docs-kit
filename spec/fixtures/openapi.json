@@ -1,0 +1,285 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Billing API",
+    "version": "1.0.0"
+  },
+  "components": {
+    "schemas": {
+      "Invoice": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "inv_123"
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Amount in the smallest currency unit.",
+            "example": 4200
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "usd",
+              "eur",
+              "gbp"
+            ]
+          },
+          "customer": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "cus_1"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "line_items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "parent": {
+            "$ref": "#/components/schemas/Invoice"
+          }
+        }
+      },
+      "CreateInvoiceRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Invoice"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "idempotency_key": {
+                "type": "string",
+                "description": "A unique key to make the create idempotent."
+              }
+            }
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid API key.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "type": "authentication_error",
+              "message": "Invalid API key provided."
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/v1/invoices": {
+      "get": {
+        "operationId": "listInvoices",
+        "summary": "List invoices",
+        "description": "Returns a paginated list of **invoices**.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "How many invoices to return.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 10
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of invoices.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Invoice"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createInvoice",
+        "summary": "Create an invoice",
+        "description": "Creates a new invoice for a customer.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvoiceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The created invoice.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invoice"
+                },
+                "example": {
+                  "id": "inv_123",
+                  "amount": 4200,
+                  "currency": "usd"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "type": "authentication_error",
+                  "message": "Invalid API key provided."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "missing_amount": {
+                    "value": {
+                      "type": "validation_error",
+                      "message": "amount is required."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/invoices/{id}": {
+      "get": {
+        "operationId": "getInvoice",
+        "summary": "Retrieve an invoice",
+        "x-codeSamples": [
+          {
+            "lang": "ruby",
+            "label": "Ruby SDK",
+            "source": "Billing::Invoice.retrieve(\"inv_123\")\n"
+          },
+          {
+            "lang": "shell",
+            "label": "CLI",
+            "source": "billing invoices retrieve inv_123\n"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The invoice ID.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "inv_123"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The invoice.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invoice"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "type": "authentication_error",
+                  "message": "Invalid API key provided."
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an invoice",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "inv_123"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The invoice was deleted."
+          }
+        }
+      }
+    }
+  }
+}

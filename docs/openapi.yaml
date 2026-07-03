@@ -1,0 +1,163 @@
+# A small sample OpenAPI 3.x spec, so the docs-kit docs site can dogfood the
+# OpenAPI bridge: the "OpenAPI bridge" page renders these operations live with
+# `operation "createInvoice"` (etc.) — every field/response you see there is
+# derived from this file, not restated in the Phlex page.
+openapi: "3.0.3"
+info:
+  title: Sample Billing API
+  version: "1.0.0"
+  description: A tiny made-up API used only to demonstrate the docs-kit OpenAPI bridge.
+
+components:
+  schemas:
+    Invoice:
+      type: object
+      required: [amount, currency]
+      properties:
+        id:
+          type: string
+          description: The unique invoice identifier.
+          example: "inv_1a2b3c"
+        amount:
+          type: integer
+          description: Amount due, in the smallest currency unit (e.g. cents).
+          example: 4200
+        currency:
+          type: string
+          description: Three-letter ISO currency code.
+          enum: [usd, eur, gbp]
+        customer:
+          type: object
+          description: The customer the invoice is billed to.
+          properties:
+            id:
+              type: string
+              example: "cus_9f8e7d"
+            email:
+              type: string
+              example: "ada@example.com"
+        created:
+          type: integer
+          description: Unix timestamp of creation.
+          example: 1720000000
+    Error:
+      type: object
+      properties:
+        type:
+          type: string
+          description: A machine-readable error category.
+        message:
+          type: string
+          description: A human-readable explanation.
+
+paths:
+  /v1/invoices:
+    get:
+      operationId: listInvoices
+      summary: List invoices
+      description: Returns a paginated list of invoices, most recent first.
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of invoices to return (1–100).
+          required: false
+          schema:
+            type: integer
+          example: 20
+        - name: status
+          in: query
+          description: Filter by invoice status.
+          required: false
+          schema:
+            type: string
+            enum: [open, paid, void]
+      responses:
+        "200":
+          description: A page of invoices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+    post:
+      operationId: createInvoice
+      summary: Create an invoice
+      description: Creates a new invoice for a customer and returns it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Invoice"
+      responses:
+        "200":
+          description: The created invoice.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+              example:
+                id: inv_1a2b3c
+                amount: 4200
+                currency: usd
+                customer:
+                  id: cus_9f8e7d
+                  email: ada@example.com
+                created: 1720000000
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                type: authentication_error
+                message: Invalid API key provided.
+        "422":
+          description: The invoice failed validation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                type: validation_error
+                message: amount must be a positive integer.
+  /v1/invoices/{id}:
+    get:
+      operationId: getInvoice
+      summary: Retrieve an invoice
+      description: Fetches a single invoice by its ID.
+      x-codeSamples:
+        - lang: ruby
+          label: Ruby SDK
+          source: |
+            Billing::Invoice.retrieve("inv_1a2b3c")
+        - lang: shell
+          label: CLI
+          source: |
+            billing invoices retrieve inv_1a2b3c
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The invoice ID.
+          schema:
+            type: string
+          example: inv_1a2b3c
+      responses:
+        "200":
+          description: The requested invoice.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                type: authentication_error
+                message: Invalid API key provided.

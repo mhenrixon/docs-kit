@@ -32,5 +32,21 @@ module DocsUI
     def example(&)
       render DocsUI::Example.new(&)
     end
+
+    # Render one OpenAPI operation from the configured spec as a full endpoint
+    # reference (see DocsUI::OpenApiOperation) — zero hand-restatement. The
+    # operation is looked up on DocsKit.configuration.openapi_document, so
+    # `c.openapi` must be set; an unknown id raises OperationNotFound.
+    #
+    #   operation "createInvoice"                    # the whole endpoint block
+    #   operation "createInvoice", clients: %i[curl ruby]  # filter the client tabs
+    #   operation "createInvoice" do |op| op.plain "…" end # append prose inside it
+    #
+    # `id_or_method`/`path` mirror Document#operation: pass an operationId, or a
+    # verb + path for a spec whose operations have no ids.
+    def operation(id_or_method, path = nil, clients: nil, &)
+      op = DocsKit.configuration.openapi_document.operation(id_or_method, path)
+      render DocsUI::OpenApiOperation.new(op, clients: clients), &
+    end
   end
 end

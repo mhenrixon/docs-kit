@@ -58,4 +58,40 @@ RSpec.describe DocsUI::PageHelpers do
       expect(html).to include("<strong>markdown</strong>")
     end
   end
+
+  describe "#operation" do
+    let(:yaml_path) { File.expand_path("../fixtures/openapi.yaml", __dir__) }
+
+    before { DocsKit.configure { |c| c.openapi = yaml_path } }
+
+    it "looks up an operation on the configured spec and renders it through the kit" do
+      html = render_body { operation "createInvoice" }
+
+      expect(html).to include(">Create an invoice<")
+      expect(html).to include('id="createInvoice"')
+      expect(html).to include(">POST</code>")
+    end
+
+    it "passes clients: through to the generated RequestExample" do
+      html = render_body { operation "createInvoice", clients: %i[curl ruby] }
+
+      expect(html).to include('data-testid="code-lang-curl"')
+      expect(html).not_to include('data-testid="code-lang-python"')
+    end
+
+    it "yields the block so a page can append prose inside the operation section" do
+      html = render_body do
+        operation "createInvoice" do |op|
+          op.plain "Author note."
+        end
+      end
+
+      expect(html).to include("Author note.")
+    end
+
+    it "raises OperationNotFound (naming ids) for an unknown operationId" do
+      expect { render_body { operation "nope" } }
+        .to raise_error(DocsKit::OpenApi::OperationNotFound, /createInvoice/)
+    end
+  end
 end

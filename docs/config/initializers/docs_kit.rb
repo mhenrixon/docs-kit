@@ -26,6 +26,11 @@ Rails.application.config.to_prepare do
     # c.code_lexer_aliases  = { curl: "console" }
     # c.code_language_labels = { elixir: "Elixir" }
 
+    # The OpenAPI bridge, dogfooded: the "OpenAPI bridge" page renders a whole
+    # endpoint with `operation "createInvoice"` derived from this spec — badge,
+    # field/error tables, request tabs, and response, with zero hand-restatement.
+    c.openapi = Rails.root.join("openapi.yaml")
+
     # The sidebar nav derives from the registry — one heading → one registry.
     # Each registry's authored pages become NavItems automatically (an unwritten
     # page is skipped, so no dead links); the page `group:` values render as the

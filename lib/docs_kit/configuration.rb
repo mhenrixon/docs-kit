@@ -181,6 +181,13 @@ module DocsKit
     # Read the effective map via #api_clients (which merges), never @api_clients.
     attr_writer :api_clients
 
+    # The OpenAPI spec the `operation` page helper / DocsUI::OpenApiOperation read
+    # from: a String/Pathname path (`.json` parsed as JSON, else YAML) or an
+    # already-parsed Hash. Defaults to nil → the bridge is off and a site that
+    # doesn't set it is byte-identical to before. Read the loaded model via
+    # #openapi_document (which memoizes + reloads on file change), never @openapi.
+    attr_accessor :openapi
+
     # The sentinel "no explicit nav" lambda. #nav_groups compares against this
     # identity to decide whether to derive the sidebar from #nav_registries.
     DEFAULT_NAV = -> { {} }
@@ -243,6 +250,22 @@ module DocsKit
       @api_base_url = "https://api.example.com"
       @api_auth_header = nil
       @api_clients = {}
+      @openapi = nil
+    end
+
+    # The loaded DocsKit::OpenApi::Document for #openapi. Memoized; when #openapi
+    # is a file path, the memo is invalidated on an mtime change so editing the
+    # spec in development is picked up without a server restart. Raises a
+    # DocsKit::Error naming the knob when read while #openapi is unset — a missing
+    # spec has nothing useful to degrade to.
+    def openapi_document
+      raise DocsKit::Error, "no OpenAPI spec configured — set c.openapi to a path or Hash" if @openapi.nil?
+
+      mtime = openapi_source_mtime
+      return @openapi_document if defined?(@openapi_document) && @openapi_document_mtime == mtime
+
+      @openapi_document_mtime = mtime
+      @openapi_document = DocsKit::OpenApi.load(@openapi)
     end
 
     # The effective client map for DocsUI::RequestExample: the four shipped
@@ -304,6 +327,18 @@ module DocsKit
         rescue LoadError
           false
         end
+    end
+
+    # The mtime of the #openapi source when it's a readable file path, else nil
+    # (a Hash spec, or a path that isn't a file). Drives #openapi_document's
+    # reload-on-change memoization; a Hash spec loads once and never invalidates.
+    def openapi_source_mtime
+      return if @openapi.is_a?(Hash)
+
+      path = Pathname.new(@openapi)
+      path.file? ? path.mtime : nil
+    rescue StandardError
+      nil
     end
 
     # { heading => registry.nav_items }, dropping headings with no authored

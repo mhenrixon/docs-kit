@@ -144,6 +144,14 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
         expect(css).to include(theme)
       end
     end
+
+    it "documents the optional OpenAPI-bridge knob (commented, so it's opt-in)" do
+      initializer = read("config/initializers/docs_kit.rb")
+
+      # Commented by default — a site that doesn't maintain a spec is unaffected.
+      expect(initializer).to include("# c.openapi = ")
+      expect(initializer).to match(/openapi\.ya?ml/)
+    end
   end
 
   # The initializer is the ONE file a site is expected to edit heavily (brand,

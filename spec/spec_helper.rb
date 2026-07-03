@@ -45,6 +45,10 @@ rescue LoadError
   # mcp not bundled (the without-mcp gate leg) — the MCP specs self-skip.
 end
 
+# Shared spec helpers (spec/support/*). Explicit requires — the suite has no
+# support-glob autoload, so add one line per helper file.
+require_relative "support/open_api_helpers"
+
 RSpec.configure do |config|
   config.expect_with(:rspec) { |c| c.syntax = :expect }
   config.disable_monkey_patching!
