@@ -30,6 +30,7 @@ A `DocsUI::` Phlex kit, configured once per site:
 | `DocsUI::FieldTable` / `ErrorTable` | API-reference presets over `Table` — an object's fields, and an endpoint's errors (Param column auto-hidden when unused). |
 | `DocsUI::RequestExample` | One request declaration → one code tab per configured client (curl / JS / Ruby / Python by default). |
 | `DocsUI::JsonResponse` | A Ruby Hash (or String) rendered as a pretty-printed JSON response block. |
+| `DocsUI::OpenApiOperation` | One OpenAPI 3.x operation → a full endpoint reference (badge + tables + request tabs + response), composed from the kit. The `operation "id"` page helper is the front door. See [OpenAPI bridge](#openapi-bridge--an-endpoint-from-your-spec-no-hand-restatement). |
 | `DocsUI::Example` | Base for a live example with `method_source`-extracted source. |
 | `DocsUI::MarkdownAction` | The "Markdown" masthead action → the page's `.md` twin; `docs-nav` enhances it into copy-to-clipboard. |
 | `DocsUI::SearchBox` / `SearchResults` | Topbar [search](#search) — a JS-off `GET` form + server-rendered results, enhanced into a `⌘K` palette by `docs-nav`. |
@@ -589,6 +590,64 @@ the request exposes `#http_method`, `#url`, `#url_with_query`, `#headers`,
 
 Pass `clients:` to a single call to filter/order the tabs:
 `DocsUI::RequestExample.new(method: :get, path: "/v1/things", clients: [:curl, :ruby])`.
+
+### OpenAPI bridge — an endpoint from your spec, no hand-restatement
+
+If you already maintain an OpenAPI 3.x spec, you don't have to restate a single
+method, path, field, or response in the docs. Point `c.openapi` at the spec and
+one line renders the whole endpoint:
+
+```ruby
+# config/initializers/docs_kit.rb
+DocsKit.configure do |c|
+  c.openapi = Rails.root.join("openapi.yaml")   # String/Pathname (.json ⇒ JSON, else YAML) or a parsed Hash
+end
+```
+
+```ruby
+# app/views/docs/pages/invoices.rb
+def content
+  operation "createInvoice"          # the whole endpoint, derived from the spec
+end
+```
+
+One `operation` call expands to a full `DocsUI::Section`:
+
+| Spec source | Renders as |
+|-------------|------------|
+| `operationId` + `summary` + method/path | the Section title + a `DocsUI::Endpoint` badge |
+| `description` | Markdown prose |
+| `parameters` (query/path) | a `DocsUI::FieldTable` |
+| `requestBody` schema (`$ref`, `allOf`, nested objects) | a `DocsUI::FieldTable` (nested names dotted: `customer.id`) |
+| `4xx`/`5xx` responses | a `DocsUI::ErrorTable` (the error `type` is read from a response example when present) |
+| `x-codeSamples` / `x-code-samples` | `DocsUI::Example` tabs (a lone sample → a plain `DocsUI::Code`) |
+| no code samples | a generated `DocsUI::RequestExample` (curl / JS / Ruby / Python) |
+| first `2xx` example (explicit or synthesized) | a `DocsUI::JsonResponse` |
+
+The snippet URL uses each path parameter's `example` when the spec provides one
+(so it's copy-pasteable), and query params appear only when they carry an
+explicit `example` — a required-but-example-less param stays documentation-only.
+
+Look up by `operationId`, or by verb + path for a spec whose operations have no
+ids; append hand-authored prose with a block; filter the client tabs with
+`clients:`:
+
+```ruby
+operation :delete, "/v1/invoices/{id}"                 # method + path lookup
+operation "createInvoice", clients: %i[curl ruby]      # only these tabs
+operation "createInvoice" do |op|                      # append prose in the section
+  op.md("Idempotency keys are honored for 24 hours.")
+end
+```
+
+An unknown `operationId` raises `DocsKit::OpenApi::OperationNotFound` naming the
+available ids; an external/remote `$ref` raises `DocsKit::OpenApi::UnsupportedRef`.
+Because the whole thing is composed from the kit, the `.md` twin, `llms.txt`,
+search, and MCP surfaces derive from it for free.
+
+**Out of scope:** authoring or validating the spec (bring your own), OpenAPI 2.0 /
+Swagger, AsyncAPI, GraphQL SDL, external-file `$ref`s, and round-tripping docs
+back to a spec.
 
 ## Scaffold a new docs site in one command
 

@@ -117,4 +117,26 @@ RSpec.describe DocsUI::ErrorTable do
     expect(html).to include("&lt;title&gt;")
     expect(html).not_to include("<title>")
   end
+
+  context "when a row omits the type (OpenAPI has no canonical error-type field)" do
+    it "fills the canonical em-dash placeholder instead of code-styling an empty type" do
+      html = render_error_table([{ scenario: "Not found", status: "404" }])
+
+      expect(html).to include("—")
+      # No empty <code> cell for the missing type.
+      expect(html).not_to include(%(<code class="text-sm"></code>))
+    end
+
+    it "still renders a present type in inline <code> alongside a type-less row" do
+      html = render_error_table(
+        [
+          { scenario: "Bad key", status: "401", type: "authentication_error" },
+          { scenario: "Not found", status: "404" }
+        ]
+      )
+
+      expect(html).to include(">authentication_error</code>")
+      expect(html).to include("—") # the type-less row's placeholder
+    end
+  end
 end

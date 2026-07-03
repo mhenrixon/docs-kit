@@ -110,11 +110,16 @@ Metrics/BlockLength:
 # Generators are procedural wiring — one method per install step — so they're
 # naturally long and flat, not complex. Configuration is the per-site config
 # surface: one accessor + one default per knob, plus small derived readers — its
-# length is the knob count, not accidental complexity.
+# length is the knob count, not accidental complexity. Operation is the OpenAPI
+# bridge value object — one small reader per render-target shape (parameter_rows,
+# body_rows, error_rows, example_*, code_samples); Schema is its traversal helper
+# (type_label, rows, example synthesis). Both are wide-but-flat by design.
 Metrics/ClassLength:
   Exclude:
     - "lib/generators/**/*"
     - "lib/docs_kit/configuration.rb"
+    - "lib/docs_kit/open_api/operation.rb"
+    - "lib/docs_kit/open_api/schema.rb"
 
 Metrics/MethodLength:
   Max: 25

@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "tmpdir"
+require "fileutils"
+
 RSpec.describe DocsKit::Configuration do
   describe "#brand_href" do
     it "defaults to \"/\" (the topbar brand link's current target)" do
@@ -397,6 +400,69 @@ RSpec.describe DocsKit::Configuration do
       clients = DocsKit.configuration.api_clients
       expect(clients.keys).to eq(%i[curl javascript ruby python]) # order preserved, no dup
       expect(clients[:ruby]).to eq(sdk_ruby)
+    end
+  end
+
+  describe "#openapi" do
+    let(:yaml_path) { File.expand_path("../fixtures/openapi.yaml", __dir__) }
+
+    it "defaults to nil (the bridge is off; sites keep working unchanged)" do
+      expect(described_class.new.openapi).to be_nil
+    end
+
+    it "accepts a String path" do
+      DocsKit.configure { |c| c.openapi = yaml_path }
+
+      expect(DocsKit.configuration.openapi).to eq(yaml_path)
+    end
+
+    it "accepts a Pathname" do
+      DocsKit.configure { |c| c.openapi = Pathname.new(yaml_path) }
+
+      expect(DocsKit.configuration.openapi).to eq(Pathname.new(yaml_path))
+    end
+
+    it "accepts an already-parsed Hash" do
+      hash = YAML.safe_load_file(yaml_path, aliases: true, permitted_classes: [Date, Time])
+      DocsKit.configure { |c| c.openapi = hash }
+
+      expect(DocsKit.configuration.openapi).to eq(hash)
+    end
+  end
+
+  describe "#openapi_document" do
+    let(:yaml_path) { File.expand_path("../fixtures/openapi.yaml", __dir__) }
+
+    it "returns a Document when c.openapi is set" do
+      DocsKit.configure { |c| c.openapi = yaml_path }
+
+      expect(DocsKit.configuration.openapi_document).to be_a(DocsKit::OpenApi::Document)
+    end
+
+    it "memoizes the loaded Document (same instance across reads)" do
+      DocsKit.configure { |c| c.openapi = yaml_path }
+      config = DocsKit.configuration
+      first = config.openapi_document
+
+      expect(config.openapi_document).to be(first)
+    end
+
+    it "reloads when the source file's mtime changes" do
+      tmp = File.join(Dir.mktmpdir, "openapi.yaml")
+      FileUtils.cp(yaml_path, tmp)
+      DocsKit.configure { |c| c.openapi = tmp }
+      config = DocsKit.configuration
+      first = config.openapi_document
+
+      # Rewrite with a changed mtime a second into the future (mtime resolution).
+      FileUtils.touch(tmp, mtime: File.mtime(tmp) + 2)
+
+      expect(config.openapi_document).not_to be(first)
+    end
+
+    it "raises a DocsKit::Error naming c.openapi when read while unset" do
+      expect { described_class.new.openapi_document }
+        .to raise_error(DocsKit::Error, /c\.openapi/)
     end
   end
 end

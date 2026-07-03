@@ -17,7 +17,10 @@ The full authoring contract is in the repo's `AGENTS.md`. This is the recipe.
 Identify exactly what to document (the code, endpoint, or workflow) and where it
 belongs in the sidebar (the `--group`). Read the relevant source first — do not
 invent behavior. If the subject is an HTTP endpoint, prefer `DocsUI::RequestExample`
-/ `DocsUI::FieldTable`; if it's a Ruby API, prefer `DocsUI::PropTable`.
+/ `DocsUI::FieldTable`; if it's a Ruby API, prefer `DocsUI::PropTable`. If the
+site has `c.openapi` set (an OpenAPI 3.x spec), a single `operation "operationId"`
+renders the whole endpoint (badge + tables + request tabs + response) from the
+spec — no hand-restatement; reach for it before hand-authoring.
 
 ## 2. Scaffold (one command)
 
@@ -41,6 +44,10 @@ the printed line by hand.
 - Reference material: `DocsUI::PropTable`, `DocsUI::FieldTable`,
   `DocsUI::RequestExample`, `DocsUI::Code(source, filename:)`,
   `DocsUI::Callout(:note | :tip | :warning)`.
+- OpenAPI-backed endpoints (when `c.openapi` is set): `operation "createInvoice"`
+  renders one operation as a full endpoint reference; append prose with a block —
+  `operation "createInvoice" do |op| op.md("…") end` — and filter tabs with
+  `clients: %i[curl ruby]`.
 
 ```ruby
 class Views::Docs::Pages::PageTitle < DocsUI::Page

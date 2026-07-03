@@ -48,6 +48,21 @@ Rails.application.config.to_prepare do
     # c.search_shortcuts = ["/", "mod+k"]   # default; "mod" = ⌘ on mac, Ctrl elsewhere.
     #   Each is a bare key ("/", "s") or a chord ("mod+k", "ctrl+shift+f"); [] binds none.
 
+    # OPTIONAL: API reference from your snippets. DocsUI::RequestExample renders
+    # one request declaration as a code tab per client; these knobs point every
+    # snippet at your host with your auth. See README → "API docs".
+    # c.api_base_url    = "https://api.acme.com"           # prefixed onto each path
+    # c.api_auth_header = "Authorization: Bearer sk_..."   # example auth line
+    # c.api_clients     = { cli: DocsKit::ApiClient.new(...) } # SDK/CLI tabs
+
+    # OPTIONAL: the OpenAPI bridge. Point c.openapi at an OpenAPI 3.x spec and a
+    # docs page can render a whole endpoint with `operation "createInvoice"` — the
+    # Endpoint badge, field/error tables, request tabs, and response are derived
+    # from the spec (zero hand-restatement). Off (nil) by default; a String/
+    # Pathname path (.json → JSON, else YAML) or an already-parsed Hash.
+    # See README → "OpenAPI bridge".
+    # c.openapi = Rails.root.join("openapi.yaml")
+
     # OPTIONAL: expose your docs to AI agents over MCP (Model Context Protocol) —
     # a read-only endpoint (search_docs / get_page / list_pages) at POST /mcp that
     # Claude Code / Claude.ai / Cursor can add as tools. It's OFF until you add

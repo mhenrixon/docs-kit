@@ -24,6 +24,7 @@ class Doc
   page "Markdown authoring", group: "Authoring", slug: "markdown", view: "Markdown"
   page "Code languages",     group: "Authoring", slug: "languages", view: "Languages"
   page "API reference",      group: "Authoring", slug: "api", view: "Api"
+  page "OpenAPI bridge",     group: "Authoring", slug: "openapi", view: "OpenApi"
 
   # Reference
   page "Components",   group: "Reference"
