@@ -150,6 +150,22 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(routes).to include("(.:format)")
       expect(routes).not_to match(/defaults:\s*\{\s*format:/)
     end
+
+    it "adds the llms.txt + llms-full.txt routes (AI-readable docs)" do
+      routes = read("config/routes.rb")
+
+      expect(routes).to include(%(get "/llms.txt" => "docs_kit/llms#index"))
+      expect(routes).to include(%(get "/llms-full.txt" => "docs_kit/llms#full"))
+    end
+
+    it "does not duplicate routes on re-run (idempotent)" do
+      run_generator # second invocation against the same destination
+
+      routes = read("config/routes.rb")
+      expect(routes.scan(%(get "/llms.txt" => "docs_kit/llms#index")).size).to eq(1)
+      expect(routes.scan(%(get "/llms-full.txt" => "docs_kit/llms#full")).size).to eq(1)
+      expect(routes.scan(%(get "docs/:doc(.:format)" => "docs#show", as: :doc)).size).to eq(1)
+    end
   end
 
   describe "controller injection (include_controller_helper)" do

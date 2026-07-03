@@ -1,6 +1,12 @@
 Rails.application.routes.draw do
   root "landings#show"
-  get "docs/:doc" => "docs#show", as: :doc
+  get "docs/:doc(.:format)" => "docs#show", as: :doc
+
+  # AI-readable docs (llmstxt.org) — served from the registry by the gem's
+  # DocsKit::LlmsController, zero authoring. /llms.txt is the index; /llms-full.txt
+  # concatenates every page's Markdown twin.
+  get "/llms.txt" => "docs_kit/llms#index", as: :llms
+  get "/llms-full.txt" => "docs_kit/llms#full", as: :llms_full
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

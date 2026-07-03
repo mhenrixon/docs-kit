@@ -72,6 +72,13 @@ module DocsKit
         # pin html and defeat the .md route.
         route %(get "docs/:doc(.:format)" => "docs#show", as: :doc)
         route %(root "landings#show")
+
+        # AI-readable docs (llmstxt.org), served from the registry by the gem's
+        # DocsKit::LlmsController — zero authoring. /llms.txt is the index;
+        # /llms-full.txt concatenates every page's Markdown twin. Thor's `route`
+        # skips a line already present, so re-running the generator is idempotent.
+        route %(get "/llms.txt" => "docs_kit/llms#index", as: :llms)
+        route %(get "/llms-full.txt" => "docs_kit/llms#full", as: :llms_full)
       end
 
       def create_css_build

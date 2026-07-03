@@ -9,6 +9,9 @@ Rails.application.config.to_prepare do
   DocsKit.configure do |c|
     c.brand        = "docs-kit"
     c.title_suffix = "docs-kit"
+    # The one-line summary in /llms.txt (the llmstxt.org blockquote). Default nil
+    # omits the line; set it so AI agents get a crisp description of the site.
+    c.tagline      = "Shared Phlex/daisyUI chrome for documentation sites — one shell, sidebar, code kit, and page kit across every docs site."
     c.themes       = %w[dark light synthwave retro cyberpunk dracula night nord sunset]
 
     # Code blocks carry a light theme by default and swap to a dark theme when the
