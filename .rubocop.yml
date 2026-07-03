@@ -41,11 +41,29 @@ Style/OneClassPerFile:
     - "lib/docs_kit.rb"
 
 # The shell head/page templates are linear builders; their ABC is inherent to the
-# markup they emit, not accidental complexity.
+# markup they emit, not accidental complexity. Configuration#initialize is a flat
+# list of default assignments (one per knob) — its ABC is the knob count, not
+# branching complexity.
 Metrics/AbcSize:
   Exclude:
     - "app/components/docs_ui/shell.rb"
     - "app/components/docs_ui/page.rb"
+    - "lib/docs_kit/configuration.rb"
+
+# ApiRequest/ApiClient are Data value objects and RequestExample is a public
+# component; their keyword-arg constructors mirror the documented API (method:,
+# path:, body:, query:, headers:, clients:), which is inherently wide.
+Metrics/ParameterLists:
+  Exclude:
+    - "lib/docs_kit/api_request.rb"
+    - "app/components/docs_ui/request_example.rb"
+
+# ApiRequest deliberately names a member `method:` — it IS the HTTP method, the
+# documented public field templates read as `request.method`. The shadowing of
+# Object#method is intended (no reflection is done on the struct).
+Lint/DataDefineOverride:
+  Exclude:
+    - "lib/docs_kit/api_request.rb"
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
@@ -61,10 +79,13 @@ Metrics/BlockLength:
     - "lib/docs_kit/templates/**/*"
 
 # Generators are procedural wiring — one method per install step — so they're
-# naturally long and flat, not complex.
+# naturally long and flat, not complex. Configuration is the per-site config
+# surface: one accessor + one default per knob, plus small derived readers — its
+# length is the knob count, not accidental complexity.
 Metrics/ClassLength:
   Exclude:
     - "lib/generators/**/*"
+    - "lib/docs_kit/configuration.rb"
 
 Metrics/MethodLength:
   Max: 25

@@ -31,13 +31,15 @@ module DocsUI
     # Collect one language's snippet. `lang` is the language token (e.g. :ruby,
     # :python, :go) — Docs::Code resolves it against Rouge's full registry + the
     # configured aliases, so any language works. The tab label comes from the
-    # configured language_labels (else the token capitalized). filename/lexer are
-    # optional; lexer defaults to the language token. The block returns the source.
-    def code(lang, filename: nil, lexer: nil)
+    # configured language_labels (else the token capitalized), or an explicit
+    # `label:` override (used by RequestExample so a client carries its own tab
+    # name). filename/lexer are optional; lexer defaults to the language token.
+    # The block returns the source.
+    def code(lang, filename: nil, lexer: nil, label: nil)
       token = lang.to_sym
       @snippets << {
         lang: token,
-        label: DocsKit.configuration.language_labels.fetch(token, token.to_s.capitalize),
+        label: label || DocsKit.configuration.language_labels.fetch(token, token.to_s.capitalize),
         filename: filename,
         lexer: lexer || token,
         source: yield.to_s

@@ -22,6 +22,7 @@ module Views
           example_section
           table_section
           endpoint_section
+          request_example_section
           callout_section
           icon_section
           on_this_page_section
@@ -398,6 +399,110 @@ module Views
                 [ "DocsUI::FieldTable.new(fields)", "Array<Hash>", "—", "Each: { name:, type:, required: false, description: }." ],
                 [ "DocsUI::ErrorTable.new(errors)", "Array<Hash>", "—", "Each: { scenario:, status:, type:, param: nil }; Param column auto-hidden." ],
                 [ "Section(description:)", "String, proc, or component", "nil", "Now also accepts a Phlex component instance." ]
+              ],
+              headers: [ "Call", "Type", "Default", "Description" ]
+            )
+          end
+        end
+
+        def request_example_section
+          DocsUI::Section(
+            "RequestExample & JsonResponse",
+            description: "The API-docs kit — declare a request once, get every client tab; render a Ruby hash as a JSON response."
+          ) do
+            prose do
+              p do
+                code { "DocsUI::RequestExample" }
+                plain " turns one structured request declaration ("
+                code { "method:" }
+                plain "/"
+                code { "path:" }
+                plain "/"
+                code { "body:" }
+                plain ") into a "
+                code { "DocsUI::Example" }
+                plain " with one tab per configured client — "
+                code { "curl" }
+                plain ", "
+                code { "javascript" }
+                plain ", "
+                code { "ruby" }
+                plain ", "
+                code { "python" }
+                plain " by default (a site adds its own, e.g. a "
+                code { "cli" }
+                plain " tab). "
+                code { "DocsUI::JsonResponse" }
+                plain " renders a Ruby Hash as pretty-printed JSON — no hand-rolled "
+                code { "deep_stringify" }
+                plain "."
+              end
+            end
+
+            # Live: one declaration → four client tabs, plus a JSON response.
+            DocsUI::Section(
+              "Create a payment link",
+              description: DocsUI::Endpoint.new(:post, "/v1/payment_links")
+            ) do
+              prose { p { "Creates a shareable payment link for a fixed amount." } }
+              render DocsUI::FieldTable.new(
+                [
+                  { name: "amount", type: "integer", required: true, description: "Amount in the smallest currency unit." },
+                  { name: "currency", type: "string", required: true, description: "ISO 4217 currency code." },
+                  { name: "description", type: "string", description: "Shown to the payer at checkout." }
+                ]
+              )
+              render DocsUI::RequestExample.new(
+                method: :post,
+                path: "/v1/payment_links",
+                body: { amount: 4900, currency: "usd", description: "Pro plan" }
+              )
+              prose { p { "A successful response:" } }
+              render DocsUI::JsonResponse.new(
+                {
+                  id: "plink_1a2b3c",
+                  object: "payment_link",
+                  amount: 4900,
+                  currency: "usd",
+                  url: "https://pay.example.com/plink_1a2b3c",
+                  active: true
+                }
+              )
+            end
+
+            prose { p { "The calls that produced the block above:" } }
+            DocsUI::Code(<<~RUBY)
+              render DocsUI::RequestExample.new(
+                method: :post,
+                path: "/v1/payment_links",
+                body: { amount: 4900, currency: "usd", description: "Pro plan" }
+              )
+              render DocsUI::JsonResponse.new(
+                { id: "plink_1a2b3c", object: "payment_link", amount: 4900,
+                  currency: "usd", url: "https://pay.example.com/plink_1a2b3c", active: true }
+              )
+            RUBY
+
+            DocsUI::Callout(:tip) do
+              plain "The client set, base URL, and example auth header are config: "
+              code { "c.api_clients" }
+              plain " (defaults + your overrides), "
+              code { "c.api_base_url" }
+              plain ", and "
+              code { "c.api_auth_header" }
+              plain ". Override a default token to swap in an SDK-flavored snippet; add a new token (e.g. "
+              code { "cli" }
+              plain ") to append a tab."
+            end
+
+            render DocsUI::PropTable.new(
+              [
+                [ "RequestExample method:/path:", "Symbol/String, String", "—", "The HTTP verb and path (path is appended to c.api_base_url)." ],
+                [ "RequestExample body:", "Hash, nil", "nil", "Request payload; deep-stringified into each snippet. Omit for a GET." ],
+                [ "RequestExample query:/headers:", "Hash", "{}", "Query params and extra headers merged into every snippet." ],
+                [ "RequestExample clients:", "Array<Symbol>, nil", "all configured", "Filter/order the tabs (e.g. [:curl, :ruby])." ],
+                [ "JsonResponse.new(body)", "Hash or String", "—", "Hash → pretty JSON with string keys; String → passed through." ],
+                [ "JsonResponse filename:", "String", '"response.json"', "The code block's title-bar filename." ]
               ],
               headers: [ "Call", "Type", "Default", "Description" ]
             )

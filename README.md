@@ -28,6 +28,8 @@ A `DocsUI::` Phlex kit, configured once per site:
 | `DocsUI::Table` / `PropTable` | Reference tables — generic headers+rows, and a name/type/default/description preset. |
 | `DocsUI::Endpoint` | HTTP method badge (coloured per verb) + monospace path; renders inline (drops into a `Section` description). |
 | `DocsUI::FieldTable` / `ErrorTable` | API-reference presets over `Table` — an object's fields, and an endpoint's errors (Param column auto-hidden when unused). |
+| `DocsUI::RequestExample` | One request declaration → one code tab per configured client (curl / JS / Ruby / Python by default). |
+| `DocsUI::JsonResponse` | A Ruby Hash (or String) rendered as a pretty-printed JSON response block. |
 | `DocsUI::Example` | Base for a live example with `method_source`-extracted source. |
 
 Plus `DocsKit::Registry` (in-memory docs registry mixin), `DocsKit::NavItem`
@@ -239,6 +241,70 @@ Markdown headings render as styled `h3`/`h4`. Document **structure and the "On
 this page" TOC still come from `DocsUI::Section`** — keep section titles as
 `Section`, and use Markdown headings only for sub-headings inside a section. Raw
 HTML in the Markdown source is dropped (no `<script>`, no passthrough).
+
+## API docs — one request, every client tab
+
+An endpoint example is a request shown in several clients (curl, JavaScript,
+Ruby, Python, …) plus a JSON response. Writing each client by hand means a field
+rename edits every language. `DocsUI::RequestExample` derives all the tabs from
+**one** declaration; `DocsUI::JsonResponse` renders a Ruby Hash as a
+pretty-printed response block.
+
+```ruby
+def content
+  DocsUI::Section("Create a payment link",
+    description: DocsUI::Endpoint.new(:post, "/v1/payment_links")) do
+
+    render DocsUI::RequestExample.new(
+      method: :post,
+      path:   "/v1/payment_links",
+      body:   { amount: 4900, currency: "usd", description: "Pro plan" }
+    )
+
+    render DocsUI::JsonResponse.new(
+      { id: "plink_1a2b3c", object: "payment_link", amount: 4900,
+        currency: "usd", url: "https://pay.example.com/plink_1a2b3c" }
+    )
+  end
+end
+```
+
+`RequestExample` renders a `DocsUI::Example`, so the global sticky language
+choice works exactly as with a hand-built example (pick Ruby once, every request
+on the site shows Ruby). With JS off, every client snippet is visible stacked.
+
+**Configure the client set and host once:**
+
+```ruby
+# config/initializers/docs_kit.rb
+DocsKit.configure do |c|
+  c.api_base_url   = "https://api.acme.com"                 # prefixed onto every path
+  c.api_auth_header = "Authorization: Bearer sk_live_..."   # nil ⇒ no auth line
+
+  # Swap a default for an SDK-flavored snippet, or add a new tab (e.g. a CLI):
+  c.api_clients = {
+    ruby: DocsKit::ApiClient.new(
+      label: "Ruby", lexer: :ruby, filename: "app.rb",
+      template: ->(req) { %(Acme.new.payment_links.create(#{req.pretty_body_json})) }
+    ),
+    cli: DocsKit::ApiClient.new(
+      label: "CLI", lexer: :shell, filename: "acme",
+      template: ->(req) { "acme payment_links create --amount #{req.body[:amount]}" }
+    )
+  }
+end
+```
+
+The gem ships four generic-HTTP clients (`curl`, `javascript`, `ruby`,
+`python`). A `c.api_clients` entry merges **over** them: reuse a token
+(`ruby`) to replace that client with your SDK's snippet, or use a new token
+(`cli`) to append a tab. Order is stable — reused tokens keep their position, new
+ones append. Each `template` is a `(DocsKit::ApiRequest) -> String` callable;
+the request exposes `#http_method`, `#url`, `#url_with_query`, `#headers`,
+`#body?`, and `#pretty_body_json` so a template stays one short heredoc.
+
+Pass `clients:` to a single call to filter/order the tabs:
+`DocsUI::RequestExample.new(method: :get, path: "/v1/things", clients: [:curl, :ruby])`.
 
 ## Scaffold a new docs site in one command
 
