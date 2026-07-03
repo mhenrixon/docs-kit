@@ -23,11 +23,16 @@ module DocsUI
 
     DRAWER_ID = "site-drawer"
 
-    # on_page: the auto-TOC placement for this page (:panel/:toggle/:sidebar or
-    # false). Threaded to the sidebar's docs-nav controller; :panel/:toggle also
-    # render an "On this page" slot inside the content column.
-    def initialize(title: nil, on_page: false)
+    # title:       the page title → <title> and og:title.
+    # description: the page description → the SEO/social meta tags (DocsUI::Page
+    #              passes its own description or #lead); nil falls back to
+    #              config.seo.description in DocsUI::MetaTags.
+    # on_page:     the auto-TOC placement for this page (:panel/:toggle/:sidebar or
+    #              false). Threaded to the sidebar's docs-nav controller;
+    #              :panel/:toggle also render an "On this page" slot in the content.
+    def initialize(title: nil, description: nil, on_page: false)
       @title = title
+      @description = description
       @on_page = DocsKit.configuration.normalize_on_page(on_page)
     end
 
@@ -72,6 +77,11 @@ module DocsUI
         title { [@title, config.title_suffix].compact.join(" · ") }
         meta(charset: "utf-8")
         meta(name: "viewport", content: "width=device-width,initial-scale=1")
+        # SEO / social-share tags (description, Open Graph, Twitter Card,
+        # canonical, favicon, robots, theme-color) from config.seo + this page's
+        # title/description. A site that sets no c.seo still gets a valid minimal
+        # OG block, so the head is a strict superset of the pre-SEO markup.
+        render DocsUI::MetaTags.new(title: @title, description: @description)
         csrf_meta_tags
         csp_meta_tag
         # Turbo morphs page-level navigations so a re-render preserves scroll and

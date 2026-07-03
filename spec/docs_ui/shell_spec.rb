@@ -152,6 +152,41 @@ RSpec.describe DocsUI::Shell do
     end
   end
 
+  # The head renders DocsUI::MetaTags from the page title/description + config.
+  # The tag rendering itself is covered in meta_tags_spec; here we only prove the
+  # Shell threads title/description through. render_head calls output helpers that
+  # need a live request (csrf/importmap), so render ONLY the meta-tags fragment via
+  # a subclass that exposes it — the same fragment-render approach as above.
+  describe "the SEO/social meta tags" do
+    let(:meta_only) do
+      Class.new(described_class) do
+        def view_template
+          render DocsUI::MetaTags.new(title: @title, description: @description)
+        end
+      end
+    end
+
+    it "threads the page title into og:title (page · suffix)" do
+      DocsKit.configure { |c| c.brand = "Docs" }
+      html = meta_only.new(title: "Installation").call
+
+      expect(html).to include('<meta property="og:title" content="Installation · Docs">')
+    end
+
+    it "threads a page description into the description meta" do
+      html = meta_only.new(title: "Installation", description: "Add the gem.").call
+
+      expect(html).to include('<meta name="description" content="Add the gem.">')
+    end
+
+    it "still renders a valid OG block when no description is given (backwards compat)" do
+      html = meta_only.new(title: "Installation").call
+
+      expect(html).to include('property="og:title"')
+      expect(html).not_to include('name="description"')
+    end
+  end
+
   # A focused proof of the primitive the whole fix relies on: Phlex omits an
   # attribute whose value is nil (it does NOT render nonce=""), so the
   # no-nonce path degrades cleanly to the pre-fix, un-nonced markup.

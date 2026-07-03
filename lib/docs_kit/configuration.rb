@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "seo_config"
+
 module DocsKit
   # Per-site configuration for the shared docs chrome. Everything that differs
   # between two otherwise-identical docs sites lives here, so the Phlex shell
@@ -268,6 +270,15 @@ module DocsKit
     # the Shell only ever sees value objects. Blank/nil config yields [].
     def topbar_links
       Array(@topbar_links).map { |link| DocsKit::TopbarLink.from(link) }
+    end
+
+    # The SEO / social-share knobs (DocsKit::SeoConfig), read by DocsUI::MetaTags.
+    # Lazily built and memoized so a `c.seo.description = ...` block mutates the
+    # one instance the Shell later reads. A site that never touches it gets the
+    # backwards-safe defaults (see SeoConfig), so the head is a strict superset of
+    # the pre-SEO markup.
+    def seo
+      @seo ||= DocsKit::SeoConfig.new
     end
 
     # The loaded DocsKit::OpenApi::Document for #openapi. Memoized; when #openapi

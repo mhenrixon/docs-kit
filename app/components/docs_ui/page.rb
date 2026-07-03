@@ -36,6 +36,15 @@ module DocsUI
         @eyebrow
       end
 
+      # The per-page SEO/social description → DocsUI::MetaTags (via Shell). Set it
+      # for a hand-tuned description; when unset, Page derives one from #lead, so
+      # an existing page gets a sensible description for free. nil (no
+      # description, no lead) falls back to config.seo.description in MetaTags.
+      def description(value = nil)
+        @description = value if value
+        @description
+      end
+
       # The "On this page" auto-TOC placement for this page. Defaults to the
       # configured DocsKit.configuration.on_page_default; set false to opt out,
       # or :panel/:toggle/:sidebar to override per page.
@@ -46,7 +55,11 @@ module DocsUI
     end
 
     def view_template
-      render DocsUI::Shell.new(title: self.class.title, on_page: self.class.on_page) do
+      render DocsUI::Shell.new(
+        title: self.class.title,
+        description: self.class.description || lead,
+        on_page: self.class.on_page
+      ) do
         # data-md-skip drops this nav from the Markdown export — it's chrome, not
         # page content (DocsKit::MarkdownExport strips [data-md-skip]). The
         # "Markdown" action sits opposite "← Home"; it's chrome too, so it lives
