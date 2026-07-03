@@ -54,6 +54,15 @@ module DocsUI
       end
     end
 
+    # Render a block of GFM Markdown as Prose-styled prose (see DocsUI::Markdown).
+    # A lowercase method + heredoc sidesteps the parens-with-blocks gotcha:
+    #   md <<~'MD'
+    #     Write **prose** as Markdown. Single-quoted heredoc so #{} stays literal.
+    #   MD
+    def md(source)
+      render DocsUI::Markdown.new(source)
+    end
+
     # Override in subclasses for the lead paragraph (optional).
     def lead = nil
 

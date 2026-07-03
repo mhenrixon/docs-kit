@@ -23,21 +23,18 @@ module Views
             DocsUI::Code(<<~SHELL, lexer: :shell)
               docs-kit new my-docs --image OWNER/REPO --service my-repo
             SHELL
-            DocsUI::Prose() do
-              p do
-                plain "This runs "
-                code { "rails new" }
-                plain " (propshaft + importmap + turbo/stimulus, no database) and applies the docs-kit template, which:"
-              end
-              ul do
-                li { "adds the gem and its dependencies," }
-                li { "runs the install generator," }
-                li { "syncs the lucide icons," }
-                li { "builds the Tailwind CSS, and" }
-                li { "scaffolds the Kamal deploy." }
-              end
-              p { "Then boot it:" }
-            end
+            md <<~'MD'
+              This runs `rails new` (propshaft + importmap + turbo/stimulus, no
+              database) and applies the docs-kit template, which:
+
+              - adds the gem and its dependencies,
+              - runs the install generator,
+              - syncs the lucide icons,
+              - builds the Tailwind CSS, and
+              - scaffolds the Kamal deploy.
+
+              Then boot it:
+            MD
             DocsUI::Code(<<~SHELL, lexer: :shell)
               cd my-docs && bin/dev
             SHELL
@@ -58,7 +55,7 @@ module Views
         end
 
         def existing_app_gemfile
-          DocsUI::Prose() { p { strong { "1. Add the gems." } } }
+          md "**1. Add the gems.**"
           DocsUI::Code(<<~RUBY, filename: "Gemfile")
             gem "docs-kit"
             gem "daisyui", require: "daisy_ui"
@@ -66,42 +63,31 @@ module Views
             gem "rails_icons", "~> 1.1"
             gem "rouge"
           RUBY
-          DocsUI::Prose() do
-            p do
-              plain "Then run "
-              code { "bundle install" }
-              plain "."
-            end
-          end
+          md "Then run `bundle install`."
         end
 
         def existing_app_generator
-          DocsUI::Prose() { p { strong { "2. Run the install generator." } } }
+          md "**2. Run the install generator.**"
           DocsUI::Code(<<~SHELL, lexer: :shell)
             rails g docs_kit:install
           SHELL
-          DocsUI::Prose() do
-            p do
-              plain "It creates the initializers (phlex, rails_icons, docs_kit), includes "
-              code { "DocsKit::Controller" }
-              plain ", a "
-              code { "Doc" }
-              plain " registry with a sample page, the Bun/Tailwind CSS build ("
-              code { "bin/build-css" }
-              plain "), and registers the Stimulus controller. It is idempotent — safe to re-run."
-            end
-          end
+          md <<~'MD'
+            It creates the initializers (phlex, rails_icons, docs_kit), includes
+            `DocsKit::Controller`, a `Doc` registry with a sample page, the
+            Bun/Tailwind CSS build (`bin/build-css`), and registers the Stimulus
+            controller. It is idempotent — safe to re-run.
+          MD
         end
 
         def existing_app_icons
-          DocsUI::Prose() { p { strong { "3. Sync the icons." } } }
+          md "**3. Sync the icons.**"
           DocsUI::Code(<<~SHELL, lexer: :shell)
             rails g rails_icons:sync --library=lucide
           SHELL
         end
 
         def existing_app_css
-          DocsUI::Prose() { p { strong { "4. Build the CSS." } } }
+          md "**4. Build the CSS.**"
           DocsUI::Code(<<~SHELL, lexer: :shell)
             bun install && bun run build:css
           SHELL
@@ -121,6 +107,8 @@ module Views
           end
         end
 
+        # Kept as a Prose() block (not md) on purpose: this page mixes both
+        # authoring styles to prove Prose stays fully supported alongside md.
         def verify_section
           DocsUI::Section("Verify") do
             DocsUI::Prose() do
