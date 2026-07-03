@@ -128,6 +128,18 @@ module DocsKit
     # works). See DocsKit::MarkdownExport / DocsKit::Controller#render_page.
     attr_accessor :page_markdown_action
 
+    # Whether the topbar renders the docs-search form (and the docs-nav palette
+    # markup). Defaults to true. Set false to hide search site-wide — the route
+    # can stay drawn, but no affordance points at it. Gated together with a
+    # present #search_path by #search_enabled?, which the Shell reads.
+    attr_accessor :search
+
+    # The path the topbar search form submits to (GET ?q=), and the base the
+    # palette fetches `.json` from. Defaults to "/docs/search" — the route the
+    # install generator draws. A site that mounts search elsewhere sets its own;
+    # blank it to disable the affordance without touching #search.
+    attr_accessor :search_path
+
     # The API base URL prefixed onto a DocsUI::RequestExample path so copy-pasted
     # snippets point at a real host. Defaults to a neutral example host; a site
     # sets its own (e.g. "https://api.acme.com").
@@ -194,6 +206,8 @@ module DocsKit
       @code_lexer_fallback = "plaintext"
       @code_language_labels = {}
       @page_markdown_action = true
+      @search = true
+      @search_path = "/docs/search"
       @api_base_url = "https://api.example.com"
       @api_auth_header = nil
       @api_clients = {}
@@ -269,6 +283,13 @@ module DocsKit
 
     def title_suffix
       @title_suffix || @brand
+    end
+
+    # Whether the Shell renders the search affordance: search is on AND a path is
+    # set to submit to. A site with @search_path blanked (or nil) gets no form
+    # even if @search is true — there'd be nothing to submit to.
+    def search_enabled?
+      !!@search && !@search_path.to_s.empty?
     end
 
     def default_theme

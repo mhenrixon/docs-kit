@@ -71,6 +71,11 @@ module DocsKit
         # returns the page's GFM. No `defaults: { format: "html" }` — that would
         # pin html and defeat the .md route.
         route %(get "docs/:doc(.:format)" => "docs#show", as: :doc)
+        # Docs search, served from the registry by the gem's DocsKit::SearchController
+        # (matches the default c.search_path). Thor's `route` PREPENDS, so this call
+        # — after the docs route above — lands ABOVE `docs/:doc` in the file, where
+        # it must be: otherwise `docs/:doc` would swallow /docs/search as :doc.
+        route %(get "/docs/search" => "docs_kit/search#index", as: :docs_search)
         route %(root "landings#show")
 
         # AI-readable docs (llmstxt.org), served from the registry by the gem's

@@ -37,6 +37,9 @@ export default class extends Controller {
     onPage: { type: String, default: "" },
     // Fewer than this many headings → hide the TOC entirely (short pages).
     minHeadings: { type: Number, default: 2 },
+    // Debounce (ms) between a search keystroke and the fetch, so typing fast
+    // doesn't fire a request per character.
+    searchDebounce: { type: Number, default: 150 },
   }
 
   // tocLink: pre-rendered TOC links to spy on.
@@ -47,10 +50,14 @@ export default class extends Controller {
   // shows the panel for the globally-remembered language and hides the others.
   // markdownLink: the "Markdown" masthead action; a plain link with JS off, the
   // controller upgrades its click into copy-the-page's-markdown-to-clipboard.
+  // searchScope: the dropdown root (so a click outside closes the palette).
+  // searchInput: the topbar query field ("/" and Cmd/Ctrl+K focus it).
+  // searchResults: the empty <ul> the controller fills with fetched hits.
   static targets = [
     "tocLink", "toc", "tocRoot", "tocPopover",
     "codeGroup", "codeTab", "codePanel",
     "markdownLink",
+    "searchScope", "searchInput", "searchResults",
   ]
 
   connect() {
@@ -62,11 +69,13 @@ export default class extends Controller {
     this.startScrollSpy()
     this.applyLanguage(this.readLanguage())
     this.applyTheme(this.readTheme())
+    this.connectSearch()
   }
 
   disconnect() {
     this.element.removeEventListener("toggle", this.onToggle, true)
     this.observer?.disconnect()
+    this.disconnectSearch()
   }
 
   // --- 1. Collapse persistence ------------------------------------------------
@@ -341,6 +350,168 @@ export default class extends Controller {
     const original = labelNode.textContent
     labelNode.textContent = "Copied!"
     setTimeout(() => (labelNode.textContent = original), 1500)
+  }
+
+  // --- 7. Search palette ------------------------------------------------------
+  //
+  // Progressive enhancement over the topbar search form (DocsUI::SearchBox). With
+  // JS off the form GETs config.search_path and the server renders a full results
+  // page. Here we upgrade it into a Cmd+K palette: "/" or Cmd/Ctrl+K focuses the
+  // input, keystrokes fetch `<search_path>.json?q=` (debounced) and fill the
+  // server-rendered dropdown, and arrow keys navigate. The native form submit is
+  // always the fallback — if a fetch fails, Enter still lands on the results page.
+
+  connectSearch() {
+    if (!this.hasSearchInputTarget) return
+    this.onSearchKeydown = this.handleSearchShortcut.bind(this)
+    this.onSearchClickOut = this.closeOnClickOutside.bind(this)
+    document.addEventListener("keydown", this.onSearchKeydown)
+    document.addEventListener("click", this.onSearchClickOut)
+  }
+
+  disconnectSearch() {
+    if (this.onSearchKeydown) document.removeEventListener("keydown", this.onSearchKeydown)
+    if (this.onSearchClickOut) document.removeEventListener("click", this.onSearchClickOut)
+    clearTimeout(this.searchTimer)
+  }
+
+  // "/" (when not already typing in a field) or Cmd/Ctrl+K focuses search.
+  handleSearchShortcut(event) {
+    const cmdK = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k"
+    const slash = event.key === "/" && !this.isTypingField(event.target)
+    if (!cmdK && !slash) return
+    event.preventDefault()
+    this.searchInputTarget.focus()
+    this.searchInputTarget.select()
+  }
+
+  isTypingField(el) {
+    const tag = (el?.tagName || "").toLowerCase()
+    return tag === "input" || tag === "textarea" || el?.isContentEditable
+  }
+
+  // Debounced query → fetch JSON → render. An empty query just closes the palette.
+  performSearch() {
+    clearTimeout(this.searchTimer)
+    const query = this.searchInputTarget.value.trim()
+    if (!query) {
+      this.closeResults()
+      return
+    }
+    this.searchTimer = setTimeout(() => this.runSearch(query), this.searchDebounceValue)
+  }
+
+  async runSearch(query) {
+    const url = `${this.searchEndpoint}?q=${encodeURIComponent(query)}`
+    try {
+      const response = await fetch(url, { headers: { Accept: "application/json" } })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const data = await response.json()
+      this.renderResults(data.results || [])
+    } catch {
+      // Fetch failed — leave the palette closed; the form still submits on Enter.
+      this.closeResults()
+    }
+  }
+
+  // The JSON endpoint is the form's action with a `.json` extension (same route,
+  // json format), so a site that moved search_path is followed automatically.
+  get searchEndpoint() {
+    const action = this.searchInputTarget.form?.getAttribute("action") || "/docs/search"
+    return `${action}.json`
+  }
+
+  renderResults(results) {
+    const list = this.searchResultsTarget
+    list.replaceChildren()
+    if (results.length === 0) {
+      list.appendChild(this.emptyRow())
+    } else {
+      results.forEach((hit) => list.appendChild(this.resultRow(hit)))
+    }
+    this.openResults()
+    this.activeIndex = -1
+  }
+
+  emptyRow() {
+    const li = document.createElement("li")
+    li.className = "menu-title"
+    li.textContent = "No results"
+    return li
+  }
+
+  resultRow(hit) {
+    const li = document.createElement("li")
+    const a = document.createElement("a")
+    a.href = hit.href
+    const label = document.createElement("span")
+    label.className = "font-medium"
+    label.textContent = hit.label
+    a.appendChild(label)
+    // The snippet is server-produced, pre-escaped HTML (the match in <mark>); it's
+    // the same trusted string the SearchResults page renders.
+    if (hit.snippet) {
+      const snip = document.createElement("span")
+      snip.className = "block text-xs opacity-60"
+      snip.innerHTML = hit.snippet
+      a.appendChild(snip)
+    }
+    li.appendChild(a)
+    return li
+  }
+
+  // Arrow/Enter/Escape navigation over the rendered result links.
+  navigateResults(event) {
+    const links = this.resultLinks
+    if (event.key === "Escape") {
+      this.closeResults()
+      return
+    }
+    if (links.length === 0) return
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault()
+      this.moveActive(1, links)
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault()
+      this.moveActive(-1, links)
+    } else if (event.key === "Enter" && this.activeIndex >= 0) {
+      event.preventDefault()
+      links[this.activeIndex].click()
+    }
+  }
+
+  moveActive(delta, links) {
+    this.activeIndex = (this.activeIndex + delta + links.length) % links.length
+    links.forEach((link, i) => {
+      const on = i === this.activeIndex
+      link.classList.toggle("menu-active", on)
+      if (on) link.scrollIntoView({ block: "nearest" })
+    })
+  }
+
+  get resultLinks() {
+    return Array.from(this.searchResultsTarget.querySelectorAll("a"))
+  }
+
+  // Let the native form submit proceed (goes to the full results page); just
+  // close the palette so it doesn't linger over the new page.
+  submitSearch() {
+    this.closeResults()
+  }
+
+  openResults() {
+    if (this.hasSearchResultsTarget) this.searchResultsTarget.classList.remove("hidden")
+  }
+
+  closeResults() {
+    if (this.hasSearchResultsTarget) this.searchResultsTarget.classList.add("hidden")
+    this.activeIndex = -1
+  }
+
+  closeOnClickOutside(event) {
+    if (!this.hasSearchScopeTarget) return
+    if (!this.searchScopeTarget.contains(event.target)) this.closeResults()
   }
 
   // --- storage (private, fails safe if localStorage is unavailable) -----------

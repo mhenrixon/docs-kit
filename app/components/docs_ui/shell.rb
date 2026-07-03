@@ -140,7 +140,7 @@ module DocsUI
       end
     end
 
-    # Sticky topbar: hamburger (mobile only), brand, theme switcher.
+    # Sticky topbar: hamburger (mobile only), brand, search, theme switcher.
     def topbar
       div(class: "navbar bg-base-200 border-b border-base-300 sticky top-0 z-30 px-4") do
         div(class: "flex-1 items-center gap-2") do
@@ -148,6 +148,7 @@ module DocsUI
                 aria_label: "Open menu") { render DocsUI::Icon.new("menu", class: "size-5") }
           a(href: config.brand_href, class: "btn btn-ghost text-lg font-bold") { config.brand }
         end
+        render DocsUI::SearchBox.new if config.search_enabled?
         div(class: "flex-none") do
           render DocsUI::ThemeSwitcher.new
         end

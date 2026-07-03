@@ -32,10 +32,13 @@ A `DocsUI::` Phlex kit, configured once per site:
 | `DocsUI::JsonResponse` | A Ruby Hash (or String) rendered as a pretty-printed JSON response block. |
 | `DocsUI::Example` | Base for a live example with `method_source`-extracted source. |
 | `DocsUI::MarkdownAction` | The "Markdown" masthead action → the page's `.md` twin; `docs-nav` enhances it into copy-to-clipboard. |
+| `DocsUI::SearchBox` / `SearchResults` | Topbar [search](#search) — a JS-off `GET` form + server-rendered results, enhanced into a `⌘K` palette by `docs-nav`. |
 
 Plus `DocsKit::Registry` (in-memory docs registry mixin), `DocsKit::NavItem`
 (sidebar link value object), `DocsKit::MarkdownExport` ([every page as
-Markdown](#every-page-is-also-markdown)), and `DocsKit::Controller#render_page`.
+Markdown](#every-page-is-also-markdown)), `DocsKit::SearchIndex` (the
+[search](#search) index, built from the Markdown twins), and
+`DocsKit::Controller#render_page`.
 
 ## Install
 
@@ -298,6 +301,49 @@ DocsKit.configure { |c| c.page_markdown_action = false }
 **Existing sites:** re-run `bin/rails g docs_kit:install` (or add `(.:format)`
 to your `get "docs/:doc"` route) to enable the `.md` URLs. Sites that don't
 re-run simply have no `.md` route match — HTML rendering is untouched.
+
+## Search
+
+Every site gets search from the gem — no external service, no build step, no
+JavaScript required. The topbar grows a search box; the reader types a query and
+gets results grouped by page, each linking straight to the matching section.
+
+The index is built **from the pages themselves**: each page's Markdown twin (the
+same `.md` from the section above) is split on its `## ` headings into searchable
+sections, so the index can never drift from what a page actually says — there is
+no second registry to maintain. Scoring is plain Ruby: a title match outranks a
+heading match outranks a body match, all query words must match (AND), and each
+result carries a snippet with the term highlighted.
+
+**Works with JavaScript off.** The box is a plain `GET` form; pressing Enter
+lands on a fully server-rendered results page (`DocsUI::SearchResults`) through
+the normal chrome, and each result's link jumps to the section anchor.
+
+**Enhanced with JavaScript on.** The one `docs-nav` controller upgrades the box
+into a command palette: press `/` or `⌘K` (`Ctrl+K`) to focus it, type to see
+results appear inline (debounced, fetched as JSON from the same route), and use
+the arrow keys + Enter to jump to a result. If the fetch ever fails, Enter still
+submits the form to the results page — search is never a dead end.
+
+The controller ships in the gem (`DocsKit::SearchController`, `html` + `json`);
+like llms.txt, the **route lives in your app**. The install generator scaffolds
+it (above `docs/:doc`, so it isn't swallowed as a `:doc`):
+
+```ruby
+get "/docs/search" => "docs_kit/search#index", as: :docs_search
+```
+
+Two knobs tune it (both optional — the defaults just work):
+
+```ruby
+DocsKit.configure do |c|
+  c.search      = true           # default; set false to hide the box site-wide
+  c.search_path = "/docs/search" # default; match your route if you move it
+end
+```
+
+**Existing sites:** re-run `bin/rails g docs_kit:install` (it adds the route
+idempotently), or paste the route line above into `config/routes.rb`.
 
 ## AI-readable docs (llms.txt)
 

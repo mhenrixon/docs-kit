@@ -81,6 +81,48 @@ RSpec.describe DocsUI::Shell do
     end
   end
 
+  # The topbar search form is the JS-off search entry point: a plain GET form to
+  # config.search_path with an input named "q". It renders only when search is
+  # enabled, so a site can opt out with c.search = false.
+  describe "the topbar search form" do
+    let(:topbar_only) do
+      Class.new(described_class) do
+        def view_template = topbar
+      end
+    end
+
+    it "renders a GET form to config.search_path with a q input by default" do
+      html = topbar_only.new.call
+
+      expect(html).to include('action="/docs/search"')
+      expect(html).to include('method="get"')
+      expect(html).to include('name="q"')
+    end
+
+    it "points the form at config.search_path when a site overrides it" do
+      DocsKit.configure { |c| c.search_path = "/guides/search" }
+      html = topbar_only.new.call
+
+      expect(html).to include('action="/guides/search"')
+    end
+
+    it "omits the form when search is disabled (c.search = false)" do
+      DocsKit.configure { |c| c.search = false }
+      html = topbar_only.new.call
+
+      expect(html).not_to include('name="q"')
+    end
+
+    it "wires the input as a docs-nav target so the palette can enhance it" do
+      html = topbar_only.new.call
+
+      # The one docs-nav controller enhances the form into a Cmd+K palette; the
+      # input is a target and typing triggers performSearch.
+      expect(html).to include("docs-nav-target")
+      expect(html).to include("docs-nav#")
+    end
+  end
+
   # A focused proof of the primitive the whole fix relies on: Phlex omits an
   # attribute whose value is nil (it does NOT render nonce=""), so the
   # no-nonce path degrades cleanly to the pre-fix, un-nonced markup.
