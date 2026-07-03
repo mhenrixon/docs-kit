@@ -23,6 +23,14 @@ module DocsKit
       end
     end
 
+    # Register the :md format (text/markdown) so a `.md` request routes and
+    # `request.format.md?` is true — the trigger for the page's Markdown twin
+    # (DocsKit::Controller#render_page). Guarded so re-registration (a host that
+    # already declared :md) is a no-op rather than a duplicate-type error.
+    initializer "docs_kit.mime_types" do
+      Mime::Type.register("text/markdown", :md) unless Mime::Type.lookup_by_extension(:md)
+    end
+
     # Serve the bundled Stimulus controller (docs_nav) as an asset.
     initializer "docs_kit.assets" do |app|
       app.config.assets.paths << JAVASCRIPT_PATH.to_s if app.config.respond_to?(:assets)

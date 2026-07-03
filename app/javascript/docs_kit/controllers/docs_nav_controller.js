@@ -45,9 +45,12 @@ export default class extends Controller {
   // tocPopover: the collapsible card revealed by the floating toggle button.
   // codeGroup/codeTab/codePanel: a multi-language Docs::Example — the controller
   // shows the panel for the globally-remembered language and hides the others.
+  // markdownLink: the "Markdown" masthead action; a plain link with JS off, the
+  // controller upgrades its click into copy-the-page's-markdown-to-clipboard.
   static targets = [
     "tocLink", "toc", "tocRoot", "tocPopover",
     "codeGroup", "codeTab", "codePanel",
+    "markdownLink",
   ]
 
   connect() {
@@ -301,6 +304,43 @@ export default class extends Controller {
 
   toggleToc() {
     this.tocPopoverTargets.forEach((el) => el.classList.toggle("hidden"))
+  }
+
+  // --- 6. Copy page as Markdown ----------------------------------------------
+  //
+  // The "Markdown" masthead action is an <a href="….md"> — with JS off it opens
+  // the raw Markdown twin (a working fallback). Here we intercept the click,
+  // fetch that same .md, and copy it to the clipboard so the reader can paste the
+  // page into an LLM. No server round-trip beyond fetching the page that already
+  // exists. Anything unavailable (no clipboard API, fetch fails) falls back to
+  // the link's default navigation, so the affordance is never a dead end.
+
+  async copyMarkdown(event) {
+    const link = event.currentTarget
+    const href = link.getAttribute("href")
+    if (!href || !navigator.clipboard) return // let the browser follow the link
+
+    event.preventDefault()
+    try {
+      const response = await fetch(href, { headers: { Accept: "text/markdown" } })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const markdown = await response.text()
+      await navigator.clipboard.writeText(markdown)
+      this.flashCopied(link)
+    } catch {
+      // Fetch/clipboard failed — navigate to the raw .md as the plain link would.
+      window.location.href = href
+    }
+  }
+
+  // Briefly swap the link's label to confirm the copy, then restore it. Uses the
+  // trailing text node so the leading icon (if any) is untouched.
+  flashCopied(link) {
+    const labelNode = Array.from(link.childNodes).reverse().find((n) => n.nodeType === 3)
+    if (!labelNode) return
+    const original = labelNode.textContent
+    labelNode.textContent = "Copied!"
+    setTimeout(() => (labelNode.textContent = original), 1500)
   }
 
   // --- storage (private, fails safe if localStorage is unavailable) -----------

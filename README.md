@@ -31,9 +31,11 @@ A `DocsUI::` Phlex kit, configured once per site:
 | `DocsUI::RequestExample` | One request declaration → one code tab per configured client (curl / JS / Ruby / Python by default). |
 | `DocsUI::JsonResponse` | A Ruby Hash (or String) rendered as a pretty-printed JSON response block. |
 | `DocsUI::Example` | Base for a live example with `method_source`-extracted source. |
+| `DocsUI::MarkdownAction` | The "Markdown" masthead action → the page's `.md` twin; `docs-nav` enhances it into copy-to-clipboard. |
 
 Plus `DocsKit::Registry` (in-memory docs registry mixin), `DocsKit::NavItem`
-(sidebar link value object), and `DocsKit::Controller#render_page`.
+(sidebar link value object), `DocsKit::MarkdownExport` ([every page as
+Markdown](#every-page-is-also-markdown)), and `DocsKit::Controller#render_page`.
 
 ## Install
 
@@ -262,6 +264,40 @@ Markdown headings render as styled `h3`/`h4`. Document **structure and the "On
 this page" TOC still come from `DocsUI::Section`** — keep section titles as
 `Section`, and use Markdown headings only for sub-headings inside a section. Raw
 HTML in the Markdown source is dropped (no `<script>`, no passthrough).
+
+## Every page is also Markdown
+
+Every doc page is **also** served as Markdown — append `.md` to its URL:
+
+```bash
+curl https://your-docs.example/docs/installation.md
+```
+
+returns a faithful GFM twin of exactly what `/docs/installation` renders —
+headings, fenced code (with the right language), callouts as `> **Tip:**`
+blockquotes, GFM tables, links (relative links absolutized to full URLs). You
+write **nothing extra**: the twin is derived from the page's own render
+(`DocsKit::MarkdownExport` walks the rendered HTML), so it can never drift from
+the page the way a hand-written `to_text` copy does.
+
+Each page's masthead carries a small **"Markdown"** action. With JavaScript off
+it's a plain link that opens the raw `.md`; with JS on, `docs-nav` upgrades the
+click into **copy-the-page-to-clipboard** — one click to paste a whole doc page
+into an LLM. This is the machine-readable layer `llms.txt`, search, and MCP build
+on.
+
+Nothing to wire up — the install generator's route allows the `.:format`
+segment, the engine registers the `text/markdown` MIME, and
+`DocsKit::Controller#render_page` returns the twin for a `.md`/`.text` request.
+To hide the masthead action site-wide (the `.md` route still works):
+
+```ruby
+DocsKit.configure { |c| c.page_markdown_action = false }
+```
+
+**Existing sites:** re-run `bin/rails g docs_kit:install` (or add `(.:format)`
+to your `get "docs/:doc"` route) to enable the `.md` URLs. Sites that don't
+re-run simply have no `.md` route match — HTML rendering is untouched.
 
 ## API docs — one request, every client tab
 

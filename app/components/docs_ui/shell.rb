@@ -126,7 +126,10 @@ module DocsUI
             # it here so it's inside the docs-nav controller scope; the controller
             # fills it from the page headings.
             render DocsUI::OnThisPage.new(mode: @on_page) if content_toc?
-            div(class: "mx-auto max-w-4xl", &block)
+            # id="docs-content" is the stable extraction anchor for the Markdown
+            # export (DocsKit::MarkdownExport walks this subtree). The topbar,
+            # sidebar, and TOC live OUTSIDE it, so they never bleed into the .md.
+            div(id: "docs-content", class: "mx-auto max-w-4xl", &block)
           end
         end
 

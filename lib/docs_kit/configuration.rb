@@ -116,6 +116,12 @@ module DocsKit
     # (e.g. { elixir: "Elixir", curl: "cURL" }). Unknown tokens humanize.
     attr_accessor :code_language_labels
 
+    # Whether DocsUI::Page shows the "Markdown" masthead action — a link to the
+    # page's `.md` twin that docs-nav enhances into copy-to-clipboard. Defaults to
+    # true; set false to hide the affordance site-wide (the `.md` route still
+    # works). See DocsKit::MarkdownExport / DocsKit::Controller#render_page.
+    attr_accessor :page_markdown_action
+
     # The API base URL prefixed onto a DocsUI::RequestExample path so copy-pasted
     # snippets point at a real host. Defaults to a neutral example host; a site
     # sets its own (e.g. "https://api.acme.com").
@@ -180,6 +186,7 @@ module DocsKit
       @code_lexer_aliases = {}
       @code_lexer_fallback = "plaintext"
       @code_language_labels = {}
+      @page_markdown_action = true
       @api_base_url = "https://api.example.com"
       @api_auth_header = nil
       @api_clients = {}

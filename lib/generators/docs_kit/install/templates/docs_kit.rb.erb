@@ -29,6 +29,12 @@ Rails.application.config.to_prepare do
     # c.code_lexer_aliases  = { curl: "console" }
     # c.code_language_labels = { elixir: "Elixir" }
 
+    # Every page is ALSO available as Markdown: GET /docs/<page>.md returns a
+    # faithful GFM twin of the rendered page (for LLMs / copy-paste), and a
+    # "Markdown" masthead action links to it (JS enhances it into copy-to-clipboard).
+    # Set false to hide the action site-wide (the .md route still works):
+    # c.page_markdown_action = false
+
     # The sidebar nav derives from the registry — one heading → one registry.
     # Each registry's authored pages become NavItems automatically (an unwritten
     # page is skipped, so no dead links). For bespoke nav (interleaved

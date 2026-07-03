@@ -16,6 +16,8 @@ module DocsUI
   #   end
   class Page < Phlex::HTML
     include Phlex::Rails::Helpers::Routes
+    # #request drives the "Markdown" masthead action's href (request.path + .md).
+    include Phlex::Rails::Helpers::Request
     # Authored pages subclass this, so include the kit here: a page body can call
     # DocsUI::Section(...) / DocsUI::Code(...) directly, no render ... .new.
     include DocsUI
@@ -45,8 +47,13 @@ module DocsUI
 
     def view_template
       render DocsUI::Shell.new(title: self.class.title, on_page: self.class.on_page) do
-        nav(class: "mb-6") do
+        # data-md-skip drops this nav from the Markdown export — it's chrome, not
+        # page content (DocsKit::MarkdownExport strips [data-md-skip]). The
+        # "Markdown" action sits opposite "← Home"; it's chrome too, so it lives
+        # inside the skipped nav and never appears in the .md twin.
+        nav(class: "mb-6 flex items-center justify-between gap-4", data: { md_skip: true }) do
           a(href: root_path, class: "link link-hover text-sm opacity-70") { "← Home" }
+          render DocsUI::MarkdownAction.new(request.path) if markdown_action?
         end
 
         render DocsUI::Header.new(self.class.title, eyebrow: self.class.eyebrow) do
@@ -56,6 +63,10 @@ module DocsUI
         content
       end
     end
+
+    # Whether to show the "Markdown" masthead action — the config knob
+    # (DocsKit.configuration.page_markdown_action, default true).
+    def markdown_action? = DocsKit.configuration.page_markdown_action
 
     # The lowercase authoring helpers md/prose/example come from DocsUI::PageHelpers
     # (included above) — the parens-free path that never hits the constant-reference

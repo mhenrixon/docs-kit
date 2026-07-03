@@ -138,8 +138,17 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
     it "adds the docs and root routes" do
       routes = read("config/routes.rb")
 
-      expect(routes).to include(%(get "docs/:doc" => "docs#show", as: :doc))
+      expect(routes).to include(%(get "docs/:doc(.:format)" => "docs#show", as: :doc))
       expect(routes).to include(%(root "landings#show"))
+    end
+
+    it "allows an optional .:format on the docs route (so /docs/x.md serves the twin)" do
+      routes = read("config/routes.rb")
+
+      # The Markdown twin (GET /docs/x.md) needs the format segment enabled. The
+      # docs route explicitly opts it in and must NOT pin format: 'html'.
+      expect(routes).to include("(.:format)")
+      expect(routes).not_to match(/defaults:\s*\{\s*format:/)
     end
   end
 
