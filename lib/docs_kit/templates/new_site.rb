@@ -34,6 +34,10 @@ inject_into_file "Gemfile", after: %r{source ["']https://rubygems\.org["']\n} do
     gem "phlex-rails"
     gem "rails_icons", "~> 1.1"
     gem "rouge"
+
+    # Optional: expose these docs to AI agents over MCP (a read-only /mcp endpoint).
+    # Uncomment this and the /mcp route in config/routes.rb. See the docs-kit README.
+    # gem "mcp"
   RUBY
 end
 

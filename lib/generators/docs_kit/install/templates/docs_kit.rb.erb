@@ -48,6 +48,15 @@ Rails.application.config.to_prepare do
     # c.search_shortcuts = ["/", "mod+k"]   # default; "mod" = ⌘ on mac, Ctrl elsewhere.
     #   Each is a bare key ("/", "s") or a chord ("mod+k", "ctrl+shift+f"); [] binds none.
 
+    # OPTIONAL: expose your docs to AI agents over MCP (Model Context Protocol) —
+    # a read-only endpoint (search_docs / get_page / list_pages) at POST /mcp that
+    # Claude Code / Claude.ai / Cursor can add as tools. It's OFF until you add
+    # `gem "mcp"` to your Gemfile AND uncomment the /mcp route in config/routes.rb
+    # (see the commented lines there). `c.mcp` defaults to true, so once the gem +
+    # route are present the endpoint is live; set it false to keep it off even
+    # then. README → "Add your docs to an agent (MCP)".
+    # c.mcp = false
+
     # The sidebar nav derives from the registry — one heading → one registry.
     # Each registry's authored pages become NavItems automatically (an unwritten
     # page is skipped, so no dead links). For bespoke nav (interleaved

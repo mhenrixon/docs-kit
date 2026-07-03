@@ -12,6 +12,12 @@ Rails.application.routes.draw do
   # concatenates every page's Markdown twin.
   get "/llms.txt" => "docs_kit/llms#index", as: :llms
   get "/llms-full.txt" => "docs_kit/llms#full", as: :llms_full
+
+  # Read-only MCP endpoint (DocsKit::McpController) — dogfooding docs-kit's own
+  # optional MCP server. POST speaks JSON-RPC (search_docs / get_page /
+  # list_pages); GET/DELETE are 405 (read-only, stateless — no SSE session).
+  post "/mcp" => "docs_kit/mcp#create", as: :mcp
+  match "/mcp" => "docs_kit/mcp#method_not_allowed", via: %i[get delete]
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

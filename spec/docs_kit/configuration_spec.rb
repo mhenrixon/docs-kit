@@ -49,6 +49,42 @@ RSpec.describe DocsKit::Configuration do
     end
   end
 
+  describe "#mcp" do
+    it "defaults to true (the endpoint is on wherever the mcp gem + route are present)" do
+      expect(described_class.new.mcp).to be(true)
+    end
+
+    it "is overridable so a site with the gem installed can still disable the endpoint" do
+      DocsKit.configure { |c| c.mcp = false }
+
+      expect(DocsKit.configuration.mcp).to be(false)
+    end
+  end
+
+  describe "#mcp_enabled?" do
+    # The endpoint requires BOTH the config toggle on AND the optional `mcp` gem
+    # present — the same "toggle AND capability" shape as #search_enabled?. The
+    # suite loads `mcp` (dev/test group), so defined?(MCP) is true here.
+    it "is true when #mcp is on and the mcp gem is loaded" do
+      skip "mcp gem not loaded in this run" unless defined?(MCP)
+
+      expect(described_class.new.mcp_enabled?).to be(true)
+    end
+
+    it "is false when #mcp is off, even with the gem present" do
+      DocsKit.configure { |c| c.mcp = false }
+
+      expect(DocsKit.configuration.mcp_enabled?).to be(false)
+    end
+
+    it "is false when the mcp gem is absent, even with #mcp on" do
+      config = described_class.new
+      allow(config).to receive(:mcp_gem_present?).and_return(false)
+
+      expect(config.mcp_enabled?).to be(false)
+    end
+  end
+
   describe "#search_path" do
     it "defaults to \"/docs/search\" (the route the generator draws)" do
       expect(described_class.new.search_path).to eq("/docs/search")

@@ -10,6 +10,16 @@ gemspec
 # `daisyui >= 1.2` dependency.
 gem "daisyui", path: "../daisyui" if File.directory?(File.expand_path("../daisyui", __dir__))
 
+# The official MCP Ruby SDK. docs-kit's MCP server (DocsKit::McpServer /
+# DocsKit::McpController) is an OPTIONAL, runtime-detected feature — the gem is
+# NOT a runtime dependency (a consuming site adds it itself). It lives in its own
+# group so the optional-dependency GATE can be exercised by excluding it:
+# `bundle config set --local without mcp && bundle install` (a CI leg does exactly
+# this). Without the gem the MCP specs self-skip and the feature must no-op.
+group :mcp do
+  gem "mcp"
+end
+
 group :development, :test do
   gem "rake"
   gem "rspec"

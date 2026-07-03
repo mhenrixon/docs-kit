@@ -164,6 +164,15 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(routes).to include(%(get "/docs/search" => "docs_kit/search#index"))
     end
 
+    it "adds the MCP route COMMENTED OUT (opt-in: needs the optional mcp gem)" do
+      routes = read("config/routes.rb")
+
+      # The MCP endpoint is off by default (the `mcp` gem is optional). The
+      # generator draws the route commented so a site opts in by uncommenting.
+      expect(routes).to include(%(# post "/mcp" => "docs_kit/mcp#create"))
+      expect(routes).to include(%(# match "/mcp" => "docs_kit/mcp#method_not_allowed", via: %i[get delete]))
+    end
+
     it "draws /docs/search ABOVE docs/:doc so it isn't swallowed as :doc" do
       routes = read("config/routes.rb")
 
