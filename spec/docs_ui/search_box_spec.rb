@@ -22,6 +22,18 @@ RSpec.describe DocsUI::SearchBox do
     expect(render_box).to include('action="/guides/search"')
   end
 
+  it "shrinks on a narrow topbar so it can't push the theme switcher off-screen" do
+    # On a phone the brand + search + switcher must fit; the box shrinks
+    # (min-w-0, not flex-none) and the input is capped on mobile (max-w-[40vw]),
+    # lifted at sm:. Without this the topbar overflows ~34px at 390px.
+    html = render_box
+
+    expect(html).to include("min-w-0")
+    expect(html).to include("max-w-[40vw]")
+    expect(html).to include("sm:max-w-none")
+    expect(html).not_to include("dropdown flex-none")
+  end
+
   it "exposes the docs-nav targets the palette fills" do
     html = render_box
 
