@@ -25,6 +25,13 @@ require "active_support/core_ext/string/output_safety"
 require "active_support/json"
 require "phlex/rails"
 
+# DocsUI::Shell / Sidebar `include DaisyUI` (the daisyUI Phlex kit). The gem name
+# is `daisyui`; the require path is `daisy_ui` — a consuming site loads it via
+# `gem "daisyui", require: "daisy_ui"`. docs_kit itself never requires it (the
+# host app does), so the standalone suite must load it here or the constant is
+# undefined when a component is rendered.
+require "daisy_ui"
+
 require "docs_kit"
 
 RSpec.configure do |config|
