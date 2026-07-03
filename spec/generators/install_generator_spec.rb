@@ -262,4 +262,121 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(mode).to eq(0o755)
     end
   end
+
+  # The AI-authoring scaffold: an AGENTS.md (the cross-tool authoring contract)
+  # and a Claude Code skill (.claude/skills/write-docs-page/SKILL.md). Both are
+  # brand-substituted; AGENTS.md is injected between delimiters when one already
+  # exists (user content preserved); the skill file is skipped when present.
+  describe "AI-authoring scaffold (create_agent_docs)" do
+    # The delimiters bounding the injected block in a pre-existing AGENTS.md.
+    let(:begin_marker) { "<!-- BEGIN docs-kit -->" }
+    let(:end_marker) { "<!-- END docs-kit -->" }
+
+    context "when neither file exists" do
+      before do
+        build_skeleton
+        run_generator
+      end
+
+      it "creates AGENTS.md at the site root" do
+        expect(exist?("AGENTS.md")).to be(true)
+      end
+
+      it "creates the write-docs-page Claude Code skill" do
+        expect(exist?(".claude/skills/write-docs-page/SKILL.md")).to be(true)
+      end
+
+      it "substitutes the humanized app brand into AGENTS.md" do
+        expect(read("AGENTS.md")).to include("My app docs")
+      end
+
+      it "encodes the core authoring idioms in AGENTS.md" do
+        agents = read("AGENTS.md")
+
+        # The one-command page flow and the md-first prose idiom — the two
+        # things an agent must know before it writes a page.
+        expect(agents).to include("rails g docs_kit:page")
+        expect(agents).to include("md <<~'MD'")
+        # The invariant an agent must not break.
+        expect(agents).to include("DocsUI::Section")
+      end
+
+      it "wraps the AGENTS.md body in the docs-kit delimiters (so a re-run can find it)" do
+        agents = read("AGENTS.md")
+
+        expect(agents).to include(begin_marker)
+        expect(agents).to include(end_marker)
+      end
+
+      it "targets write/add/update documentation in the skill frontmatter" do
+        skill = read(".claude/skills/write-docs-page/SKILL.md")
+
+        expect(skill).to match(/^---$/) # YAML frontmatter present
+        expect(skill).to match(/description:.*document/i)
+        expect(skill).to include("rails g docs_kit:page")
+      end
+    end
+
+    context "when AGENTS.md already exists with user content" do
+      let(:user_content) { "# My project\n\nHand-written guidance the user owns.\n" }
+
+      before do
+        build_skeleton
+        write("AGENTS.md", user_content)
+        run_generator
+      end
+
+      it "preserves the user's existing content" do
+        expect(read("AGENTS.md")).to include("Hand-written guidance the user owns.")
+      end
+
+      it "injects the docs-kit block between delimiters" do
+        agents = read("AGENTS.md")
+
+        expect(agents).to include(begin_marker)
+        expect(agents).to include(end_marker)
+        expect(agents).to include("rails g docs_kit:page")
+      end
+    end
+
+    context "when re-run (idempotence)" do
+      before do
+        build_skeleton
+        run_generator
+        run_generator # second invocation against the same destination
+      end
+
+      it "does not duplicate the docs-kit block in AGENTS.md" do
+        agents = read("AGENTS.md")
+
+        expect(agents.scan(begin_marker).size).to eq(1)
+        expect(agents.scan(end_marker).size).to eq(1)
+      end
+
+      it "leaves a hand-edited AGENTS.md's user sections intact" do
+        # Simulate a user editing OUTSIDE the delimited block after install.
+        agents = read("AGENTS.md")
+        edited = "#{agents}\n## My own section\n\nDo not clobber me.\n"
+        write("AGENTS.md", edited)
+
+        run_generator
+
+        result = read("AGENTS.md")
+        expect(result).to include("Do not clobber me.")
+        expect(result.scan(begin_marker).size).to eq(1)
+      end
+    end
+
+    context "when the skill file already exists" do
+      before do
+        build_skeleton
+        write(".claude/skills/write-docs-page/SKILL.md", "# custom skill, do not clobber\n")
+        run_generator
+      end
+
+      it "does not overwrite the existing skill" do
+        expect(read(".claude/skills/write-docs-page/SKILL.md")).to eq("# custom skill, do not clobber\n")
+      end
+    end
+  end
 end
