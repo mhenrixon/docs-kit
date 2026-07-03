@@ -13,13 +13,26 @@ class Doc
   path_prefix    "/docs"
   view_namespace "Views::Docs::Pages"
 
-  page "Overview",        group: "Getting started"
-  page "Installation",    group: "Getting started"
-  page "Configuration",   group: "Getting started"
-  page "Authoring pages", group: "Getting started", slug: "authoring", view: "Authoring"
-  page "Styling & CSS",   group: "Getting started", slug: "styling", view: "Styling"
-  page "Components",      group: "Reference"
-  page "Code languages",  group: "Reference", slug: "languages", view: "Languages"
-  page "On this page",    group: "Reference"
-  page "Deploy",          group: "Reference"
+  # Getting started
+  page "Overview",      group: "Getting started"
+  page "Installation",  group: "Getting started"
+  page "Configuration", group: "Getting started"
+  page "Styling & CSS", group: "Getting started", slug: "styling", view: "Styling"
+
+  # Authoring
+  page "Authoring pages",    group: "Authoring", slug: "authoring", view: "Authoring"
+  page "Markdown authoring", group: "Authoring", slug: "markdown", view: "Markdown"
+  page "Code languages",     group: "Authoring", slug: "languages", view: "Languages"
+  page "API reference",      group: "Authoring", slug: "api", view: "Api"
+
+  # Reference
+  page "Components",   group: "Reference"
+  page "On this page", group: "Reference"
+
+  # AI & tooling
+  page "AI & agents", group: "AI & tooling", slug: "ai", view: "Ai"
+  page "Search",      group: "AI & tooling"
+
+  # Deploy
+  page "Deploy", group: "Deploy"
 end

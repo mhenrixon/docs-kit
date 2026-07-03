@@ -28,8 +28,10 @@ Rails.application.config.to_prepare do
 
     # The sidebar nav derives from the registry — one heading → one registry.
     # Each registry's authored pages become NavItems automatically (an unwritten
-    # page is skipped, so no dead links). For bespoke nav (interleaved
-    # registries, custom subgroups) set a `c.nav` lambda instead; it wins.
+    # page is skipped, so no dead links); the page `group:` values render as the
+    # collapsible sub-groups (Getting started / Authoring / Reference / AI &
+    # tooling / Deploy). For bespoke nav (interleaved registries) set a `c.nav`
+    # lambda instead; it wins.
     c.nav_registries = { "Docs" => Doc }
   end
 end
