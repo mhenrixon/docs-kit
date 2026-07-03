@@ -11,7 +11,7 @@ module Views
 
         def content
           DocsUI::Section("Scaffolded for you") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "The CLI writes the whole deploy: "
                 code { "config/deploy.yml" }
@@ -30,7 +30,7 @@ module Views
           end
 
           DocsUI::Section("The reusable workflow") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Build and deploy live "
                 strong { "once" }
@@ -61,7 +61,7 @@ module Views
           end
 
           DocsUI::Section("Naming", description: "Use the repo name.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Set "
                 code { "image" }
@@ -92,7 +92,7 @@ module Views
                 [ "DEPLOY_DOMAIN", "The public host kamal-proxy routes." ]
               ]
             )
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Add these to a "
                 code { "docs" }

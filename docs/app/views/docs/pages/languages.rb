@@ -22,7 +22,7 @@ module Views
         def multi_language_section
           DocsUI::Section("Multi-language examples",
                           description: "Pick a tab — every example on the page follows.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 code { "DocsUI::Example" }
                 plain " renders one example in several languages with tabs. The choice is a "
@@ -34,7 +34,7 @@ module Views
               end
             end
 
-            DocsUI::Example() do |ex|
+            example do |ex|
               ex.code(:ruby, filename: "client.rb") do
                 <<~RUBY
                   client = Anthropic::Client.new(api_key: ENV["ANTHROPIC_API_KEY"])
@@ -70,10 +70,10 @@ module Views
               end
             end
 
-            DocsUI::Prose() { p { "Author it by handing each language a code block:" } }
+            prose { p { "Author it by handing each language a code block:" } }
 
             DocsUI::Code(<<~RUBY)
-              DocsUI::Example() do |ex|
+              example do |ex|
                 ex.code(:ruby, filename: "client.rb")   { ruby_source }
                 ex.code(:python, filename: "client.py") { python_source }
                 ex.code(:javascript)                    { js_source }
@@ -106,7 +106,7 @@ module Views
 
         def config_section
           DocsUI::Section("Configuring languages") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Pass any Rouge lexer name to "
                 code { "lexer:" }
@@ -125,7 +125,7 @@ module Views
               end
             RUBY
 
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Now "
                 code { "DocsUI::Code(src, lexer: :curl)" }

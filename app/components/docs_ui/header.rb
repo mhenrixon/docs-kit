@@ -4,12 +4,18 @@ module DocsUI
   # A doc page header: an optional eyebrow (kicker), the title, and a lead
   # paragraph. Gives every doc page a consistent masthead.
   #
-  #   render DocsUI::Header.new(title: "Installation", eyebrow: "Guide") do
+  #   render DocsUI::Header.new("Installation", eyebrow: "Guide") do
   #     plain "Add the gem and render your first component."
   #   end
+  #
+  # The primary argument (the title) is positional, matching Section/Code and the
+  # kit-wide convention. The legacy `title:` kwarg still works so existing sites
+  # keep rendering unchanged; the positional wins if both are given.
   class Header < Phlex::HTML
-    def initialize(title:, eyebrow: nil)
-      @title = title
+    # Positional title (the convention), with a silent `title:` kwarg fallback for
+    # sites that still pass it by keyword. Positional wins when both are given.
+    def initialize(title = nil, eyebrow: nil, **opts)
+      @title = title || opts[:title]
       @eyebrow = eyebrow
     end
 

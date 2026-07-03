@@ -21,7 +21,7 @@ module Views
 
         def what_is_section
           DocsUI::Section("What is docs-kit", description: "A gem, not a template.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 strong { "docs-kit" }
                 plain " is a Ruby gem that gives you the shared chrome for a Rails "
@@ -42,7 +42,7 @@ module Views
 
         def mental_model_section
           DocsUI::Section("The mental model", description: "Configure the chrome; don't re-author it.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "The chrome — "
                 code { "Shell" }
@@ -78,7 +78,7 @@ module Views
 
         def what_you_get_section
           DocsUI::Section("What you get", description: "Everything below ships in the box.") do
-            DocsUI::Prose() do
+            prose do
               ul do
                 li do
                   strong { "Shared shell + responsive sidebar" }
@@ -120,7 +120,7 @@ module Views
 
         def next_steps_section
           DocsUI::Section("Next steps") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Start with "
                 strong { "Installation" }

@@ -3,9 +3,8 @@
 module Views
   module Docs
     module Pages
-      # How to write a documentation page: a Phlex class, a registry entry, and
-      # the DocsUI building blocks. Also covers the parens-with-blocks gotcha and
-      # the automatic "On this page" TOC.
+# How to write a documentation page: a Phlex class, a registry entry, and
+      # the DocsUI building blocks, plus the automatic "On this page" TOC.
       class Authoring < DocsUI::Page
         title "Authoring pages"
         eyebrow "Getting started"
@@ -16,7 +15,6 @@ module Views
           page_is_a_class_section
           register_section
           building_blocks_section
-          parens_gotcha_section
           toc_section
         end
 
@@ -39,7 +37,7 @@ module Views
 
                       def content
                         DocsUI::Section("First steps", description: "What this section covers.") do
-                          DocsUI::Prose() do
+                          prose do
                             p { "Hand-authored prose with consistent reading rhythm." }
                           end
 
@@ -56,7 +54,7 @@ module Views
               end
             RUBY
 
-            DocsUI::Prose() do
+            prose do
               p do
                 code { "title" }
                 plain " names the page, "
@@ -79,7 +77,7 @@ module Views
         def register_section
           DocsUI::Section("Register the page",
                           description: "Add an entry so it appears in the nav and resolves at /docs/<slug>.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "A page shows up once it has a row in the "
                 code { "Doc" }
@@ -116,48 +114,47 @@ module Views
             render PropTable.new(
               [ "Helper", "Use for" ],
               [
-                [ "DocsUI::Section", "an anchored subsection with a heading (+ optional description)" ],
-                [ "DocsUI::Prose()", "hand-authored prose (needs parens with a block)" ],
-                [ "DocsUI::Code", "a syntax-highlighted code block" ],
-                [ "DocsUI::Example()", "multi-language tabbed code" ],
-                [ "DocsUI::Callout", "note / tip / warning boxes" ]
+                [ "DocsUI::Section(title)", "an anchored subsection with a heading (+ optional description)" ],
+                [ "md(source)", "a block of GFM Markdown, styled like Prose" ],
+                [ "prose { … }", "hand-authored prose (p/ul/code) in a reading-rhythm wrapper" ],
+                [ "DocsUI::Code(source)", "a syntax-highlighted code block" ],
+                [ "example { |ex| … }", "multi-language tabbed code" ],
+                [ "DocsUI::Callout(level)", "note / tip / warning boxes" ]
               ]
             )
-          end
-        end
 
-        def parens_gotcha_section
-          DocsUI::Section("Gotcha: parens with blocks",
-                          description: "The one syntax rule that bites everyone.") do
-            DocsUI::Callout(:warning) do
-              "DocsUI::Prose and DocsUI::Example take no positional args, so with a block you MUST write " \
-                "DocsUI::Prose() do … end. The bare form parses as a constant reference — a Ruby SyntaxError."
-            end
-
-            DocsUI::Code(<<~RUBY)
-              # Wrong — SyntaxError: `do` block reads as a constant reference.
-              DocsUI::Prose do
-                p { "..." }
-              end
-
-              # Right — the parens make it a method call that takes the block.
-              DocsUI::Prose() do
-                p { "..." }
-              end
-            RUBY
-
-            DocsUI::Prose() do
+            prose do
               p do
-                code { "DocsUI::Section" }
+                plain "The primary argument is always positional — "
+                code { "Section(\"Title\")" }
                 plain ", "
-                code { "DocsUI::Code" }
-                plain ", and "
-                code { "DocsUI::Callout" }
-                plain " already take arguments, so their parens are never optional — the gotcha is only "
-                code { "Prose" }
-                plain " and "
-                code { "Example" }
-                plain "."
+                code { "Code(source)" }
+                plain ", "
+                code { "Header(\"Title\")" }
+                plain " — with modifiers as keywords ("
+                code { "description:" }
+                plain ", "
+                code { "eyebrow:" }
+                plain ")."
+              end
+              p do
+                plain "For the wrappers that take no argument, use the lowercase page helpers "
+                code { "prose" }
+                plain " / "
+                code { "example" }
+                plain " (and "
+                code { "md" }
+                plain " for Markdown). A lowercase method takes a block without parens, so "
+                code { "prose do … end" }
+                plain " just works. The kit forms "
+                code { "DocsUI::Prose()" }
+                plain " / "
+                code { "DocsUI::Example()" }
+                plain " stay valid — they only need the empty "
+                code { "()" }
+                plain " because a bare "
+                code { "DocsUI::Prose do" }
+                plain " parses as a constant reference (a SyntaxError)."
               end
             end
           end
@@ -166,7 +163,7 @@ module Views
         def toc_section
           DocsUI::Section("The \"On this page\" TOC",
                           description: "Built for you from your section headings.") do
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "Every "
                 code { "DocsUI::Section" }
@@ -187,7 +184,7 @@ module Views
               end
             RUBY
 
-            DocsUI::Prose() do
+            prose do
               p do
                 plain "See the "
                 a(href: "/docs/on-this-page") { "On this page" }
