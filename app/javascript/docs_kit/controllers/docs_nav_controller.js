@@ -365,6 +365,7 @@ export default class extends Controller {
 
   connectSearch() {
     if (!this.hasSearchInputTarget) return
+    this.shortcuts = this.readShortcuts()
     this.onSearchKeydown = this.handleSearchShortcut.bind(this)
     this.onSearchClickOut = this.closeOnClickOutside.bind(this)
     // Capture phase: run before any content script that might stopPropagation()
@@ -382,7 +383,22 @@ export default class extends Controller {
     clearTimeout(this.searchTimer)
   }
 
-  // "/" (when not already typing) or Cmd/Ctrl+K focuses search; Escape blurs it.
+  // The configured shortcuts, parsed from data-docs-nav-shortcuts-value on the
+  // search scope (DocsUI::SearchBox emits it from config.search_shortcuts). Each
+  // is { key, mod, ctrl, shift, alt, meta }. A malformed value degrades to [] —
+  // "/" and Cmd+K just won't focus search, but the form still works.
+  readShortcuts() {
+    if (!this.hasSearchScopeTarget) return []
+    try {
+      const raw = this.searchScopeTarget.dataset.docsNavShortcutsValue
+      const list = JSON.parse(raw || "[]")
+      return Array.isArray(list) ? list : []
+    } catch {
+      return []
+    }
+  }
+
+  // Focus search when a keydown matches ANY configured shortcut; Escape blurs.
   //
   // preventDefault() on this keydown is what cancels the browser's native
   // Cmd/Ctrl+K search bar — in EVERY current browser including Firefox (the combo
@@ -402,15 +418,34 @@ export default class extends Controller {
       return
     }
 
-    const cmdK =
-      (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && key === "k"
-    const slash = key === "/" && !this.isTypingField(event.target)
-    if (!cmdK && !slash) return
+    if (!this.matchesShortcut(event, key)) return
 
     event.preventDefault() // cancels the browser's native Cmd/Ctrl+K search bar
     event.stopPropagation() // hide from other content-level keydown handlers
     this.searchInputTarget.focus()
     this.searchInputTarget.select()
+  }
+
+  // Does this keydown match one of the configured shortcuts?
+  //   - key must equal the shortcut's key
+  //   - "mod" maps to ⌘ on mac / Ctrl elsewhere; explicit ctrl/meta/shift/alt
+  //     must match exactly, so Cmd+Shift+K doesn't fire a plain "mod+k"
+  //   - a shortcut with NO modifier (e.g. "/") must not fire while the reader is
+  //     typing in a field, and must not fire if any modifier is held
+  matchesShortcut(event, key) {
+    return this.shortcuts.some((s) => {
+      if (key !== (s.key || "").toLowerCase()) return false
+      const wantCtrl = !!s.ctrl || (!!s.mod && !this.isMac)
+      const wantMeta = !!s.meta || (!!s.mod && this.isMac)
+      if (event.ctrlKey !== wantCtrl) return false
+      if (event.metaKey !== wantMeta) return false
+      if (event.shiftKey !== !!s.shift) return false
+      if (event.altKey !== !!s.alt) return false
+      // A bare (no-modifier) shortcut mustn't hijack typing.
+      const bare = !wantCtrl && !wantMeta && !s.shift && !s.alt
+      if (bare && this.isTypingField(event.target)) return false
+      return true
+    })
   }
 
   isTypingField(el) {
@@ -422,22 +457,21 @@ export default class extends Controller {
     return this.hasSearchResultsTarget && !this.searchResultsTarget.classList.contains("hidden")
   }
 
-  // The shortcut-hint <kbd> badge is server-rendered with a sensible default
-  // ("Ctrl K" + "/") so it's correct with JS off. Here we only refine the
-  // MODIFIER label to the actual platform (⌘K on mac); "/" is left as-is (it
-  // works everywhere). This adjusts the LABEL only — never the key binding.
+  // The <kbd> hint badges are server-rendered with the majority default ("Ctrl")
+  // so they're correct with JS off. Here we only refine a MODIFIER-tagged badge's
+  // label to the actual platform — swap a leading "Ctrl" for "⌘" on mac. This
+  // adjusts the LABEL only, never the key binding, and works for any key
+  // ("Ctrl K" → "⌘K", "Ctrl F" → "⌘F").
   get isMac() {
     return /\b(Mac|iPhone|iPad|iPod)\b/i.test(navigator.platform || navigator.userAgent || "")
   }
 
-  get modifierHint() {
-    return this.isMac ? "⌘K" : "Ctrl K"
-  }
-
   refreshShortcutHint() {
-    if (!this.hasShortcutHintTarget) return
+    if (!this.hasShortcutHintTarget || !this.isMac) return
     this.shortcutHintTargets.forEach((el) => {
-      if (el.dataset.hint === "modifier") el.textContent = this.modifierHint
+      if (el.dataset.hint === "modifier") {
+        el.textContent = el.textContent.replace(/\bCtrl\b/, "⌘").replace(/⌘\s+/, "⌘")
+      }
     })
   }
 

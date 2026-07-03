@@ -320,12 +320,37 @@ lands on a fully server-rendered results page (`DocsUI::SearchResults`) through
 the normal chrome, and each result's link jumps to the section anchor.
 
 **Enhanced with JavaScript on.** The one `docs-nav` controller upgrades the box
-into a command palette: press `/` (works in every browser) or `⌘K` / `Ctrl+K` to
-focus it, type to see results appear inline (debounced, fetched as JSON from the
-same route), arrow keys + Enter to jump to a result, and `Escape` to close. The
-box shows both shortcuts as `<kbd>` badges (server-rendered, so the hint is right
-with JS off too; the controller swaps `Ctrl K` → `⌘K` on macOS). If the fetch
-ever fails, Enter still submits the form to the results page — never a dead end.
+into a command palette: press any configured shortcut to focus it, type to see
+results appear inline (debounced, fetched as JSON from the same route), arrow
+keys + Enter to jump to a result, and `Escape` to close. Each shortcut shows as a
+`<kbd>` badge (server-rendered, so the hint is right with JS off too). If the
+fetch ever fails, Enter still submits the form to the results page — never a dead
+end.
+
+### Keyboard shortcuts
+
+The shortcuts that open the palette are configurable — `c.search_shortcuts`
+defaults to `["/", "mod+k"]`:
+
+```ruby
+DocsKit.configure do |c|
+  c.search_shortcuts = ["/", "mod+k", "s"]   # bind "/", ⌘K/Ctrl+K, and "s"
+end
+```
+
+Each entry is a shortcut string: a bare key (`"/"`, `"s"`, `"?"`) or a chord
+(`"mod+k"`, `"ctrl+shift+f"`). **`mod` is the platform command key** — `⌘` on
+macOS, `Ctrl` elsewhere — so one entry works on every OS (and the `<kbd>` badge
+shows `Ctrl` by default, swapping to `⌘` on macOS in JS). Modifiers accepted:
+`mod`, `ctrl`, `shift`, `alt`, `meta` (aliases: `command`/`cmd` → `meta`,
+`control` → `ctrl`, `option` → `alt`). A bare-key shortcut never fires while the
+reader is typing in a field, and none of them collide with the browser —
+`⌘K`/`Ctrl+K` is a *cancellable* accelerator (the palette calls `preventDefault`),
+and `"/"` is never hijacked. Set `c.search_shortcuts = []` to bind no key (the
+form still works). Whatever you configure drives both the key bindings and the
+`<kbd>` hints from one source, so they can't drift.
+
+### Other knobs
 
 The controller ships in the gem (`DocsKit::SearchController`, `html` + `json`);
 like llms.txt, the **route lives in your app**. The install generator scaffolds
@@ -335,7 +360,7 @@ it (above `docs/:doc`, so it isn't swallowed as a `:doc`):
 get "/docs/search" => "docs_kit/search#index", as: :docs_search
 ```
 
-Two knobs tune it (both optional — the defaults just work):
+Two more knobs tune it (both optional — the defaults just work):
 
 ```ruby
 DocsKit.configure do |c|

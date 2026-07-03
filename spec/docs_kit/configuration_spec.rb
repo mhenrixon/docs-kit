@@ -61,6 +61,42 @@ RSpec.describe DocsKit::Configuration do
     end
   end
 
+  describe "#search_shortcuts" do
+    it "defaults to \"/\" and the platform \"mod+k\" chord" do
+      shortcuts = described_class.new.search_shortcuts
+
+      expect(shortcuts.map(&:key)).to eq(%w[/ k])
+      # The chord is the platform modifier so one config works on every OS.
+      slash, modk = shortcuts
+      expect(slash.mod?).to be(false)
+      expect(modk.mod?).to be(true)
+    end
+
+    it "returns parsed DocsKit::Shortcut objects, not raw strings" do
+      expect(described_class.new.search_shortcuts).to all(be_a(DocsKit::Shortcut))
+    end
+
+    it "accepts a site's own list of shortcut strings" do
+      DocsKit.configure { |c| c.search_shortcuts = ["mod+k", "s", "ctrl+shift+f"] }
+
+      shortcuts = DocsKit.configuration.search_shortcuts
+      expect(shortcuts.map(&:key)).to eq(%w[k s f])
+      expect(shortcuts.last.shift?).to be(true)
+    end
+
+    it "drops entries that don't parse (a modifier-only string)" do
+      DocsKit.configure { |c| c.search_shortcuts = ["/", "mod+", ""] }
+
+      expect(DocsKit.configuration.search_shortcuts.map(&:key)).to eq(%w[/])
+    end
+
+    it "is empty when a site clears the list" do
+      DocsKit.configure { |c| c.search_shortcuts = [] }
+
+      expect(DocsKit.configuration.search_shortcuts).to eq([])
+    end
+  end
+
   describe "#search_enabled?" do
     it "is true by default (search on + a path set)" do
       expect(described_class.new.search_enabled?).to be(true)

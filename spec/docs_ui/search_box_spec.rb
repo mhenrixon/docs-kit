@@ -45,32 +45,47 @@ RSpec.describe DocsUI::SearchBox do
     expect(html).to match(/dropdown-content[^"]*\bhidden\b/)
   end
 
-  describe "the keyboard-shortcut hint" do
-    it "renders a server-side <kbd> hint so the reader sees how to open search" do
+  describe "the keyboard-shortcut hint (config-driven)" do
+    it "renders one <kbd> badge per configured shortcut" do
       html = render_box
 
-      expect(html).to include("<kbd")
+      # Defaults are ["/", "mod+k"] → two badges.
+      expect(html.scan("<kbd").size).to eq(2)
     end
 
-    it "always advertises \"/\" — the shortcut no browser hijacks" do
+    it "advertises the default \"/\" and \"Ctrl K\" (mod chord) badges" do
       html = render_box
 
-      # "/" works in every browser (unlike Cmd+K, which some browsers bind), so
-      # it's the guaranteed-visible fallback. It must be present with JS off.
-      expect(html).to match(%r{<kbd[^>]*>/?</kbd>|<kbd[^>]*>\s*/\s*</kbd>})
+      # "/" — the shortcut no browser hijacks. "Ctrl K" — the mod chord's server
+      # default (docs-nav swaps the mod label to ⌘K on mac).
       expect(html).to include(">/</kbd>").or include("> / </kbd>")
+      expect(html).to include("Ctrl K")
     end
 
-    it "renders a modifier hint the controller refines per platform" do
+    it "tags a mod-chord badge as a modifier hint the controller refines" do
       html = render_box
 
-      # Server default is the majority platform ("Ctrl K"); docs-nav swaps it to
-      # ⌘K on mac. Tagged data-hint=modifier so the controller knows which to swap.
-      expect(html).to include("Ctrl K")
+      # Only the mod badge is data-hint=modifier; docs-nav swaps just that label.
       expect(html).to include('data-hint="modifier"')
     end
 
-    it "tags the hint badges as docs-nav shortcutHint targets" do
+    it "reflects a site's custom shortcut list in the badges" do
+      DocsKit.configure { |c| c.search_shortcuts = ["mod+k", "s"] }
+      html = render_box
+
+      expect(html.scan("<kbd").size).to eq(2)
+      expect(html).to include("Ctrl K") # mod+k
+      expect(html).to include(">s</kbd>").or include("> s </kbd>") # bare "s"
+    end
+
+    it "renders no hint badges when a site clears the shortcut list" do
+      DocsKit.configure { |c| c.search_shortcuts = [] }
+      html = render_box
+
+      expect(html).not_to include("<kbd")
+    end
+
+    it "tags the badges as docs-nav shortcutHint targets" do
       html = render_box
 
       expect(html).to include("shortcutHint")
@@ -80,6 +95,26 @@ RSpec.describe DocsUI::SearchBox do
       html = render_box
 
       expect(html).to include('aria-hidden="true"')
+    end
+  end
+
+  describe "the shortcut payload docs-nav binds against" do
+    it "emits the parsed shortcut list as JSON on the search scope" do
+      html = render_box
+
+      # docs-nav reads this to bind each key without hardcoding — the JSON carries
+      # the key + modifier flags for every configured shortcut.
+      expect(html).to include("docs-nav-shortcuts-value")
+      expect(html).to include("&quot;key&quot;:&quot;k&quot;").or include('"key":"k"')
+      expect(html).to include("mod")
+    end
+
+    it "reflects a custom shortcut list in the payload" do
+      DocsKit.configure { |c| c.search_shortcuts = ["ctrl+shift+f"] }
+      html = render_box
+
+      expect(html).to include("shift")
+      expect(html).to include("&quot;key&quot;:&quot;f&quot;").or include('"key":"f"')
     end
   end
 end
