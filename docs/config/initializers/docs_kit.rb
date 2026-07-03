@@ -20,6 +20,15 @@ Rails.application.config.to_prepare do
       { href: "https://github.com/mhenrixon/docs-kit", label: "GitHub", icon: :github },
     ]
 
+    # SEO + social sharing, dogfooded. docs-kit emits the full <head> (description,
+    # Open Graph, Twitter Card, canonical) from these knobs. og_image points at an
+    # image in THIS site's own pipeline (app/assets/images/og/og.png) — resolved
+    # to its digested /assets URL — regenerate it with `bin/rails docs_kit:og`.
+    c.seo.description  = "Shared Phlex/daisyUI chrome for documentation sites — one shell, sidebar, code kit, and page kit."
+    c.seo.og_image     = "og/og.png"
+    c.seo.twitter_site = "@mhenrixon"
+    c.seo.site_url     = "https://docs-kit.zoolutions.llc"
+
     # Code blocks carry a light theme by default and swap to a dark theme when the
     # switcher lands on a dark daisyUI theme (dark/synthwave/dracula/night/sunset
     # here). Dogfooded so the light↔dark restyle is visible across all 9 themes;

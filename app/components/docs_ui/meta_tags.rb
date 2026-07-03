@@ -11,12 +11,15 @@ module DocsUI
   #
   # All free text (title, description, brand) is emitted as normal Phlex
   # attribute values, so Phlex escapes it — config free text is never trusted
-  # markup. og:image/og:url/canonical are absolutized against config.seo.site_url
-  # when set, else the request base URL; with neither, og:image degrades to its
-  # raw path and canonical/og:url are omitted (guarded like Shell#csp_nonce, so
-  # an isolated render or a request-less static build never raises).
+  # markup. The og:image is SITE content (nil by default → no og:image tag): a
+  # relative og_image is resolved through the SITE'S asset pipeline (image_url) to
+  # the DIGESTED /assets URL Propshaft serves — NOT the raw config path, which
+  # 404s; an absolute URL passes through. canonical/og:url come from
+  # config.seo.site_url, else the request URL; both are omitted off a request
+  # (guarded like Shell#csp_nonce, so an isolated render never raises).
   class MetaTags < Phlex::HTML
     include Phlex::Rails::Helpers::Request
+    include Phlex::Rails::Helpers::ImageURL
 
     # title:       the page title (nil on a page that sets none, e.g. the home
     #              page) — combined with config.title_suffix for og:title.
@@ -108,17 +111,37 @@ module DocsUI
       meta(name: "theme-color", content: seo.theme_color)
     end
 
-    # The og:image as an absolute-when-possible URL: an already-absolute
-    # og_image is returned as-is; a relative path is joined onto the resolved
-    # base (config.seo.site_url or the request base); with no base it degrades to
-    # the raw path so og:image is never empty.
+    # The og:image as an absolute URL a crawler can fetch, or nil to emit NO
+    # og:image (a valid card without an image — never a 404). nil when og_image is
+    # unset (the default). An already-absolute og_image passes through. A relative
+    # path is a logical asset in the SITE'S pipeline, resolved through image_url to
+    # the DIGESTED, host-qualified /assets URL Propshaft actually serves
+    # (https://host/assets/og/og-<digest>.png) — never the raw config path, which
+    # 404s. Off a request (an isolated render / static build) there is no asset
+    # pipeline to resolve a relative path, so we emit nothing rather than a
+    # guessed-and-wrong URL; a real app always renders with a view context.
     def og_image_url
       image = seo.og_image
       return if image.to_s.empty?
       return image if absolute?(image)
 
-      base = base_url
-      base ? "#{base}/#{image.delete_prefix('/')}" : image
+      resolve_asset(image)
+    end
+
+    # Resolve a logical asset path to its served (digested, host-qualified) URL via
+    # the Rails asset helper. nil when there's no view context (image_url delegates
+    # to view_context, which raises without one — the same seam Shell#csp_nonce
+    # guards), so an isolated render emits no og:image rather than raising.
+    #
+    # A configured-but-unresolvable og_image (asset missing / not precompiled)
+    # raises the pipeline's MissingAssetError — intended, NOT rescued: a broken
+    # og_image is a real misconfiguration that must surface at deploy time
+    # (assets:precompile runs before the app serves), not ship silently-broken
+    # social cards. A site with no card image leaves og_image nil (see #og_image_url).
+    def resolve_asset(path)
+      return unless view_context
+
+      image_url(path)
     end
 
     # The canonical/og:url for this page. From config.seo.site_url when set (its
@@ -132,27 +155,7 @@ module DocsUI
       request.original_url
     end
 
-    # The base URL for absolutizing a relative og:image: config.seo.site_url's
-    # origin, else the request base URL, else nil. site_url may include a path
-    # (for canonical); strip it to an origin so the image path joins cleanly.
-    def base_url
-      return origin_of(seo.site_url) if seo.site_url
-      return unless request?
-
-      request.base_url
-    end
-
     def absolute?(url) = url.to_s.match?(%r{\Ahttps?://}i)
-
-    # Just the scheme+host(+port) of a URL, dropping any path — so joining an
-    # image path onto it never doubles a path segment.
-    def origin_of(url)
-      uri = URI.parse(url)
-      port = uri.port && uri.default_port != uri.port ? ":#{uri.port}" : ""
-      "#{uri.scheme}://#{uri.host}#{port}"
-    rescue URI::InvalidURIError
-      url
-    end
 
     # True only when there's a live Rails view context AND a request on it — the
     # phlex-rails #request helper delegates to view_context, which raises without

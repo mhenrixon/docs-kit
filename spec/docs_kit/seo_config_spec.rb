@@ -8,8 +8,8 @@ RSpec.describe DocsKit::SeoConfig do
       expect(seo.description).to be_nil
     end
 
-    it "defaults #og_image to the shipped default path" do
-      expect(seo.og_image).to eq("og/og.png")
+    it "defaults #og_image to nil (the image is site content — no card image until set)" do
+      expect(seo.og_image).to be_nil
     end
 
     it "defaults #og_type to \"website\"" do

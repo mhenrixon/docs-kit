@@ -34,7 +34,7 @@ RSpec.describe DocsKit::Configuration do
 
       expect(seo).to be_a(DocsKit::SeoConfig)
       expect(seo.description).to be_nil
-      expect(seo.og_image).to eq("og/og.png")
+      expect(seo.og_image).to be_nil
     end
 
     it "memoizes the same instance so a `c.seo.x = ...` block sticks" do

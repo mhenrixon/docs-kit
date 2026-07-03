@@ -121,12 +121,14 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(exist?("app/components/.keep")).to be(true)
     end
 
-    it "installs the docs_kit:og rake task + the default OG image" do
+    it "installs the docs_kit:og rake task (but ships NO image — that's site content)" do
       expect(exist?("lib/tasks/docs_kit_og.rake")).to be(true)
-      expect(exist?("app/assets/images/og/og.png")).to be(true)
+      # The gem does not vendor an OG image; the task generates one into the
+      # site's own app/assets/images/ when run.
+      expect(exist?("app/assets/images/og/og.png")).to be(false)
     end
 
-    it "ships an og.rake that defines a docs_kit:og task pointing at the landing page" do
+    it "ships an og.rake that defines a docs_kit:og task writing into the site's images dir" do
       rake = read("lib/tasks/docs_kit_og.rake")
 
       expect(rake).to include("namespace :docs_kit")

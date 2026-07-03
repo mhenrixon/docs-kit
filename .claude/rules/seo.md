@@ -22,19 +22,26 @@ title/description. The same invariants as the rest of the chrome apply.
    presence like `Shell#csp_nonce` does; degrade (omit canonical, use the raw
    `og_image` path) rather than raise.
 
-## The OG-image re-generation routine
+## The OG image is SITE content — the gem ships none
 
 The social-share image is each **site's own** landing page, screenshotted by the
-host-run `bin/rails docs_kit:og` task — it is **not** committed into the gem
-(the gem ships only a neutral default). This mirrors phlex-reactive's
-vendored-client re-sync: a **documented manual command + a guard spec**, never a
-cron.
+host-run `bin/rails docs_kit:og` task into the SITE'S `app/assets/images/`. The
+gem ships **no** OG image and `c.seo.og_image` defaults to **nil** — a site's
+landing page isn't docs-kit's to render.
 
-- **When the landing page changes materially**, re-run `bin/rails docs_kit:og`
-  (in a consuming site) so the OG image reflects it.
-- `spec/docs_kit/og_image_spec.rb` guards the shipped default (present + valid
-  PNG). If it fails, the default was deleted/corrupted — restore it, don't delete
-  the spec.
+- `og_image` is a **logical asset path in the site's pipeline** (`"og/og.png"`),
+  resolved via `image_url` to the digested `/assets/og/og-<digest>.png` URL
+  Propshaft serves. NEVER emit the raw config path — it 404s (this was the
+  original bug). `image_url` (the Static resolver) needs the asset **precompiled**;
+  a configured-but-missing image raises `MissingAssetError` at deploy
+  (`assets:precompile`), which is the intended loud signal — do NOT rescue it into
+  a silent 404.
+- **Unset `og_image` → no `og:image` tag.** Same shape as every other opt-in tag
+  (favicon/robots/theme-color): absent value → absent tag, never a broken one.
+- Verify the whole chain in a **consuming site's** integration test (see
+  `docs/test/integration/seo_meta_tags_test.rb`): boot the app, GET `/`, assert
+  `og:image` is a `/assets/` URL AND that GETting it returns 200. Isolated
+  component specs can't catch a precompile/pipeline break — only a booted app can.
 - The screenshot tooling (shot-scraper / chromium) is resolved at **task
   runtime** and is **never** a docs-kit runtime dependency — the gem's own CI must
   stay browser-free. `DocsKit::OgGenerator` is zeitwerk-ignored and loaded only by
@@ -42,7 +49,11 @@ cron.
 
 ## Never Do
 
-- **NO** committing per-site OG screenshots into the gem (they're site content).
+- **NO** shipping an OG image (or any site-branded image) in the gem.
+- **NO** emitting the raw `og_image` path as og:image — resolve it through the
+  asset pipeline (`image_url`), or it 404s.
+- **NO** `rescue`-ing `MissingAssetError` into a silent no-image — a broken
+  `og_image` config must fail at deploy, not ship silently-broken cards.
 - **NO** cron/CI job to refresh OG images — it's a manual, documented command.
 - **NO** headless-browser dependency in the gemspec or the gem's CI.
 - **NO** theme/robots/canonical value that isn't config-driven and defaulted.

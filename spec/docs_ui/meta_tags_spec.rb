@@ -4,12 +4,26 @@
 # (+ .seo) and the per-page title/description. Unlike DocsUI::Shell it uses NO
 # output helper that needs a live Rails request (no csrf/importmap), so it
 # renders standalone with .call — the same isolated-render path a host without a
-# request (a static build) would hit. og:image/og:url/canonical absolutize
-# against config.seo.site_url when set; without it and without a request they
-# degrade to the raw path / are omitted (guarded like Shell#csp_nonce).
+# request (a static build) would hit. The og:image is SITE content resolved
+# through the site's asset pipeline (image_url); off a request there's no pipeline
+# and no og:image is emitted (guarded like Shell#csp_nonce).
 RSpec.describe DocsUI::MetaTags do
   def render_tags(title: "Installation", description: nil)
     described_class.new(title: title, description: description).call
+  end
+
+  # A subclass that reports a view context + resolves og_image through the asset
+  # pipeline, mirroring how a real request renders. image_url is the Rails asset
+  # helper: "og/og.png" → the digested, host-qualified /assets URL Propshaft
+  # serves. The isolated suite has no view context, so we stub the seam (the same
+  # technique shell_spec uses for csp_nonce) to prove the pipeline path.
+  def render_with_pipeline(title: "Installation", description: nil)
+    Class.new(described_class) do
+      def view_context = :present
+      # isolate og:image resolution from canonical/og:url
+      def request? = false
+      def image_url(path) = "https://d.example.com/assets/#{path.sub('.png', '-abc123.png')}"
+    end.new(title: title, description: description).call
   end
 
   describe "the description meta" do
@@ -60,21 +74,38 @@ RSpec.describe DocsUI::MetaTags do
       expect(html).to include('<meta property="og:description" content="Reactive Phlex components.">')
     end
 
-    it "emits og:image absolutized against config.seo.site_url" do
-      DocsKit.configure do |c|
-        c.seo.site_url = "https://docs.example.com"
-        c.seo.og_image = "og/og.png"
-      end
+    it "emits NO og:image when og_image is unset (the default — a valid card, no 404)" do
       html = render_tags
 
-      expect(html).to include('<meta property="og:image" content="https://docs.example.com/og/og.png">')
+      expect(html).not_to include("og:image")
+      expect(html).not_to include("twitter:image")
     end
 
-    it "leaves an absolute og_image URL untouched" do
+    it "resolves a relative og_image through the asset pipeline (digested /assets URL)" do
+      # The bug this guards: the raw config path "og/og.png" is NOT a served URL —
+      # Propshaft serves the digested /assets/og/og-<digest>.png. image_url must
+      # produce that, never the raw path (which 404s).
+      DocsKit.configure { |c| c.seo.og_image = "og/og.png" }
+      html = render_with_pipeline
+
+      expect(html).to include('<meta property="og:image" content="https://d.example.com/assets/og/og-abc123.png">')
+      expect(html).not_to include('content="og/og.png"') # never the raw, 404-ing path
+    end
+
+    it "leaves an absolute og_image URL untouched (no pipeline needed)" do
       DocsKit.configure { |c| c.seo.og_image = "https://cdn.example.com/card.png" }
       html = render_tags
 
       expect(html).to include('<meta property="og:image" content="https://cdn.example.com/card.png">')
+    end
+
+    it "emits no og:image for a relative path off a request (no pipeline to resolve it)" do
+      # Off a request there's no asset pipeline, so a relative path can't be
+      # resolved to a served URL — we emit nothing rather than a guessed-wrong URL.
+      DocsKit.configure { |c| c.seo.og_image = "og/og.png" }
+      html = render_tags
+
+      expect(html).not_to include("og:image")
     end
 
     it "always emits a minimal, valid OG block even when a site configures nothing" do
@@ -153,21 +184,20 @@ RSpec.describe DocsUI::MetaTags do
   end
 
   # With a live request (and no config.seo.site_url), canonical/og:url come from
-  # the request URL and a relative og:image absolutizes against the request base.
-  # The isolated suite has no Rails request, so — like shell_spec exercises
-  # csp_nonce — override the request seam with a subclass that reports a request.
+  # the request URL. The isolated suite has no Rails request, so — like shell_spec
+  # exercises csp_nonce — override the request seam with a subclass that reports a
+  # request.
   describe "with a live request (site_url unset)" do
     let(:with_request) do
       Class.new(described_class) do
         def request? = true
-        def request = Struct.new(:original_url, :base_url).new("https://d.example.com/install", "https://d.example.com")
+        def request = Struct.new(:original_url).new("https://d.example.com/install")
       end
     end
 
-    it "absolutizes og:image and canonical against the request URL" do
+    it "sets canonical and og:url from the request URL" do
       html = with_request.new(title: "Installation").call
 
-      expect(html).to include('<meta property="og:image" content="https://d.example.com/og/og.png">')
       expect(html).to include('<link rel="canonical" href="https://d.example.com/install">')
       expect(html).to include('<meta property="og:url" content="https://d.example.com/install">')
     end
