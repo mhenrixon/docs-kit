@@ -89,6 +89,10 @@ Metrics/ClassLength:
 
 Metrics/MethodLength:
   Max: 25
+  # Configuration#initialize is a flat one-assignment-per-knob default list; its
+  # length is the knob count, not logic (AbcSize is excluded for the same reason).
+  Exclude:
+    - "lib/docs_kit/configuration.rb"
 
 RSpec/ExampleLength:
   Max: 12

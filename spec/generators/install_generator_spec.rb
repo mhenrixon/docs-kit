@@ -158,6 +158,20 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(routes).to include(%(get "/llms-full.txt" => "docs_kit/llms#full"))
     end
 
+    it "adds the docs-search route (matches the default c.search_path)" do
+      routes = read("config/routes.rb")
+
+      expect(routes).to include(%(get "/docs/search" => "docs_kit/search#index"))
+    end
+
+    it "draws /docs/search ABOVE docs/:doc so it isn't swallowed as :doc" do
+      routes = read("config/routes.rb")
+
+      search_at = routes.index(%(get "/docs/search" => "docs_kit/search#index"))
+      doc_at = routes.index(%(get "docs/:doc(.:format)" => "docs#show"))
+      expect(search_at).to be < doc_at
+    end
+
     it "does not duplicate routes on re-run (idempotent)" do
       run_generator # second invocation against the same destination
 
@@ -165,6 +179,7 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(routes.scan(%(get "/llms.txt" => "docs_kit/llms#index")).size).to eq(1)
       expect(routes.scan(%(get "/llms-full.txt" => "docs_kit/llms#full")).size).to eq(1)
       expect(routes.scan(%(get "docs/:doc(.:format)" => "docs#show", as: :doc)).size).to eq(1)
+      expect(routes.scan(%(get "/docs/search" => "docs_kit/search#index")).size).to eq(1)
     end
   end
 

@@ -39,6 +39,15 @@ Rails.application.config.to_prepare do
     # Set false to hide the action site-wide (the .md route still works):
     # c.page_markdown_action = false
 
+    # Search is on by default — the topbar grows a search box (a JS-off GET form
+    # that docs-nav enhances into a command palette), served by
+    # DocsKit::SearchController at the route the install generator drew. Hide it,
+    # point it at a moved route, or change the keyboard shortcuts:
+    # c.search           = false            # hide the topbar search box site-wide
+    # c.search_path      = "/docs/search"   # default; match your route if you move it
+    # c.search_shortcuts = ["/", "mod+k"]   # default; "mod" = ⌘ on mac, Ctrl elsewhere.
+    #   Each is a bare key ("/", "s") or a chord ("mod+k", "ctrl+shift+f"); [] binds none.
+
     # The sidebar nav derives from the registry — one heading → one registry.
     # Each registry's authored pages become NavItems automatically (an unwritten
     # page is skipped, so no dead links). For bespoke nav (interleaved

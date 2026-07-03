@@ -37,6 +37,84 @@ RSpec.describe DocsKit::Configuration do
     end
   end
 
+  describe "#search" do
+    it "defaults to true (the topbar search form renders)" do
+      expect(described_class.new.search).to be(true)
+    end
+
+    it "is overridable so a site can hide search site-wide" do
+      DocsKit.configure { |c| c.search = false }
+
+      expect(DocsKit.configuration.search).to be(false)
+    end
+  end
+
+  describe "#search_path" do
+    it "defaults to \"/docs/search\" (the route the generator draws)" do
+      expect(described_class.new.search_path).to eq("/docs/search")
+    end
+
+    it "is overridable so a site can mount search elsewhere" do
+      DocsKit.configure { |c| c.search_path = "/guides/search" }
+
+      expect(DocsKit.configuration.search_path).to eq("/guides/search")
+    end
+  end
+
+  describe "#search_shortcuts" do
+    it "defaults to \"/\" and the platform \"mod+k\" chord" do
+      shortcuts = described_class.new.search_shortcuts
+
+      expect(shortcuts.map(&:key)).to eq(%w[/ k])
+      # The chord is the platform modifier so one config works on every OS.
+      slash, modk = shortcuts
+      expect(slash.mod?).to be(false)
+      expect(modk.mod?).to be(true)
+    end
+
+    it "returns parsed DocsKit::Shortcut objects, not raw strings" do
+      expect(described_class.new.search_shortcuts).to all(be_a(DocsKit::Shortcut))
+    end
+
+    it "accepts a site's own list of shortcut strings" do
+      DocsKit.configure { |c| c.search_shortcuts = ["mod+k", "s", "ctrl+shift+f"] }
+
+      shortcuts = DocsKit.configuration.search_shortcuts
+      expect(shortcuts.map(&:key)).to eq(%w[k s f])
+      expect(shortcuts.last.shift?).to be(true)
+    end
+
+    it "drops entries that don't parse (a modifier-only string)" do
+      DocsKit.configure { |c| c.search_shortcuts = ["/", "mod+", ""] }
+
+      expect(DocsKit.configuration.search_shortcuts.map(&:key)).to eq(%w[/])
+    end
+
+    it "is empty when a site clears the list" do
+      DocsKit.configure { |c| c.search_shortcuts = [] }
+
+      expect(DocsKit.configuration.search_shortcuts).to eq([])
+    end
+  end
+
+  describe "#search_enabled?" do
+    it "is true by default (search on + a path set)" do
+      expect(described_class.new.search_enabled?).to be(true)
+    end
+
+    it "is false when search is disabled" do
+      DocsKit.configure { |c| c.search = false }
+
+      expect(DocsKit.configuration.search_enabled?).to be(false)
+    end
+
+    it "is false when search_path is blanked (nothing to submit to)" do
+      DocsKit.configure { |c| c.search_path = "" }
+
+      expect(DocsKit.configuration.search_enabled?).to be(false)
+    end
+  end
+
   describe "#code_theme_dark" do
     it "defaults to nil (single-theme behavior, fully backwards compatible)" do
       expect(described_class.new.code_theme_dark).to be_nil

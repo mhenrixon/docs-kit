@@ -37,6 +37,9 @@ export default class extends Controller {
     onPage: { type: String, default: "" },
     // Fewer than this many headings → hide the TOC entirely (short pages).
     minHeadings: { type: Number, default: 2 },
+    // Debounce (ms) between a search keystroke and the fetch, so typing fast
+    // doesn't fire a request per character.
+    searchDebounce: { type: Number, default: 150 },
   }
 
   // tocLink: pre-rendered TOC links to spy on.
@@ -47,10 +50,16 @@ export default class extends Controller {
   // shows the panel for the globally-remembered language and hides the others.
   // markdownLink: the "Markdown" masthead action; a plain link with JS off, the
   // controller upgrades its click into copy-the-page's-markdown-to-clipboard.
+  // searchScope: the dropdown root (so a click outside closes the palette).
+  // searchInput: the topbar query field ("/" and Cmd/Ctrl+K focus it).
+  // searchResults: the empty <ul> the controller fills with fetched hits.
+  // shortcutHint: the <kbd> badge(s); the controller refines the modifier label
+  // to the platform (⌘K on mac). Server-rendered, so correct with JS off.
   static targets = [
     "tocLink", "toc", "tocRoot", "tocPopover",
     "codeGroup", "codeTab", "codePanel",
     "markdownLink",
+    "searchScope", "searchInput", "searchResults", "shortcutHint",
   ]
 
   connect() {
@@ -62,11 +71,13 @@ export default class extends Controller {
     this.startScrollSpy()
     this.applyLanguage(this.readLanguage())
     this.applyTheme(this.readTheme())
+    this.connectSearch()
   }
 
   disconnect() {
     this.element.removeEventListener("toggle", this.onToggle, true)
     this.observer?.disconnect()
+    this.disconnectSearch()
   }
 
   // --- 1. Collapse persistence ------------------------------------------------
@@ -341,6 +352,251 @@ export default class extends Controller {
     const original = labelNode.textContent
     labelNode.textContent = "Copied!"
     setTimeout(() => (labelNode.textContent = original), 1500)
+  }
+
+  // --- 7. Search palette ------------------------------------------------------
+  //
+  // Progressive enhancement over the topbar search form (DocsUI::SearchBox). With
+  // JS off the form GETs config.search_path and the server renders a full results
+  // page. Here we upgrade it into a Cmd+K palette: "/" or Cmd/Ctrl+K focuses the
+  // input, keystrokes fetch `<search_path>.json?q=` (debounced) and fill the
+  // server-rendered dropdown, and arrow keys navigate. The native form submit is
+  // always the fallback — if a fetch fails, Enter still lands on the results page.
+
+  connectSearch() {
+    if (!this.hasSearchInputTarget) return
+    this.shortcuts = this.readShortcuts()
+    this.onSearchKeydown = this.handleSearchShortcut.bind(this)
+    this.onSearchClickOut = this.closeOnClickOutside.bind(this)
+    // Capture phase: run before any content script that might stopPropagation()
+    // the event, so the palette shortcut can't be swallowed on a page with
+    // third-party JS. (preventDefault below is what actually cancels the
+    // browser's native Cmd/Ctrl+K — capture just wins the race for the event.)
+    document.addEventListener("keydown", this.onSearchKeydown, true)
+    document.addEventListener("click", this.onSearchClickOut)
+    this.refreshShortcutHint()
+  }
+
+  disconnectSearch() {
+    if (this.onSearchKeydown) document.removeEventListener("keydown", this.onSearchKeydown, true)
+    if (this.onSearchClickOut) document.removeEventListener("click", this.onSearchClickOut)
+    clearTimeout(this.searchTimer)
+  }
+
+  // The configured shortcuts, parsed from data-docs-nav-shortcuts-value on the
+  // search scope (DocsUI::SearchBox emits it from config.search_shortcuts). Each
+  // is { key, mod, ctrl, shift, alt, meta }. A malformed value degrades to [] —
+  // "/" and Cmd+K just won't focus search, but the form still works.
+  readShortcuts() {
+    if (!this.hasSearchScopeTarget) return []
+    try {
+      const raw = this.searchScopeTarget.dataset.docsNavShortcutsValue
+      const list = JSON.parse(raw || "[]")
+      return Array.isArray(list) ? list : []
+    } catch {
+      return []
+    }
+  }
+
+  // Focus search when a keydown matches ANY configured shortcut; Escape blurs.
+  //
+  // preventDefault() on this keydown is what cancels the browser's native
+  // Cmd/Ctrl+K search bar — in EVERY current browser including Firefox (the combo
+  // is a cancellable accelerator, not a reserved shortcut), so there's no
+  // per-browser branch. `event.key` can be undefined (autofill / IME
+  // composition); calling .toLowerCase() on it would THROW and kill the handler
+  // before preventDefault() ran — which lets the browser's own Cmd+K fire. Guard
+  // it (this is the bug that made Cmd+K "do nothing" in Firefox).
+  handleSearchShortcut(event) {
+    const key = (event.key || "").toLowerCase()
+    const focused = document.activeElement === this.searchInputTarget
+
+    // Escape leaves the palette: close results, drop focus back to the page.
+    if (key === "escape" && (focused || this.resultsOpen)) {
+      this.closeResults()
+      if (focused) this.searchInputTarget.blur()
+      return
+    }
+
+    if (!this.matchesShortcut(event, key)) return
+
+    event.preventDefault() // cancels the browser's native Cmd/Ctrl+K search bar
+    event.stopPropagation() // hide from other content-level keydown handlers
+    this.searchInputTarget.focus()
+    this.searchInputTarget.select()
+  }
+
+  // Does this keydown match one of the configured shortcuts?
+  //   - key must equal the shortcut's key
+  //   - "mod" maps to ⌘ on mac / Ctrl elsewhere; explicit ctrl/meta/shift/alt
+  //     must match exactly, so Cmd+Shift+K doesn't fire a plain "mod+k"
+  //   - a shortcut with NO modifier (e.g. "/") must not fire while the reader is
+  //     typing in a field, and must not fire if any modifier is held
+  matchesShortcut(event, key) {
+    return this.shortcuts.some((s) => {
+      if (key !== (s.key || "").toLowerCase()) return false
+      const wantCtrl = !!s.ctrl || (!!s.mod && !this.isMac)
+      const wantMeta = !!s.meta || (!!s.mod && this.isMac)
+      if (event.ctrlKey !== wantCtrl) return false
+      if (event.metaKey !== wantMeta) return false
+      if (event.shiftKey !== !!s.shift) return false
+      if (event.altKey !== !!s.alt) return false
+      // A bare (no-modifier) shortcut mustn't hijack typing.
+      const bare = !wantCtrl && !wantMeta && !s.shift && !s.alt
+      if (bare && this.isTypingField(event.target)) return false
+      return true
+    })
+  }
+
+  isTypingField(el) {
+    const tag = (el?.tagName || "").toLowerCase()
+    return tag === "input" || tag === "textarea" || el?.isContentEditable
+  }
+
+  get resultsOpen() {
+    return this.hasSearchResultsTarget && !this.searchResultsTarget.classList.contains("hidden")
+  }
+
+  // The <kbd> hint badges are server-rendered with the majority default ("Ctrl")
+  // so they're correct with JS off. Here we only refine a MODIFIER-tagged badge's
+  // label to the actual platform — swap a leading "Ctrl" for "⌘" on mac. This
+  // adjusts the LABEL only, never the key binding, and works for any key
+  // ("Ctrl K" → "⌘K", "Ctrl F" → "⌘F").
+  get isMac() {
+    return /\b(Mac|iPhone|iPad|iPod)\b/i.test(navigator.platform || navigator.userAgent || "")
+  }
+
+  refreshShortcutHint() {
+    if (!this.hasShortcutHintTarget || !this.isMac) return
+    this.shortcutHintTargets.forEach((el) => {
+      if (el.dataset.hint === "modifier") {
+        el.textContent = el.textContent.replace(/\bCtrl\b/, "⌘").replace(/⌘\s+/, "⌘")
+      }
+    })
+  }
+
+  // Debounced query → fetch JSON → render. An empty query just closes the palette.
+  performSearch() {
+    clearTimeout(this.searchTimer)
+    const query = this.searchInputTarget.value.trim()
+    if (!query) {
+      this.closeResults()
+      return
+    }
+    this.searchTimer = setTimeout(() => this.runSearch(query), this.searchDebounceValue)
+  }
+
+  async runSearch(query) {
+    const url = `${this.searchEndpoint}?q=${encodeURIComponent(query)}`
+    try {
+      const response = await fetch(url, { headers: { Accept: "application/json" } })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const data = await response.json()
+      this.renderResults(data.results || [])
+    } catch {
+      // Fetch failed — leave the palette closed; the form still submits on Enter.
+      this.closeResults()
+    }
+  }
+
+  // The JSON endpoint is the form's action with a `.json` extension (same route,
+  // json format), so a site that moved search_path is followed automatically.
+  get searchEndpoint() {
+    const action = this.searchInputTarget.form?.getAttribute("action") || "/docs/search"
+    return `${action}.json`
+  }
+
+  renderResults(results) {
+    const list = this.searchResultsTarget
+    list.replaceChildren()
+    if (results.length === 0) {
+      list.appendChild(this.emptyRow())
+    } else {
+      results.forEach((hit) => list.appendChild(this.resultRow(hit)))
+    }
+    this.openResults()
+    this.activeIndex = -1
+  }
+
+  emptyRow() {
+    const li = document.createElement("li")
+    li.className = "menu-title"
+    li.textContent = "No results"
+    return li
+  }
+
+  resultRow(hit) {
+    const li = document.createElement("li")
+    const a = document.createElement("a")
+    a.href = hit.href
+    const label = document.createElement("span")
+    label.className = "font-medium"
+    label.textContent = hit.label
+    a.appendChild(label)
+    // The snippet is server-produced, pre-escaped HTML (the match in <mark>); it's
+    // the same trusted string the SearchResults page renders.
+    if (hit.snippet) {
+      const snip = document.createElement("span")
+      snip.className = "block text-xs opacity-60"
+      snip.innerHTML = hit.snippet
+      a.appendChild(snip)
+    }
+    li.appendChild(a)
+    return li
+  }
+
+  // Arrow/Enter/Escape navigation over the rendered result links.
+  navigateResults(event) {
+    const links = this.resultLinks
+    if (event.key === "Escape") {
+      this.closeResults()
+      return
+    }
+    if (links.length === 0) return
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault()
+      this.moveActive(1, links)
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault()
+      this.moveActive(-1, links)
+    } else if (event.key === "Enter" && this.activeIndex >= 0) {
+      event.preventDefault()
+      links[this.activeIndex].click()
+    }
+  }
+
+  moveActive(delta, links) {
+    this.activeIndex = (this.activeIndex + delta + links.length) % links.length
+    links.forEach((link, i) => {
+      const on = i === this.activeIndex
+      link.classList.toggle("menu-active", on)
+      if (on) link.scrollIntoView({ block: "nearest" })
+    })
+  }
+
+  get resultLinks() {
+    return Array.from(this.searchResultsTarget.querySelectorAll("a"))
+  }
+
+  // Let the native form submit proceed (goes to the full results page); just
+  // close the palette so it doesn't linger over the new page.
+  submitSearch() {
+    this.closeResults()
+  }
+
+  openResults() {
+    if (this.hasSearchResultsTarget) this.searchResultsTarget.classList.remove("hidden")
+  }
+
+  closeResults() {
+    if (this.hasSearchResultsTarget) this.searchResultsTarget.classList.add("hidden")
+    this.activeIndex = -1
+  }
+
+  closeOnClickOutside(event) {
+    if (!this.hasSearchScopeTarget) return
+    if (!this.searchScopeTarget.contains(event.target)) this.closeResults()
   }
 
   // --- storage (private, fails safe if localStorage is unavailable) -----------

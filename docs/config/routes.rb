@@ -1,5 +1,10 @@
 Rails.application.routes.draw do
   root "landings#show"
+
+  # Docs search — served from the registry by the gem's DocsKit::SearchController
+  # (matches the default c.search_path). MUST come before `docs/:doc` or that
+  # route swallows /docs/search as :doc.
+  get "/docs/search" => "docs_kit/search#index", as: :docs_search
   get "docs/:doc(.:format)" => "docs#show", as: :doc
 
   # AI-readable docs (llmstxt.org) — served from the registry by the gem's

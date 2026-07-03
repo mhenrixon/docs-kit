@@ -128,6 +128,26 @@ module DocsKit
     # works). See DocsKit::MarkdownExport / DocsKit::Controller#render_page.
     attr_accessor :page_markdown_action
 
+    # Whether the topbar renders the docs-search form (and the docs-nav palette
+    # markup). Defaults to true. Set false to hide search site-wide — the route
+    # can stay drawn, but no affordance points at it. Gated together with a
+    # present #search_path by #search_enabled?, which the Shell reads.
+    attr_accessor :search
+
+    # The path the topbar search form submits to (GET ?q=), and the base the
+    # palette fetches `.json` from. Defaults to "/docs/search" — the route the
+    # install generator draws. A site that mounts search elsewhere sets its own;
+    # blank it to disable the affordance without touching #search.
+    attr_accessor :search_path
+
+    # The keyboard shortcut STRINGS that open the search palette, e.g.
+    # %w[/ mod+k s]. Defaults to DEFAULT_SEARCH_SHORTCUTS (["/", "mod+k"] — the
+    # keys shipped before this was configurable, so existing sites are unchanged).
+    # "mod" is the platform modifier (⌘ on mac, Ctrl elsewhere), so one entry
+    # works on every OS. Read the parsed form via #search_shortcuts (which maps to
+    # DocsKit::Shortcut and drops anything unparseable), never @search_shortcuts.
+    attr_writer :search_shortcuts
+
     # The API base URL prefixed onto a DocsUI::RequestExample path so copy-pasted
     # snippets point at a real host. Defaults to a neutral example host; a site
     # sets its own (e.g. "https://api.acme.com").
@@ -148,6 +168,11 @@ module DocsKit
     # The sentinel "no explicit nav" lambda. #nav_groups compares against this
     # identity to decide whether to derive the sidebar from #nav_registries.
     DEFAULT_NAV = -> { {} }
+
+    # The search-palette shortcuts before this was configurable — "/" and the
+    # platform command chord — so a site that never sets #search_shortcuts keeps
+    # exactly the previous behavior.
+    DEFAULT_SEARCH_SHORTCUTS = ["/", "mod+k"].freeze
 
     # The built-in daisyUI theme names that are dark. #dark_themes defaults to
     # this; #dark_themes_shipped intersects it with the site's #themes so only
@@ -194,6 +219,9 @@ module DocsKit
       @code_lexer_fallback = "plaintext"
       @code_language_labels = {}
       @page_markdown_action = true
+      @search = true
+      @search_path = "/docs/search"
+      @search_shortcuts = DEFAULT_SEARCH_SHORTCUTS
       @api_base_url = "https://api.example.com"
       @api_auth_header = nil
       @api_clients = {}
@@ -269,6 +297,20 @@ module DocsKit
 
     def title_suffix
       @title_suffix || @brand
+    end
+
+    # Whether the Shell renders the search affordance: search is on AND a path is
+    # set to submit to. A site with @search_path blanked (or nil) gets no form
+    # even if @search is true — there'd be nothing to submit to.
+    def search_enabled?
+      !!@search && !@search_path.to_s.empty?
+    end
+
+    # The parsed search-palette shortcuts (DocsKit::Shortcut list), with anything
+    # unparseable dropped. The topbar renders one <kbd> per entry and docs-nav
+    # binds each; an empty list means no keyboard shortcut (the form still works).
+    def search_shortcuts
+      DocsKit::Shortcut.parse_list(@search_shortcuts)
     end
 
     def default_theme
