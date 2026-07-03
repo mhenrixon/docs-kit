@@ -3,11 +3,12 @@
 module Views
   module Docs
     module Pages
-      # How to write a documentation page: a Phlex class, a registry entry, and
-      # the DocsUI building blocks, plus the automatic "On this page" TOC.
+      # How to write a documentation page: a Phlex class, a registry entry, the
+      # DocsUI building blocks (with pointers to their dedicated pages), and the
+      # automatic "On this page" TOC.
       class Authoring < DocsUI::Page
         title "Authoring pages"
-        eyebrow "Getting started"
+        eyebrow "Authoring"
 
         def lead = "One command scaffolds a page — the class and its registry line. Then write content; the shell, masthead, and TOC come free."
 
@@ -80,23 +81,15 @@ module Views
               end
             RUBY
 
-            prose do
-              p do
-                code { "title" }
-                plain " names the page, "
-                code { "eyebrow" }
-                plain " groups it above the title, and "
-                code { "lead" }
-                plain " is the summary sentence under it. Everything you render lives in "
-                code { "content" }
-                plain "."
-              end
-              p do
-                plain "The shell (topbar, sidebar, theme switcher), the page masthead, and the "
-                strong { "On this page" }
-                plain " TOC are added automatically — you only write the body."
-              end
-            end
+            md <<~'MD'
+              `title` names the page, `eyebrow` groups it above the title, and
+              `lead` is the summary sentence under it. Everything you render lives
+              in `content`.
+
+              The shell (topbar, sidebar, theme switcher), the page masthead, and
+              the **On this page** TOC are added automatically — you only write the
+              body.
+            MD
           end
         end
 
@@ -136,53 +129,59 @@ module Views
 
         def building_blocks_section
           DocsUI::Section("The building blocks",
-                          description: "The DocsUI kit you compose inside #content.") do
-            render DocsUI::PropTable.new(
+                          description: "The DocsUI kit you compose inside #content — and where each one is documented in full.") do
+            md <<~'MD'
+              Inside `#content` you reach for a small kit. The everyday four —
+              a `DocsUI::Section` wrapper, `md` for Markdown prose, `DocsUI::Code`
+              for a highlighted block, and `DocsUI::Callout` for an aside —
+              carry most pages. The rest are specialised; each has its own
+              reference page rather than being re-explained here.
+            MD
+
+            render DocsUI::Table.new(
+              [ "Block", "Use for", "Full reference" ],
               [
-                [ "DocsUI::Section(title)", "an anchored subsection with a heading (+ optional description)" ],
-                [ "md(source)", "a block of GFM Markdown, styled like Prose" ],
-                [ "prose { … }", "hand-authored prose (p/ul/code) in a reading-rhythm wrapper" ],
-                [ "DocsUI::Code(source)", "a syntax-highlighted code block" ],
-                [ "example { |ex| … }", "multi-language tabbed code" ],
-                [ "DocsUI::Callout(level)", "note / tip / warning boxes" ]
-              ],
-              headers: [ "Helper", "Use for" ]
+                [ [ :code, "DocsUI::Section(title)" ], "an anchored subsection with a heading (+ optional description:)", [ :md, "[Components](/docs/components)" ] ],
+                [ [ :code, "md(source)" ], "a block of GFM Markdown — the everyday prose helper", [ :md, "[Markdown authoring](/docs/markdown)" ] ],
+                [ [ :code, "prose { … }" ], "hand-authored prose (p/ul/code) in a reading-rhythm wrapper", [ :md, "[Components](/docs/components)" ] ],
+                [ [ :code, "DocsUI::Code(source)" ], "a Rouge-highlighted code block", [ :md, "[Code languages](/docs/languages)" ] ],
+                [ [ :code, "example { |ex| … }" ], "multi-language tabbed code", [ :md, "[Code languages](/docs/languages)" ] ],
+                [ [ :code, "DocsUI::Callout(level)" ], "note / tip / warning boxes", [ :md, "[Components](/docs/components)" ] ],
+                [ [ :code, "DocsUI::Table / PropTable" ], "reference tables — headers + rows, or the args preset", [ :md, "[Components](/docs/components)" ] ],
+                [ [ :code, "DocsUI::Endpoint / RequestExample" ], "the API-reference kit — a method+path line, client tabs, a fields table", [ :md, "[API reference](/docs/api)" ] ]
+              ]
             )
 
-            prose do
-              p do
-                plain "The primary argument is always positional — "
-                code { "Section(\"Title\")" }
-                plain ", "
-                code { "Code(source)" }
-                plain ", "
-                code { "Header(\"Title\")" }
-                plain " — with modifiers as keywords ("
-                code { "description:" }
-                plain ", "
-                code { "eyebrow:" }
-                plain ")."
-              end
-              p do
-                plain "For the wrappers that take no argument, use the lowercase page helpers "
-                code { "prose" }
-                plain " / "
-                code { "example" }
-                plain " (and "
-                code { "md" }
-                plain " for Markdown). A lowercase method takes a block without parens, so "
-                code { "prose do … end" }
-                plain " just works. The kit forms "
-                code { "DocsUI::Prose()" }
-                plain " / "
-                code { "DocsUI::Example()" }
-                plain " stay valid — they only need the empty "
-                code { "()" }
-                plain " because a bare "
-                code { "DocsUI::Prose do" }
-                plain " parses as a constant reference (a SyntaxError)."
-              end
-            end
+            md <<~'MD'
+              The primary argument is always positional —
+              `Section("Title")`, `Code(source)`, `Header("Title")` — with
+              modifiers as keywords (`description:`, `eyebrow:`).
+
+              For the wrappers that take no argument, use the lowercase page
+              helpers `prose` / `example` (and `md` for Markdown). A lowercase
+              method takes a block without parens, so `prose do … end` just works.
+              The kit forms `DocsUI::Prose()` / `DocsUI::Example()` stay valid —
+              they only need the empty `()` because a bare `DocsUI::Prose do`
+              parses as a constant reference (a SyntaxError).
+            MD
+
+            markdown_island_callout
+          end
+        end
+
+        def markdown_island_callout
+          DocsUI::Callout(:tip) do
+            plain "Prose is a "
+            strong { "Markdown island" }
+            plain ": "
+            code { "md <<~'MD'" }
+            plain " parses GFM with commonmarker and emits native Phlex nodes — tables, fenced code (routed through "
+            code { "DocsUI::Code" }
+            plain "), links, all Phlex-escaped. Use a single-quoted heredoc so "
+            code { "\#{...}" }
+            plain " stays literal author text. See "
+            a(href: "/docs/markdown") { "Markdown authoring" }
+            plain " for the full vocabulary."
           end
         end
 
