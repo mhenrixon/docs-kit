@@ -118,7 +118,9 @@ module DocsKit
     # so the sidebar never links a page that isn't written yet. This is the
     # transform every site used to hand-write in its nav lambda.
     def nav_items
-      all.select(&:view_class).group_by(&:group).transform_values do |items|
+      all.select { |item| item.respond_to?(:view_class) && item.view_class }
+         .group_by { |item| item.public_send(group_by_attribute) }
+         .transform_values do |items|
         items.map { |item| DocsKit::NavItem.new(href: item.href, label: item.title, icon: item.icon) }
       end
     end

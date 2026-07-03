@@ -14,6 +14,42 @@ RSpec.describe DocsUI::Section do
     end.new.call
   end
 
+  # Render two sibling sections inside one host so they share a single Phlex
+  # render context (as they would on a real Page). Colliding titles must NOT
+  # produce duplicate DOM ids/anchors, or in-page links + the auto-TOC break.
+  def render_two(title_a, title_b)
+    Class.new(Phlex::HTML) do
+      define_method(:view_template) do
+        render(DocsUI::Section.new(title_a) { plain "A" })
+        render(DocsUI::Section.new(title_b) { plain "B" })
+      end
+    end.new.call
+  end
+
+  it "de-duplicates ids when two sibling sections slugify to the same value" do
+    html = render_two("Overview", "Overview")
+
+    expect(html.scan('id="overview"').length).to eq(1)
+    expect(html).to include('id="overview-1"')
+    expect(html).to include('href="#overview"')
+    expect(html).to include('href="#overview-1"')
+  end
+
+  it "de-duplicates ids for distinct titles that slugify identically (e.g. C++/C--)" do
+    html = render_two("C++", "C--")
+
+    ids = html.scan(/id="([^"]*)"/).flatten
+    expect(ids.uniq.length).to eq(ids.length)
+  end
+
+  it "falls back to a sequenced id when the title slugifies to empty" do
+    html = render_two("+++", "***")
+
+    ids = html.scan(/id="([^"]*)"/).flatten
+    expect(ids).to all(match(/\Asection(-\d+)?\z/))
+    expect(ids.uniq.length).to eq(ids.length)
+  end
+
   it "renders the title, anchor, and body" do
     html = render_section("Add the gem")
 

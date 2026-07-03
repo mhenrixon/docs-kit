@@ -179,6 +179,46 @@ RSpec.describe DocsKit::Configuration do
 
       expect(DocsKit.configuration.code_theme_dark_class).to eq(Rouge::Themes::Monokai)
     end
+
+    it "degrades to nil (no dark CSS) when the theme name doesn't resolve, rather than raising" do
+      DocsKit.configure { |c| c.code_theme_dark = "Rouge::Themes::Nope" }
+
+      expect { DocsKit.configuration.code_theme_dark_class }.not_to raise_error
+      expect(DocsKit.configuration.code_theme_dark_class).to be_nil
+    end
+  end
+
+  describe "#code_theme_class" do
+    it "resolves a String theme name to the Rouge theme class" do
+      DocsKit.configure { |c| c.code_theme = "Rouge::Themes::Github" }
+
+      expect(DocsKit.configuration.code_theme_class).to eq(Rouge::Themes::Github)
+    end
+
+    it "degrades to the default theme when a typo'd theme name doesn't resolve (not a crash)" do
+      DocsKit.configure { |c| c.code_theme = "Rouge::Themes::Doesnotexist" }
+
+      expect { DocsKit.configuration.code_theme_class }.not_to raise_error
+      expect(DocsKit.configuration.code_theme_class).to eq(Rouge::Themes::Monokai)
+    end
+  end
+
+  describe "#version_badge_text" do
+    it "returns nil when unset" do
+      expect(described_class.new.version_badge_text).to be_nil
+    end
+
+    it "calls a lambda value" do
+      DocsKit.configure { |c| c.version_badge = -> { "v1.2.3" } }
+
+      expect(DocsKit.configuration.version_badge_text).to eq("v1.2.3")
+    end
+
+    it "renders a plain String value (not only a callable)" do
+      DocsKit.configure { |c| c.version_badge = "v1.2" }
+
+      expect(DocsKit.configuration.version_badge_text).to eq("v1.2")
+    end
   end
 
   describe "#dark_themes" do
@@ -287,6 +327,19 @@ RSpec.describe DocsKit::Configuration do
 
     it "returns an empty Hash when neither nav nor nav_registries is set" do
       expect(described_class.new.nav_groups).to eq({})
+    end
+
+    it "honors an explicitly-assigned nav that resolves to empty (not object identity)" do
+      # A site that deliberately sets an empty nav lambda must WIN over
+      # nav_registries — the 'is nav set?' test is explicit assignment, not
+      # `equal?(DEFAULT_NAV)` (any lambda is a different object).
+      reg = registry_stub
+      DocsKit.configure do |c|
+        c.nav_registries = { "Docs" => reg }
+        c.nav = -> { {} }
+      end
+
+      expect(DocsKit.configuration.nav_groups).to eq({})
     end
   end
 

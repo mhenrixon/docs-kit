@@ -14,13 +14,20 @@ module DocsKit
         rows = rows(node)
         return "" if rows.empty?
 
-        header, *body = rows
-        lines = [row(header), separator(header.length)]
+        width = rows.map(&:length).max
+        header, *body = pad(rows, width)
+        lines = [row(header), separator(width)]
         lines.concat(body.map { |cells| row(cells) })
         lines.join("\n")
       end
 
       private
+
+      # Pad every row out to +width+ with empty cells so the header, separator,
+      # and all body rows declare the same column count (a rectangular GFM table).
+      def pad(rows, width)
+        rows.map { |cells| cells + Array.new(width - cells.length, "") }
+      end
 
       # All rows as arrays of cell strings, header row first. A <thead> row leads;
       # <tbody>/bare <tr> rows follow.

@@ -54,6 +54,9 @@ module DocsUI
       case cell
       in [:code, value] then code(class: "text-sm") { plain value.to_s }
       in [:md, value] then render DocsUI::Markdown.inline(value.to_s)
+      in [Symbol => _tag, *]
+        raise ArgumentError,
+              "DocsUI::Table: unknown or malformed typed cell #{cell.inspect}; use [:code, value] or [:md, value]"
       else plain cell.to_s
       end
     end

@@ -103,11 +103,16 @@ module DocsKit
         quote(render(node))
       end
 
-      # A callout → `> **Label:** body` as a blockquote. The label comes from the
-      # level; the body is the callout's inner text as inline Markdown.
+      # A callout → `> **Label:** body` as a blockquote. Callout stamps a
+      # `div.font-semibold` title (present only when title: is given) and a
+      # `div.text-sm` body. Read them separately: the author's title is the label
+      # when present (else the level label), and only the body div is rendered so
+      # the title never fuses into the body text.
       def callout(node, level)
-        label = CALLOUT_LABELS.fetch(level, "Note")
-        body = @inline.render(node).strip
+        title = node.at_css(".font-semibold")
+        body_node = node.at_css(".text-sm") || node
+        label = title ? @inline.render(title).strip : CALLOUT_LABELS.fetch(level, "Note")
+        body = @inline.render(body_node).strip
         quote("**#{label}:** #{body}")
       end
 

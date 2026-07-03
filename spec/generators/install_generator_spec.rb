@@ -363,6 +363,24 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(index.scan("docs_kit/controllers").size).to eq(1)
       expect(index).to include(%(lazyLoadControllersFrom("docs_kit/controllers", application)))
     end
+
+    it "does not append an unimported eager line to a lazy-only index.js" do
+      # A lazy-only index.js (stock stimulus-loading, no eagerLoadControllersFrom
+      # import) has no eager anchor to inject after. Appending the eager REGISTER_LINE
+      # would call eagerLoadControllersFrom with no import — a ReferenceError that
+      # aborts the module and registers ZERO controllers. Warn instead.
+      build_skeleton(stimulus_index: false)
+      write("app/javascript/controllers/index.js", <<~JS)
+        import { application } from "controllers/application"
+        import { lazyLoadControllersFrom } from "@hotwired/stimulus-loading"
+        lazyLoadControllersFrom("controllers", application)
+      JS
+
+      run_generator
+
+      index = read("app/javascript/controllers/index.js")
+      expect(index).not_to include("eagerLoadControllersFrom")
+    end
   end
 
   describe "bin/build-css" do

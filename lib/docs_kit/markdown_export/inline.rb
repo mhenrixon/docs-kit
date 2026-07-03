@@ -43,7 +43,7 @@ module DocsKit
       # any other wrapper recurses so its text survives.
       def element(node, name)
         case name
-        when "code" then "`#{node.text}`"
+        when "code" then code_span(node.text)
         when "a" then link(node)
         when "img" then image(node)
         when "br" then "  \n"
@@ -66,6 +66,15 @@ module DocsKit
       end
 
       private
+
+      # A GFM-correct inline code span. The fence is a backtick run one longer
+      # than the longest run inside the text, so an interior backtick can never
+      # close the span; a space pads content that starts or ends with a backtick.
+      def code_span(text)
+        fence = "`" * ((text.scan(/`+/).map(&:length).max || 0) + 1)
+        pad = text.start_with?("`") || text.end_with?("`") ? " " : ""
+        "#{fence}#{pad}#{text}#{pad}#{fence}"
+      end
 
       def self_anchor?(node)
         node.element? && node.name == "a" && node["href"].to_s.start_with?("#")

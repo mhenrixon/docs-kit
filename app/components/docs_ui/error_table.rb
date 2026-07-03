@@ -24,7 +24,7 @@ module DocsUI
 
     def initialize(errors)
       @errors = errors
-      @with_param = errors.any? { |error| error[:param] }
+      @with_param = errors.any? { |error| present_param?(error[:param]) }
     end
 
     def view_template
@@ -49,7 +49,12 @@ module DocsUI
 
     def param_cell(error)
       param = error[:param]
-      param ? [:code, param] : NO_PARAM
+      present_param?(param) ? [:code, param] : NO_PARAM
+    end
+
+    # A blank string is not a param — it flips no column and gets the em-dash.
+    def present_param?(param)
+      !param.nil? && !param.to_s.strip.empty?
     end
   end
 end

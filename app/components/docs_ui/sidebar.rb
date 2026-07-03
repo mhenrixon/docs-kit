@@ -42,7 +42,7 @@ module DocsUI
 
     def header_section
       div(class: "flex min-h-16 items-center gap-2 px-4") do
-        a(href: "/", class: "text-lg font-bold text-base-content") { config.brand }
+        a(href: config.brand_href, class: "text-lg font-bold text-base-content") { config.brand }
         badge = config.version_badge_text
         span(class: "badge badge-sm badge-ghost") { badge } if badge
       end

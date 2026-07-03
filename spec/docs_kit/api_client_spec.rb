@@ -78,6 +78,11 @@ RSpec.describe DocsKit::ApiClient do
       expect(without_body).not_to include("body: JSON.stringify(")
     end
 
+    it "javascript inlines a non-JSON String body verbatim instead of raising" do
+      out = render_default(:javascript, method: :post, body: "name=Acme")
+      expect(out).to include("body: JSON.stringify(name=Acme)")
+    end
+
     it "ruby emits a Net::HTTP snippet, with a request body only when present" do
       with_body = render_default(:ruby, method: :post, body: { name: "Acme" })
       expect(with_body).to include("Net::HTTP")

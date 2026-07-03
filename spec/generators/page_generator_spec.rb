@@ -138,6 +138,20 @@ RSpec.describe DocsKit::Generators::PageGenerator do
       expect(read("app/models/doc.rb")).to include(%(view: "OauthGuide"))
     end
 
+    it "omits a redundant --slug that equals the derived default from the registry line" do
+      run_generator(["Getting Started"], { "group" => "Guide", "slug" => "getting-started" })
+
+      expect(read("app/models/doc.rb")).to include(%(page "Getting Started", group: "Guide"\n))
+      expect(read("app/models/doc.rb")).not_to include(%(slug: "getting-started"))
+    end
+
+    it "omits a redundant --view that equals the derived default from the registry line" do
+      run_generator(["Getting Started"], { "group" => "Guide", "view" => "GettingStarted" })
+
+      expect(read("app/models/doc.rb")).to include(%(page "Getting Started", group: "Guide"\n))
+      expect(read("app/models/doc.rb")).not_to include(%(view: "GettingStarted"))
+    end
+
     it "respects --eyebrow over the group default" do
       run_generator(["Getting Started"], { "group" => "Guide", "eyebrow" => "Start here" })
 

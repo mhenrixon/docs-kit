@@ -52,7 +52,11 @@ RSpec.describe DocsUI::Example do
   end
 
   it "maps friendly language tokens to a real Rouge lexer" do
-    # :curl isn't a Rouge lexer; it must not blow up (falls back to shell).
+    # :curl is a friendly alias (DEFAULT_LEXER_ALIASES) that resolves to Rouge's
+    # console lexer — a real lexer, never blowing up.
+    expect(DocsUI::Code.new("curl https://api", lexer: :curl).send(:lexer))
+      .to be_a(Rouge::Lexers::ConsoleLexer)
+
     html = render_group do |ex|
       ex.code(:curl) { "curl https://api" }
       ex.code(:ruby) { "1" }

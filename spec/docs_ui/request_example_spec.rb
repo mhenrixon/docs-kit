@@ -39,6 +39,14 @@ RSpec.describe DocsUI::RequestExample do
     expect(html).to include("Authorization: Bearer sk_live_...")
   end
 
+  it "drops a colon-less auth header instead of emitting a value-less line" do
+    DocsKit.configure { |c| c.api_auth_header = "Bearer sk_live_xyz" }
+    html = render_request(method: :get, path: "/v1/things")
+
+    # No malformed `-H "Bearer sk_live_xyz: "` (name with an empty value).
+    expect(html).not_to include("Bearer sk_live_xyz")
+  end
+
   it "filters and orders the tabs when clients: is given" do
     html = render_request(method: :get, path: "/v1/things", clients: %i[ruby curl])
 

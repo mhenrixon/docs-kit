@@ -90,8 +90,8 @@ module DocsKit
       # The explicit slug:/view: keywords, present only when overridden.
       def override_kwargs
         kwargs = []
-        kwargs << %(slug: #{slug.inspect}) if options[:slug].present?
-        kwargs << %(view: #{view_name.inspect}) if options[:view].present?
+        kwargs << %(slug: #{slug.inspect}) if slug != title.parameterize
+        kwargs << %(view: #{view_name.inspect}) if view_name != title.parameterize(separator: "_").camelize
         kwargs
       end
 

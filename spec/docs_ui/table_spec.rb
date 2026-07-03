@@ -48,6 +48,16 @@ RSpec.describe DocsUI::Table do
     expect(html).not_to include("<p>")
   end
 
+  it "raises on a typo'd typed-cell tag instead of leaking the literal array" do
+    expect { render_table(%w[Name Type], [["brand", [:codee, "String"]]]) }
+      .to raise_error(ArgumentError, /unknown or malformed typed cell/)
+  end
+
+  it "raises on a wrong-arity typed cell instead of leaking the literal array" do
+    expect { render_table(%w[Name Type], [["brand", [:code, "String", "extra"]]]) }
+      .to raise_error(ArgumentError, /unknown or malformed typed cell/)
+  end
+
   it "renders headers only when the rows array is empty" do
     html = render_table(%w[Name Type], [])
 
