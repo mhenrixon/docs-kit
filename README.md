@@ -299,6 +299,43 @@ DocsKit.configure { |c| c.page_markdown_action = false }
 to your `get "docs/:doc"` route) to enable the `.md` URLs. Sites that don't
 re-run simply have no `.md` route match — HTML rendering is untouched.
 
+## AI-readable docs (llms.txt)
+
+Every site serves the two [llmstxt.org](https://llmstxt.org) artifacts, built
+from the **registry** with zero authoring:
+
+```bash
+curl https://your-docs.example/llms.txt        # the index
+curl https://your-docs.example/llms-full.txt    # every page, concatenated
+```
+
+`/llms.txt` is the index an agent fetches first: an H1 brand, an optional
+one-line summary blockquote, one `##` section per nav group, and a
+`- [Title](…/page.md)` link to each authored page's Markdown twin. `/llms-full.txt`
+concatenates every page's Markdown (the same twin as `.md`) into one document,
+separated by `---`. Both are `text/plain`, HTTP-cached (they revalidate on the
+registry's content plus the gem version), and derived from the same registry the
+sidebar uses — an unwritten page never appears, so there are no dead links.
+
+Set the summary blockquote with the `tagline` knob (default `nil` → the line is
+omitted):
+
+```ruby
+DocsKit.configure { |c| c.tagline = "The one-line description agents see." }
+```
+
+The controller ships in the gem (`DocsKit::LlmsController`); the **routes live in
+your app** so you keep full control over path, auth, and omission. The install
+generator scaffolds them:
+
+```ruby
+get "/llms.txt"      => "docs_kit/llms#index", as: :llms
+get "/llms-full.txt" => "docs_kit/llms#full", as: :llms_full
+```
+
+**Existing sites:** re-run `bin/rails g docs_kit:install` (it adds the two routes
+idempotently), or paste the two lines above into `config/routes.rb`.
+
 ## API docs — one request, every client tab
 
 An endpoint example is a request shown in several clients (curl, JavaScript,

@@ -16,6 +16,12 @@ module DocsKit
     # The brand text shown in the topbar and sidebar header.
     attr_accessor :brand
 
+    # A one-line site summary, rendered as the llms.txt blockquote
+    # (`> {tagline}`) under the H1. Defaults to nil → the blockquote line is
+    # omitted, so a site that never sets it still gets a valid llms.txt. Purely
+    # for the AI-readable index (DocsKit::LlmsText); the chrome never shows it.
+    attr_accessor :tagline
+
     # The href the topbar brand link points at. Defaults to "/" (site root). A
     # site whose docs live under a subpath sets its own (e.g. "/docs") so the
     # brand link is a one-line config change, not a Shell subclass.
@@ -165,6 +171,7 @@ module DocsKit
 
     def initialize
       @brand = "Docs"
+      @tagline = nil
       @brand_href = "/"
       @title_suffix = nil
       @themes = %w[dark light]

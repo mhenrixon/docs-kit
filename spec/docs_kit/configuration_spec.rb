@@ -13,6 +13,18 @@ RSpec.describe DocsKit::Configuration do
     end
   end
 
+  describe "#tagline" do
+    it "defaults to nil (the llms.txt blockquote line is omitted)" do
+      expect(described_class.new.tagline).to be_nil
+    end
+
+    it "is overridable so a site sets its llms.txt summary" do
+      DocsKit.configure { |c| c.tagline = "The shared Phlex chrome for docs sites." }
+
+      expect(DocsKit.configuration.tagline).to eq("The shared Phlex chrome for docs sites.")
+    end
+  end
+
   describe "#page_markdown_action" do
     it "defaults to true (every page shows the 'Markdown' affordance)" do
       expect(described_class.new.page_markdown_action).to be(true)

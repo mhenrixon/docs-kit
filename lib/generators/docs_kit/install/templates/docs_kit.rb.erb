@@ -12,6 +12,10 @@ Rails.application.config.to_prepare do
     c.themes       = %w[dark light synthwave retro cyberpunk dracula night nord sunset]
     c.code_theme   = "Rouge::Themes::Monokai"
 
+    # The one-line summary in /llms.txt (the llmstxt.org blockquote agents read
+    # first). Default nil omits the line; set it to describe your docs:
+    # c.tagline = "What this documentation covers, in one sentence."
+
     # The topbar brand link points at "/" by default. Point it elsewhere if your
     # docs live under a subpath:
     # c.brand_href = "/docs"
