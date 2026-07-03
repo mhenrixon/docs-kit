@@ -120,6 +120,19 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(exist?("app/assets/builds/.keep")).to be(true)
       expect(exist?("app/components/.keep")).to be(true)
     end
+
+    it "installs the docs_kit:og rake task + the default OG image" do
+      expect(exist?("lib/tasks/docs_kit_og.rake")).to be(true)
+      expect(exist?("app/assets/images/og/og.png")).to be(true)
+    end
+
+    it "ships an og.rake that defines a docs_kit:og task pointing at the landing page" do
+      rake = read("lib/tasks/docs_kit_og.rake")
+
+      expect(rake).to include("namespace :docs_kit")
+      expect(rake).to match(/task\s+og:/)
+      expect(rake).to include("app/assets/images/og")
+    end
   end
 
   describe "config/initializers/docs_kit.rb" do
@@ -159,6 +172,17 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       # Commented by default — a site with no repo/social links is unchanged.
       expect(initializer).to include("# c.topbar_links = ")
       expect(initializer).to include(":github")
+    end
+
+    it "documents the SEO/social-share knobs (commented, so they're opt-in)" do
+      initializer = read("config/initializers/docs_kit.rb")
+
+      # Commented by default — a site that sets none still renders a valid head.
+      expect(initializer).to include("# c.seo.description")
+      expect(initializer).to include("# c.seo.og_image")
+      expect(initializer).to include("# c.seo.twitter_site")
+      # Points the site owner at the regeneration command for the OG image.
+      expect(initializer).to include("docs_kit:og")
     end
   end
 

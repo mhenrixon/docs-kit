@@ -62,4 +62,57 @@ RSpec.describe "DocsUI::Page.on_page" do # rubocop:disable RSpec/DescribeClass
       expect(resolve(on_page: "klass.on_page false")).to eq("false")
     end
   end
+
+  # The per-page description feeds DocsUI::MetaTags (via Shell). A page CAN set an
+  # explicit description; when it doesn't, the value derives from #lead; with
+  # neither, it's nil (DocsUI::MetaTags then falls back to config.seo.description).
+  # Resolved as `self.class.description || lead` — the exact expression
+  # Page#view_template threads into Shell.new(description:). Exercised in the same
+  # isolated child process as on_page (Page needs Rails to load).
+  define_method(:resolve_description) do |body: ""|
+    script = <<~RUBY
+      $LOAD_PATH.unshift "#{gem_root}/lib"
+      require "active_support/all"
+      require "action_dispatch"
+      require "phlex/rails"
+      require "daisy_ui"
+      module Rails
+        def self.application
+          @app ||= Class.new do
+            def routes = @routes ||= ActionDispatch::Routing::RouteSet.new
+          end.new
+        end
+      end
+      require "docs_kit"
+      klass = Class.new(DocsUI::Page) do
+        #{body}
+        def content = nil
+      end
+      instance = klass.allocate
+      print (klass.description || instance.lead).inspect
+    RUBY
+    stdout, stderr, status = Open3.capture3(RbConfig.ruby, "-e", script)
+    raise "child process failed: #{stderr}" unless status.success?
+
+    stdout
+  end
+
+  describe "DocsUI::Page.description (the per-page SEO description)" do
+    it "returns an explicitly set description" do
+      expect(resolve_description(body: %(description "Add the gem and render."))).to eq('"Add the gem and render."')
+    end
+
+    it "falls back to #lead when no description is set" do
+      expect(resolve_description(body: "def lead = \"A lead paragraph.\"")).to eq('"A lead paragraph."')
+    end
+
+    it "is nil when neither a description nor a lead is set" do
+      expect(resolve_description).to eq("nil")
+    end
+
+    it "prefers an explicit description over #lead" do
+      body = %(description "Explicit."\ndef lead = "Derived.")
+      expect(resolve_description(body: body)).to eq('"Explicit."')
+    end
+  end
 end

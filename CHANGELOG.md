@@ -4,6 +4,18 @@
 
 ### Added
 
+- **SEO + social sharing.** Every page now emits a complete SEO `<head>` —
+  meta description, Open Graph, Twitter Card, canonical, favicon, robots, and
+  theme-color — via the new `DocsUI::MetaTags` component, driven entirely by a
+  new `c.seo` config block (`DocsKit::SeoConfig`). Pages carry an authorable
+  `description "..."` (falling back to the page's `#lead`). docs-kit ships a
+  neutral 1200×630 default OG image, and installs a `docs_kit:og` rake task that
+  screenshots a site's OWN landing page into `app/assets/images/og/` (host-side
+  headless browser; never a gem runtime dependency). A guard spec keeps the
+  shipped default present. Backwards-compatible: a site that sets no `c.seo`
+  renders a valid minimal card and its `<head>` is a strict superset of before.
+  The install generator documents `c.seo` and installs the task + default image;
+  `docs-kit new` reminds the owner to run it. (#48)
 - Release tooling matching the sibling gems (daisyui/phlex-reactive/pgbus): a
   `rake release[X.Y.Z]` task (version bump → lockfile update → build-verify →
   commit → push → GitHub Release; `pre`/`force` supported, `main`-only, clean-tree

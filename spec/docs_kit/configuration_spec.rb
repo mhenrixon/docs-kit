@@ -28,6 +28,31 @@ RSpec.describe DocsKit::Configuration do
     end
   end
 
+  describe "#seo" do
+    it "returns a DocsKit::SeoConfig with backwards-safe defaults" do
+      seo = described_class.new.seo
+
+      expect(seo).to be_a(DocsKit::SeoConfig)
+      expect(seo.description).to be_nil
+      expect(seo.og_image).to eq("og/og.png")
+    end
+
+    it "memoizes the same instance so a `c.seo.x = ...` block sticks" do
+      config = described_class.new
+      first = config.seo
+
+      # The same object every call — a `c.seo.description = ...` block mutates the
+      # instance the Shell later reads (not a throwaway rebuilt per access).
+      expect(config.seo).to be(first)
+    end
+
+    it "is configured via the nested block (c.seo.description = ...)" do
+      DocsKit.configure { |c| c.seo.description = "The shared Phlex chrome for docs." }
+
+      expect(DocsKit.configuration.seo.description).to eq("The shared Phlex chrome for docs.")
+    end
+  end
+
   describe "#page_markdown_action" do
     it "defaults to true (every page shows the 'Markdown' affordance)" do
       expect(described_class.new.page_markdown_action).to be(true)

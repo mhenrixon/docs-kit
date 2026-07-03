@@ -169,6 +169,9 @@ after_bundle do
     Next:
       cd #{app_name}
       bin/dev                     # or bin/rails server
+      bin/rails docs_kit:og       # generate your social-share image from the landing page
+                                  # (needs a headless browser: shot-scraper or chromium)
+    SEO: set c.seo.* in config/initializers/docs_kit.rb (description, og_image, twitter_site).
     Deploy: push, create a GitHub Release (or run the Deploy docs workflow).
       Set repo secrets: SSH_PRIVATE_KEY, DEPLOY_HOST, DEPLOY_DOMAIN (env: docs).
   MSG
