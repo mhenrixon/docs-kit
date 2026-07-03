@@ -1,5 +1,7 @@
 # docs-kit
 
+[![CI](https://github.com/mhenrixon/docs-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/mhenrixon/docs-kit/actions/workflows/ci.yml)
+
 Shared [Phlex](https://www.phlex.fun) chrome for documentation sites built on
 [daisyUI](https://daisyui.com). Extract the shell, sidebar, code blocks, theme
 switcher, and page kit into one gem so multiple docs sites look identical and are

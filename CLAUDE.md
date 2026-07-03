@@ -101,8 +101,9 @@ session model. See `.claude/rules/agents.md`.
 
 - Unit specs (`spec/docs_kit/`) cover the config surface and the registry — no Rails boot.
 - Component specs (`spec/docs_ui/`) render a `DocsUI::` component and assert on the produced markup's semantics (an active link, a present theme option, a config-driven value).
-- Generator specs cover `docs_kit:install` output.
-- Coverage: 80% minimum; 100% for `DocsKit::Configuration` and `DocsKit::Registry` (the public API sites depend on).
+- Generator specs (`spec/generators/install_generator_spec.rb`) run `docs_kit:install` against a throwaway destination root (a tmp app skeleton, plain Thor — no Rails boot) and assert the file manifest + key contents.
+- Coverage: SimpleCov enforces `minimum_coverage 80` from within the suite (`bundle exec rspec` / `rake` fails below it); 100% aspired for `DocsKit::Configuration` and `DocsKit::Registry` (the public API sites depend on).
+- CI: `.github/workflows/ci.yml` runs `bundle exec rake` on Ruby 3.2/3.3/3.4 for every push to `main` and every PR.
 - See `.claude/rules/testing.md`.
 
 ## Deploy

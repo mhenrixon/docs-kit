@@ -17,7 +17,7 @@ in-memory registry, and the generators — cheapest first:
 |-------|------|-------|---------|
 | Unit | `spec/docs_kit/**` | nothing | `DocsKit::Registry`, `DocsKit::NavItem`, `Configuration` |
 | Component | `spec/docs_ui/**` | Phlex render (no Rails request) | that a component renders the expected HTML/daisyUI classes given props |
-| Generator | `spec/generators/**` (if present) | generator harness | `docs_kit:install` writes the right files |
+| Generator | `spec/generators/install_generator_spec.rb` | plain Thor against a tmp app skeleton (no Rails boot) | `docs_kit:install` writes the right files/manifest + key contents |
 
 A component spec renders the Phlex class and asserts on the produced markup —
 the daisyUI classes emitted, the config-driven values, the active-link state.
@@ -26,7 +26,9 @@ present) over brittle full-HTML snapshots.
 
 ## Coverage Expectations
 
-- **80% minimum** for all code
+- **80% minimum** for all code — enforced by SimpleCov (`minimum_coverage 80` in
+  `spec/spec_helper.rb`); `bundle exec rspec` / `rake` fails below it, locally and
+  in CI.
 - **100%** for the config surface (`DocsKit::Configuration`) and the registry
   mixin (`DocsKit::Registry`) — the public API sites depend on.
 
