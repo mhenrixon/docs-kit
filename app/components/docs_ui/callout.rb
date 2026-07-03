@@ -13,12 +13,19 @@ module DocsUI
     }.freeze
 
     def initialize(level = :note, title: nil)
-      @config = LEVELS.fetch(level, LEVELS[:note])
+      # Normalize an unknown level to :note so both the styling and the
+      # data-md-callout export hint agree (never a bogus level name leaking out).
+      @level = LEVELS.key?(level) ? level : :note
+      @config = LEVELS[@level]
       @title = title
     end
 
     def view_template(&)
-      div(class: "not-prose alert #{@config[:klass]} my-4 items-start", role: "note") do
+      # data-md-callout carries the level (note/tip/warning) so
+      # DocsKit::MarkdownExport renders `> **Tip:** …` without reverse-engineering
+      # the level from the alert-* class.
+      div(class: "not-prose alert #{@config[:klass]} my-4 items-start", role: "note",
+          data: { md_callout: @level }) do
         render DocsUI::Icon.new(@config[:icon], class: "size-5 shrink-0")
         div do
           div(class: "font-semibold") { @title } if @title

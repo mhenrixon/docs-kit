@@ -31,10 +31,14 @@ module DocsUI
       # request there is no nonce (see #csp_nonce) and Phlex omits a nil-valued
       # attribute, so the no-nonce markup is unchanged.
       style(nonce: csp_nonce) { highlight_css }
+      resolved = lexer
       div(class: "not-prose my-4 overflow-hidden rounded-box border border-base-300 bg-base-300/40") do
         title_bar if @filename
-        div(class: "code-highlight overflow-x-auto p-4 text-sm leading-relaxed") do
-          pre { raw(safe(FORMATTER.format(lexer.lex(@source)))) }
+        # data-md-lang carries the RESOLVED Rouge tag (ruby/python/plaintext/…) so
+        # DocsKit::MarkdownExport emits a ```lang fence without re-resolving the
+        # language. It's the real lexer tag, not the requested alias.
+        div(class: "code-highlight overflow-x-auto p-4 text-sm leading-relaxed", data: { md_lang: resolved.tag }) do
+          pre { raw(safe(FORMATTER.format(resolved.lex(@source)))) }
         end
       end
     end

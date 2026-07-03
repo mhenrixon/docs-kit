@@ -13,6 +13,18 @@ RSpec.describe DocsKit::Configuration do
     end
   end
 
+  describe "#page_markdown_action" do
+    it "defaults to true (every page shows the 'Markdown' affordance)" do
+      expect(described_class.new.page_markdown_action).to be(true)
+    end
+
+    it "is overridable so a site can opt out" do
+      DocsKit.configure { |c| c.page_markdown_action = false }
+
+      expect(DocsKit.configuration.page_markdown_action).to be(false)
+    end
+  end
+
   describe "#code_theme_dark" do
     it "defaults to nil (single-theme behavior, fully backwards compatible)" do
       expect(described_class.new.code_theme_dark).to be_nil

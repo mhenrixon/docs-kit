@@ -66,7 +66,11 @@ module DocsKit
       end
 
       def add_routes
-        route %(get "docs/:doc" => "docs#show", as: :doc)
+        # The `(.:format)` segment enables the Markdown twin: GET /docs/x.md hits
+        # docs#show with request.format.md?, so DocsKit::Controller#render_page
+        # returns the page's GFM. No `defaults: { format: "html" }` — that would
+        # pin html and defeat the .md route.
+        route %(get "docs/:doc(.:format)" => "docs#show", as: :doc)
         route %(root "landings#show")
       end
 

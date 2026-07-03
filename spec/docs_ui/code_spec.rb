@@ -98,6 +98,31 @@ RSpec.describe DocsUI::Code do
     expect(html).to include("font-mono")
   end
 
+  # The Markdown export (DocsKit::MarkdownExport) reads the resolved Rouge lexer
+  # tag off the highlight wrapper to emit a ```lang fenced block. Code stamps it
+  # as data-md-lang so the converter never has to re-resolve the language.
+  describe "data-md-lang (the Markdown-export fence hint)" do
+    it "stamps the resolved lexer tag on the highlight wrapper" do
+      html = described_class.new("puts 'hi'", lexer: :ruby).call
+
+      expect(html).to include('data-md-lang="ruby"')
+    end
+
+    it "reflects the actual resolved language, not the requested alias" do
+      DocsKit.configure { |c| c.code_lexer_aliases = { fancy: "ruby" } }
+      html = described_class.new("puts 'hi'", lexer: :fancy).call
+
+      # The alias resolves to ruby — the hint carries the real Rouge tag.
+      expect(html).to include('data-md-lang="ruby"')
+    end
+
+    it "stamps plaintext when the language is unknown (fence stays language-less)" do
+      html = described_class.new("anything", lexer: :nope).call
+
+      expect(html).to include('data-md-lang="plaintext"')
+    end
+  end
+
   it "falls back to plaintext for an unknown lexer" do
     html = described_class.new("anything", lexer: :nope).call
 

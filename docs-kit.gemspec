@@ -61,6 +61,10 @@ Gem::Specification.new do |s|
   # strikethrough + autolink on by default). We walk its AST to Phlex nodes, so
   # commonmarker never renders HTML we'd have to html_safe.
   s.add_dependency "commonmarker", "~> 2.0"
+  # HTML→Markdown export (DocsKit::MarkdownExport): we render a page, then walk
+  # the HTML with a Nokogiri visitor to derive its GFM twin. Universally present
+  # in Rails hosts already (loofah/rails-html-sanitizer depend on it).
+  s.add_dependency "nokogiri", ">= 1.15"
   s.add_dependency "zeitwerk", "~> 2.6"
 
   # phlex-reactive (reactive demos) and pgbus (Postgres-SSE transport) are
