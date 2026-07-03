@@ -48,4 +48,16 @@ RSpec.describe DocsUI::Section do
     expect(html).to include("/v1/messages")
     expect(html.index("/v1/messages")).to be < html.index("BODY")
   end
+
+  it "renders a Phlex component instance description (e.g. DocsUI::Endpoint)" do
+    endpoint = DocsUI::Endpoint.new(:post, "/v1/messages")
+    html = render_section("Create a message", description: endpoint)
+
+    # The component's own markup lands in the description slot, before the body.
+    expect(html).to include("badge-primary")
+    expect(html).to include(">POST<")
+    expect(html).to include("/v1/messages")
+    expect(html.index("/v1/messages")).to be < html.index("BODY")
+    expect(html.index(">Create a message")).to be < html.index("/v1/messages")
+  end
 end
