@@ -21,6 +21,7 @@ A `DocsUI::` Phlex kit, configured once per site:
 | `DocsUI::Sidebar` | Config-driven grouped nav with active-link highlighting + an optional version badge. |
 | `DocsUI::ThemeSwitcher` | Zero-JS daisyUI theme dropdown (themes come from config). |
 | `DocsUI::Icon` | Inline lucide SVG via `rails_icons`. |
+| `DocsUI::BrandMark` | Inline developer/social brand logo (GitHub, Discord, …) for [topbar links](#topbar-links-repo--social); falls through to a lucide `Icon` for non-brand tokens. |
 | `DocsUI::Code` | Rouge-highlighted code block (any of Rouge's ~200 languages) with an inline theme. |
 | `DocsUI::Page` | Base class for a hand-authored doc page; renders inside `DocsUI::Shell`. |
 | `DocsUI::Header` / `Section` / `Prose` / `Callout` | The page-authoring kit. |
@@ -36,7 +37,8 @@ A `DocsUI::` Phlex kit, configured once per site:
 | `DocsUI::SearchBox` / `SearchResults` | Topbar [search](#search) — a JS-off `GET` form + server-rendered results, enhanced into a `⌘K` palette by `docs-nav`. |
 
 Plus `DocsKit::Registry` (in-memory docs registry mixin), `DocsKit::NavItem`
-(sidebar link value object), `DocsKit::MarkdownExport` ([every page as
+(sidebar link value object), `DocsKit::TopbarLink` ([topbar link](#topbar-links-repo--social)
+value object), `DocsKit::MarkdownExport` ([every page as
 Markdown](#every-page-is-also-markdown)), `DocsKit::SearchIndex` (the
 [search](#search) index, built from the Markdown twins), and
 `DocsKit::Controller#render_page`.
@@ -102,6 +104,11 @@ DocsKit.configure do |c|
   c.themes       = %w[dark light synthwave retro cyberpunk dracula night nord sunset]
   c.version_badge = -> { "v#{Phlex::Reactive::VERSION}" }   # optional
 
+  # Repo/social links in the topbar (next to the theme switcher).
+  c.topbar_links = [
+    { href: "https://github.com/you/phlex-reactive", label: "GitHub", icon: :github },
+  ]
+
   # Code blocks: a light theme by default, a dark theme on dark daisyUI themes.
   c.code_theme      = "Rouge::Themes::Github"               # base (light) theme
   c.code_theme_dark = "Rouge::Themes::Monokai"              # optional dark override
@@ -131,6 +138,36 @@ specific than the un-scoped base rule, so the theme switcher restyles code
 blocks with no JavaScript and no flash. The Rouge CSS is inlined per block
 (not part of the Tailwind build), so the [theme-sync invariant](#css--the-canonical-build)
 is unaffected — a `code_theme_dark` doesn't need a CSS rebuild.
+
+### Topbar links (repo & social)
+
+Point readers at your source repo, chat, or socials from the topbar (next to the
+theme switcher) with `c.topbar_links` — a list of `{ href:, label:, icon: }`.
+Each renders as an **icon-only ghost button**; the `label` is its accessible name
+(`aria-label` + tooltip). External links open in a new tab with `rel="noopener"`;
+a site-relative `href` (e.g. `"/changelog"`) opens in place.
+
+```ruby
+c.topbar_links = [
+  { href: "https://github.com/you/repo", label: "GitHub",  icon: :github },
+  { href: "https://discord.gg/invite",   label: "Discord", icon: :discord },
+  { href: "/changelog",                  label: "Changelog", icon: "history" }, # a lucide icon
+]
+```
+
+`icon:` is either a **shipped brand mark** or **any lucide icon name**. lucide
+dropped its brand logos, so the kit ships its own curated set of developer/social
+marks as inline SVG (`DocsUI::BrandMark`) — no icon sync needed for these:
+
+> `:github` · `:gitlab` · `:discord` · `:x` · `:rubygems` · `:bluesky` ·
+> `:mastodon` · `:slack` · `:whatsapp` · `:telegram` · `:linkedin` · `:youtube` ·
+> `:reddit` · `:stackoverflow`
+
+Any other `icon:` value is treated as a **lucide** name and rendered through
+`DocsUI::Icon` (so it must be in your synced set). Omit `icon:` to render the
+`label` as a text button instead. `c.topbar_links` defaults to `[]` — a site that
+sets nothing has an unchanged topbar. The marks use `fill: currentColor`, so they
+recolor with the active daisyUI theme like the rest of the chrome.
 
 ### Custom nav (advanced)
 

@@ -152,6 +152,14 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(initializer).to include("# c.openapi = ")
       expect(initializer).to match(/openapi\.ya?ml/)
     end
+
+    it "documents the optional topbar_links knob (commented, so it's opt-in)" do
+      initializer = read("config/initializers/docs_kit.rb")
+
+      # Commented by default — a site with no repo/social links is unchanged.
+      expect(initializer).to include("# c.topbar_links = ")
+      expect(initializer).to include(":github")
+    end
   end
 
   # The initializer is the ONE file a site is expected to edit heavily (brand,

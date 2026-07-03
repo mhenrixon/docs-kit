@@ -123,6 +123,35 @@ RSpec.describe DocsUI::Shell do
     end
   end
 
+  # The topbar renders config.topbar_links (DocsUI::TopbarLinks) BEFORE the theme
+  # switcher. The link rendering itself is covered in topbar_links_spec; here we
+  # only prove the Shell wires them into the topbar in the right position.
+  describe "the topbar links (repo/social)" do
+    let(:topbar_only) do
+      Class.new(described_class) do
+        def view_template = topbar
+      end
+    end
+
+    it "renders configured links before the theme switcher" do
+      DocsKit.configure do |c|
+        c.topbar_links = [{ href: "https://github.com/me/repo", label: "GitHub", icon: :github }]
+      end
+      html = topbar_only.new.call
+
+      link = html.index('href="https://github.com/me/repo"')
+      theme = html.index("theme-dropdown")
+      expect(link).to be_truthy
+      expect(link).to be < theme
+    end
+
+    it "leaves the topbar unchanged when no links are configured" do
+      html = topbar_only.new.call
+
+      expect(html).not_to include("<title>GitHub</title>")
+    end
+  end
+
   # A focused proof of the primitive the whole fix relies on: Phlex omits an
   # attribute whose value is nil (it does NOT render nonce=""), so the
   # no-nonce path degrades cleanly to the pre-fix, un-nonced markup.

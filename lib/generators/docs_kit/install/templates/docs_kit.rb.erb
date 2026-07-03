@@ -20,6 +20,16 @@ Rails.application.config.to_prepare do
     # docs live under a subpath:
     # c.brand_href = "/docs"
 
+    # Repo/social links in the topbar, next to the theme switcher. Each renders
+    # as an icon-only button; `icon` is a shipped brand mark (:github, :gitlab,
+    # :discord, :x, :rubygems, :bluesky, :mastodon, :slack, :whatsapp, :telegram,
+    # :linkedin, :youtube, :reddit, :stackoverflow) or any lucide icon name.
+    # External links open in a new tab. Defaults to [] (no links).
+    # c.topbar_links = [
+    #   { href: "https://github.com/OWNER/REPO", label: "GitHub", icon: :github },
+    #   # { href: "https://discord.gg/INVITE",   label: "Discord", icon: :discord },
+    # ]
+
     # Code blocks use one Rouge theme by default. To keep them readable in BOTH
     # light and dark daisyUI themes, set a light base + a dark override — the dark
     # theme's CSS is scoped under [data-theme=X] for each shipped dark theme, so

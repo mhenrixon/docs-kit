@@ -430,6 +430,49 @@ RSpec.describe DocsKit::Configuration do
     end
   end
 
+  describe "#topbar_links" do
+    it "defaults to an empty array (no topbar links, byte-identical to before)" do
+      expect(described_class.new.topbar_links).to eq([])
+    end
+
+    it "normalizes symbol-keyed Hashes into TopbarLink value objects" do
+      DocsKit.configure do |c|
+        c.topbar_links = [{ href: "https://github.com/me/repo", label: "GitHub", icon: :github }]
+      end
+
+      links = DocsKit.configuration.topbar_links
+      expect(links.length).to eq(1)
+      expect(links.first).to be_a(DocsKit::TopbarLink)
+      expect(links.first.href).to eq("https://github.com/me/repo")
+      expect(links.first.label).to eq("GitHub")
+      expect(links.first.icon).to eq(:github)
+    end
+
+    it "accepts already-built TopbarLink objects unchanged" do
+      link = DocsKit::TopbarLink.new(href: "/x", label: "X", icon: :x)
+      DocsKit.configure { |c| c.topbar_links = [link] }
+
+      expect(DocsKit.configuration.topbar_links).to eq([link])
+    end
+
+    it "preserves declaration order across mixed inputs" do
+      DocsKit.configure do |c|
+        c.topbar_links = [
+          { href: "/a", label: "A", icon: :github },
+          { href: "/b", label: "B", icon: :discord }
+        ]
+      end
+
+      expect(DocsKit.configuration.topbar_links.map(&:label)).to eq(%w[A B])
+    end
+
+    it "coerces a nil assignment back to an empty array" do
+      DocsKit.configure { |c| c.topbar_links = nil }
+
+      expect(DocsKit.configuration.topbar_links).to eq([])
+    end
+  end
+
   describe "#openapi_document" do
     let(:yaml_path) { File.expand_path("../fixtures/openapi.yaml", __dir__) }
 
