@@ -1,0 +1,79 @@
+# frozen_string_literal: true
+
+# The full document uses OUTPUT helpers (csrf_meta_tags, stylesheet_link_tag,
+# importmap tags) that require a live Rails view context, so — like a real
+# isolated Phlex render with no request — we exercise the theme-restore fragment
+# through a tiny subclass whose view_template renders only that method.
+# (phlex-rails and its ActiveSupport core-exts are loaded in spec_helper.)
+RSpec.describe DocsUI::Shell do
+  # Renders ONLY the theme-restore <script>. In isolation (no Rails request)
+  # #csp_nonce returns nil, exactly as it would on a host that doesn't nonce
+  # script-src.
+  let(:script_only) do
+    Class.new(described_class) do
+      def view_template = theme_restore_script
+    end
+  end
+
+  # Same fragment, but with a nonce present — mirrors a host app enforcing a
+  # nonce-based script-src. In a real request #csp_nonce reads the request's CSP
+  # nonce off the view context; here (no request) we override that seam so the
+  # nonce path is exercised exactly as production would render it.
+  let(:script_with_nonce) do
+    Class.new(described_class) do
+      def view_template = theme_restore_script
+      def csp_nonce = "testnonce"
+    end
+  end
+
+  describe "the theme-restore script" do
+    it "renders the theme-restore JS" do
+      html = script_only.new.call
+
+      expect(html).to include("<script")
+      expect(html).to include("localStorage.getItem")
+      expect(html).to include('setAttribute("data-theme"')
+      expect(html).to include('addEventListener("turbo:load"')
+    end
+
+    context "when there is no CSP nonce (isolated render / host without a nonce)" do
+      it "emits a <script> with NO nonce attribute" do
+        html = script_only.new.call
+
+        expect(html).to include("<script>")
+        expect(html).not_to include("nonce")
+      end
+    end
+
+    context "when a CSP nonce is present (nonce-based script-src)" do
+      it "carries the nonce on the <script> so the browser does not block it" do
+        html = script_with_nonce.new.call
+
+        expect(html).to include('<script nonce="testnonce">')
+        # Still the same theme-restore behavior — the nonce is additive only.
+        expect(html).to include("localStorage.getItem")
+      end
+    end
+  end
+
+  # A focused proof of the primitive the whole fix relies on: Phlex omits an
+  # attribute whose value is nil (it does NOT render nonce=""), so the
+  # no-nonce path degrades cleanly to the pre-fix, un-nonced markup.
+  describe "Phlex nil-attribute omission (the graceful-degradation primitive)" do
+    let(:nil_vs_value) do
+      Class.new(Phlex::HTML) do
+        def view_template
+          script(nonce: nil) { plain "a" }
+          style(nonce: "n") { plain "b" }
+        end
+      end
+    end
+
+    it "omits a nil-valued attribute and renders a real one" do
+      html = nil_vs_value.new.call
+
+      expect(html).to include("<script>a</script>")
+      expect(html).to include('<style nonce="n">b</style>')
+    end
+  end
+end

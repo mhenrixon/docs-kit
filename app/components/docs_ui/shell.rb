@@ -16,6 +16,7 @@ module DocsUI
   class Shell < Phlex::HTML
     include Phlex::Rails::Helpers::CSRFMetaTags
     include Phlex::Rails::Helpers::CSPMetaTag
+    include Phlex::Rails::Helpers::ContentSecurityPolicyNonce
     include Phlex::Rails::Helpers::StylesheetLinkTag
     include Phlex::Rails::Helpers::JavaScriptImportmapTags
     include DaisyUI
@@ -55,6 +56,13 @@ module DocsUI
 
     def config = DocsKit.configuration
 
+    # The request's CSP nonce, or nil when there's no Rails view context (an
+    # isolated Phlex render, or a host that doesn't nonce script-src). The
+    # phlex-rails value helper delegates to view_context, which raises without
+    # one, so guard on its presence — a nil result makes Phlex omit the
+    # attribute, keeping the un-nonced markup unchanged.
+    def csp_nonce = view_context && content_security_policy_nonce
+
     # panel/toggle render their TOC in the content column; sidebar mode is
     # injected by the controller under the active nav link (no content slot).
     def content_toc? = %i[panel toggle].include?(@on_page)
@@ -80,9 +88,15 @@ module DocsUI
     # server default before the docs-nav controller runs. Reads the same
     # localStorage key the controller writes (docs-kit:<site>:theme). Runs on
     # initial load and on Turbo page renders (turbo:load).
+    #
+    # Carries the request's CSP nonce so the inline script is allowed under a
+    # nonce-based script-src (Rails' default when script-src is in
+    # content_security_policy_nonce_directives). Off a request there is no nonce
+    # (see #csp_nonce) and Phlex omits a nil-valued attribute, so the no-nonce
+    # markup is byte-identical to before.
     def theme_restore_script
       key = "docs-kit:#{config.nav_storage_key}:theme"
-      script do
+      script(nonce: csp_nonce) do
         raw(safe(<<~JS))
           (function(){
             function apply(){
