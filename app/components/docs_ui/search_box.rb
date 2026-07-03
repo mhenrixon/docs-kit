@@ -23,15 +23,19 @@ module DocsUI
       # can focus the input, and the results dropdown is a sibling.
       # data-docs-nav-shortcuts-value carries the parsed shortcut list as JSON so
       # docs-nav binds each configured key without hardcoding any.
+      # min-w-0 (not flex-none) so the box SHRINKS on a narrow topbar instead of
+      # pushing the theme switcher off-screen — on a 390px phone the brand +
+      # search + switcher otherwise overflow. The input carries daisyUI's default
+      # min-width, so it too needs min-w-0 + a modest responsive max-width.
       div(
-        class: "dropdown flex-none",
+        class: "dropdown min-w-0",
         data: { docs_nav_target: "searchScope", docs_nav_shortcuts_value: shortcuts_json }
       ) do
         form(
           action: config.search_path, method: "get", role: "search",
-          class: "flex items-center", data: { action: "submit->docs-nav#submitSearch" }
+          class: "flex min-w-0 items-center", data: { action: "submit->docs-nav#submitSearch" }
         ) do
-          label(class: "input input-sm flex items-center gap-2") do
+          label(class: "input input-sm flex min-w-0 max-w-[40vw] items-center gap-2 sm:max-w-none") do
             render DocsUI::Icon.new("search", class: "size-4 opacity-60")
             search_input
             shortcut_hint
