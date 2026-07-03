@@ -302,6 +302,32 @@ DocsKit.configure { |c| c.page_markdown_action = false }
 to your `get "docs/:doc"` route) to enable the `.md` URLs. Sites that don't
 re-run simply have no `.md` route match — HTML rendering is untouched.
 
+## AI-assisted authoring
+
+The install generator scaffolds the authoring contract in a **machine-readable**
+form, so "document this endpoint" works out of the box — an agent doesn't have to
+reverse-engineer the kit's idioms. Two files, both brand-substituted and
+maintained in one place (the gem's templates):
+
+- **`AGENTS.md`** (site root) — the cross-tool convention file (Claude Code,
+  Cursor, Copilot, Aider, …). A terse, example-first authoring contract: the
+  one-command page flow (`rails g docs_kit:page`), the `md <<~'MD'` prose idiom,
+  that `DocsUI::Section` owns structure and the TOC, the reference-material
+  helpers, and the invariants an agent must not break (the registry line is
+  required, JS-off must work, themes ↔ CSS build). It links the live
+  [Authoring pages](#the-authoring-convention) doc for depth.
+- **`.claude/skills/write-docs-page/SKILL.md`** — a Claude Code skill: the recipe
+  for the task (gather the subject → `rails g docs_kit:page` → write sections
+  md-first → self-review against a checklist → run the gates). Its frontmatter
+  targets "write / add / update a documentation page," so Claude Code reaches for
+  it automatically.
+
+If a site already has an `AGENTS.md`, the generator injects the docs-kit block
+between `<!-- BEGIN docs-kit -->` / `<!-- END docs-kit -->` markers — your own
+content is preserved, and a re-run only rewrites what's between the markers. An
+existing skill file is never clobbered. `docs-kit new` inherits both files
+automatically (it runs the install generator).
+
 ## Search
 
 Every site gets search from the gem — no external service, no build step, no

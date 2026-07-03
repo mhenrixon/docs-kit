@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "erb"
 require "rails/generators/base"
 
 module DocsKit
@@ -21,6 +22,12 @@ module DocsKit
       # without its import throws a ReferenceError that aborts the whole module, so
       # NO controllers register. Eager-loading a few docs controllers is fine.
       REGISTER_LINE = 'eagerLoadControllersFrom("docs_kit/controllers", application)'
+
+      # The delimiters bounding the gem-owned block inside AGENTS.md. Everything
+      # outside them is the user's; a re-run only rewrites what's between them.
+      AGENTS_BEGIN = "<!-- BEGIN docs-kit -->"
+      AGENTS_END   = "<!-- END docs-kit -->"
+      AGENTS_BLOCK_RE = /#{Regexp.escape(AGENTS_BEGIN)}.*#{Regexp.escape(AGENTS_END)}/m
 
       def create_phlex_initializer
         # Phlex autoload namespaces (Views:: / Components::). Skip if the app
@@ -116,6 +123,17 @@ module DocsKit
         add_package_json_scripts
       end
 
+      # AI-authoring scaffold: an AGENTS.md (the cross-tool authoring contract)
+      # and a Claude Code skill (.claude/skills/write-docs-page/SKILL.md). Both
+      # encode how to write a docs-kit page so "document this" works out of the
+      # box. Idempotent: a fresh AGENTS.md is created whole; an existing one gets
+      # only its delimited docs-kit block replaced (the user's own content is
+      # never touched); the skill file is skipped if it already exists.
+      def create_agent_docs
+        write_agents_md
+        write_write_docs_page_skill
+      end
+
       def register_stimulus_controller
         index = stimulus_index_path
         return say_status(:skip, "no controllers/index.js — add: #{REGISTER_LINE}", :yellow) unless index
@@ -144,6 +162,57 @@ module DocsKit
       end
 
       private
+
+      # Create AGENTS.md whole when absent; otherwise replace only the delimited
+      # docs-kit block (or append it if the file predates docs-kit), leaving the
+      # user's own content intact.
+      def write_agents_md
+        path = File.join(destination_root, "AGENTS.md")
+        rendered = render_template("agents_md.erb")
+
+        return create_file("AGENTS.md", rendered) unless File.exist?(path)
+
+        existing = File.read(path)
+        block = extract_agents_block(rendered)
+        updated = merge_agents_block(existing, block)
+        return say_status(:identical, "AGENTS.md", :blue) if updated == existing
+
+        File.write(path, updated)
+        say_status(:update, "AGENTS.md (docs-kit block)", :green)
+      end
+
+      # The BEGIN…END docs-kit block (inclusive) sliced out of the rendered
+      # template — the unit injected into a pre-existing AGENTS.md.
+      def extract_agents_block(rendered)
+        rendered[AGENTS_BLOCK_RE]
+      end
+
+      # Swap the existing delimited block for the fresh one, or append it when the
+      # file has none yet. Idempotent: same block in → same file out.
+      def merge_agents_block(existing, block)
+        if existing.include?(AGENTS_BEGIN) && existing.include?(AGENTS_END)
+          existing.sub(AGENTS_BLOCK_RE, block)
+        else
+          "#{existing.rstrip}\n\n#{block}\n"
+        end
+      end
+
+      # Write the write-docs-page Claude Code skill, unless the site already has
+      # one (a hand-customized skill is never clobbered).
+      def write_write_docs_page_skill
+        skill = ".claude/skills/write-docs-page/SKILL.md"
+        return say_status(:skip, skill, :blue) if File.exist?(File.join(destination_root, skill))
+
+        create_file skill, render_template("skill.md.erb")
+      end
+
+      # Render an ERB template from source_root against the generator binding, so
+      # helpers like app_brand resolve — used where we need the rendered string in
+      # memory (block extraction/merge) rather than Thor's file-to-file `template`.
+      def render_template(name)
+        source = File.read(File.join(self.class.source_root, name))
+        ERB.new(source, trim_mode: "-").result(binding)
+      end
 
       def add_package_json_scripts
         pkg = File.join(destination_root, "package.json")
