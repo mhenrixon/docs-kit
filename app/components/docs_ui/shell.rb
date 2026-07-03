@@ -143,7 +143,7 @@ module DocsUI
         div(class: "flex-1 items-center gap-2") do
           label(for: DRAWER_ID, class: "btn btn-square btn-ghost btn-sm lg:hidden",
                 aria_label: "Open menu") { render DocsUI::Icon.new("menu", class: "size-5") }
-          a(href: "/", class: "btn btn-ghost text-lg font-bold") { config.brand }
+          a(href: config.brand_href, class: "btn btn-ghost text-lg font-bold") { config.brand }
         end
         div(class: "flex-none") do
           render DocsUI::ThemeSwitcher.new

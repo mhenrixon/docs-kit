@@ -16,6 +16,11 @@ module DocsKit
     # The brand text shown in the topbar and sidebar header.
     attr_accessor :brand
 
+    # The href the topbar brand link points at. Defaults to "/" (site root). A
+    # site whose docs live under a subpath sets its own (e.g. "/docs") so the
+    # brand link is a one-line config change, not a Shell subclass.
+    attr_accessor :brand_href
+
     # Appended to a page's <title> (e.g. "Installation · phlex-reactive").
     # Defaults to #brand when unset.
     attr_writer :title_suffix
@@ -57,7 +62,23 @@ module DocsKit
     attr_accessor :stylesheets
 
     # The Rouge theme class used by Docs::Code for inline syntax-highlight CSS.
+    # This is the BASE (light) theme, emitted un-scoped so it applies to every
+    # theme unless a dark override wins (see #code_theme_dark).
     attr_accessor :code_theme
+
+    # An optional second Rouge theme (String name or Class) used for the site's
+    # DARK daisyUI themes. Default nil → single-theme behavior, fully backwards
+    # compatible. When set, Docs::Code additionally emits this theme's CSS scoped
+    # under [data-theme=X] .code-highlight for each shipped dark theme (see
+    # #dark_themes), so code blocks stay readable when the switcher flips to a
+    # dark theme — CSS-only, no JS, no flash.
+    attr_accessor :code_theme_dark
+
+    # The theme names treated as DARK for #code_theme_dark scoping. Defaults to
+    # the built-in daisyUI dark themes (DEFAULT_DARK_THEMES). Intersected with
+    # #themes at render time (see #dark_themes_shipped) so only shipped themes
+    # generate CSS. Override to name custom dark themes (e.g. %w[zazu-dark]).
+    attr_accessor :dark_themes
 
     # The lucide icon name used for a nav group with no explicit icon.
     attr_accessor :default_group_icon
@@ -116,6 +137,16 @@ module DocsKit
     # identity to decide whether to derive the sidebar from #nav_registries.
     DEFAULT_NAV = -> { {} }
 
+    # The built-in daisyUI theme names that are dark. #dark_themes defaults to
+    # this; #dark_themes_shipped intersects it with the site's #themes so only
+    # shipped themes ever generate dark code CSS. A site with custom dark themes
+    # overrides #dark_themes (docs-kit can't see the compiled daisyUI CSS to
+    # detect darkness at render time, so an honest static list + override wins).
+    DEFAULT_DARK_THEMES = %w[
+      dark synthwave halloween forest black luxury dracula
+      business night coffee dim sunset abyss
+    ].freeze
+
     # Built-in friendly aliases (kept small — Rouge resolves most names itself).
     DEFAULT_LEXER_ALIASES = { curl: "console", console: "console" }.freeze
 
@@ -128,6 +159,7 @@ module DocsKit
 
     def initialize
       @brand = "Docs"
+      @brand_href = "/"
       @title_suffix = nil
       @themes = %w[dark light]
       @default_theme = nil
@@ -139,6 +171,8 @@ module DocsKit
       @version_badge = nil
       @stylesheets = %w[application]
       @code_theme = "Rouge::Themes::Monokai"
+      @code_theme_dark = nil
+      @dark_themes = DEFAULT_DARK_THEMES
       @default_group_icon = "file-text"
       @icon_library = "lucide"
       @nav_storage_key = nil
@@ -252,6 +286,24 @@ module DocsKit
       return @code_theme if @code_theme.is_a?(Class)
 
       Object.const_get(@code_theme.to_s)
+    end
+
+    # The dark Rouge theme class resolved from #code_theme_dark (String or
+    # class), or nil when unset — mirrors #code_theme_class. Docs::Code emits
+    # dark code CSS only when this is non-nil.
+    def code_theme_dark_class
+      return if @code_theme_dark.nil?
+      return @code_theme_dark if @code_theme_dark.is_a?(Class)
+
+      Object.const_get(@code_theme_dark.to_s)
+    end
+
+    # The dark themes the site actually ships: #dark_themes intersected with
+    # #themes, in #themes declaration order. Docs::Code scopes the dark theme's
+    # CSS under [data-theme=X] for each of these, so a dark theme that isn't in
+    # the Tailwind build never emits dead CSS.
+    def dark_themes_shipped
+      Array(@themes) & Array(@dark_themes)
     end
   end
 end

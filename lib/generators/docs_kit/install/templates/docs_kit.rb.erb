@@ -12,6 +12,18 @@ Rails.application.config.to_prepare do
     c.themes       = %w[dark light synthwave retro cyberpunk dracula night nord sunset]
     c.code_theme   = "Rouge::Themes::Monokai"
 
+    # The topbar brand link points at "/" by default. Point it elsewhere if your
+    # docs live under a subpath:
+    # c.brand_href = "/docs"
+
+    # Code blocks use one Rouge theme by default. To keep them readable in BOTH
+    # light and dark daisyUI themes, set a light base + a dark override — the dark
+    # theme's CSS is scoped under [data-theme=X] for each shipped dark theme, so
+    # the switcher restyles code blocks with no JS and no flash:
+    # c.code_theme      = "Rouge::Themes::Github"  # light themes
+    # c.code_theme_dark = "Rouge::Themes::Monokai" # dark themes
+    # c.dark_themes     = %w[my-dark]              # only if you ship custom dark themes
+
     # Any language Rouge knows works in code blocks out of the box. Add friendly
     # aliases/labels here if you use custom names:
     # c.code_lexer_aliases  = { curl: "console" }

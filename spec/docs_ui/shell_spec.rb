@@ -56,6 +56,31 @@ RSpec.describe DocsUI::Shell do
     end
   end
 
+  # The topbar brand link is a config knob so a site can point it at /docs
+  # instead of / without subclassing Shell to copy-paste #topbar.
+  describe "the topbar brand link" do
+    # Renders ONLY the topbar so we don't need a live Rails view context for the
+    # rest of the document (importmap/csrf tags require a real request).
+    let(:topbar_only) do
+      Class.new(described_class) do
+        def view_template = topbar
+      end
+    end
+
+    it "defaults the brand href to \"/\"" do
+      html = topbar_only.new.call
+
+      expect(html).to include('href="/"')
+    end
+
+    it "follows config.brand_href when a site overrides it" do
+      DocsKit.configure { |c| c.brand_href = "/docs" }
+      html = topbar_only.new.call
+
+      expect(html).to include('href="/docs"')
+    end
+  end
+
   # A focused proof of the primitive the whole fix relies on: Phlex omits an
   # attribute whose value is nil (it does NOT render nonce=""), so the
   # no-nonce path degrades cleanly to the pre-fix, un-nonced markup.
