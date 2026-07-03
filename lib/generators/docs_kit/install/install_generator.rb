@@ -168,18 +168,14 @@ module DocsKit
         create_file "app/assets/builds/.keep", ""
       end
 
-      # The SEO social-share image routine: the `docs_kit:og` rake task (gem-owned
-      # wiring, refreshed on every run so a site gets task fixes) plus the neutral
-      # default OG image (site content — `copy_file` skips it if the site already
-      # generated/customized its own, so `bin/rails docs_kit:og` output is never
-      # clobbered). c.seo.og_image defaults to "og/og.png" so a site's og:image is
-      # valid immediately, before it runs the task.
+      # Install the `docs_kit:og` rake task — gem-owned wiring, refreshed on every
+      # run so a site picks up task fixes. It does NOT ship an OG image: the
+      # social-share image is SITE content, generated into the site's OWN
+      # app/assets/images/ by `bin/rails docs_kit:og`. Until a site runs it (and
+      # sets c.seo.og_image), no og:image tag is emitted — a valid card, never a
+      # 404 for an image the gem can't provide.
       def create_og_task
         template "docs_kit_og.rake", "lib/tasks/docs_kit_og.rake"
-        copy_file(
-          File.expand_path("../../../../app/assets/images/og/og.png", __dir__),
-          "app/assets/images/og/og.png"
-        )
       end
 
       def wire_assets_and_package_json

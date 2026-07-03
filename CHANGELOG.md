@@ -2,20 +2,33 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **SEO `og:image` 404.** The og:image tag pointed at the raw config path
+  (`https://site/og/og.png`), which isn't a served URL — Propshaft serves the
+  digested asset under `/assets`. A relative `og_image` is now resolved through
+  the site's asset pipeline (`image_url`) to the digested `/assets/og/og-<digest>.png`
+  URL, and the image is treated as **site content**: the gem ships none,
+  `c.seo.og_image` defaults to **nil** (unset → no og:image tag, never a 404), and
+  the `docs_kit:og` task writes into the *site's* `app/assets/images/`. Added a
+  booted-app integration test in the dogfood site
+  (`docs/test/integration/seo_meta_tags_test.rb`) that asserts og:image resolves
+  to a `/assets` URL that actually returns 200 — the coverage isolated component
+  specs can't provide.
+
 ### Added
 
 - **SEO + social sharing.** Every page now emits a complete SEO `<head>` —
   meta description, Open Graph, Twitter Card, canonical, favicon, robots, and
   theme-color — via the new `DocsUI::MetaTags` component, driven entirely by a
   new `c.seo` config block (`DocsKit::SeoConfig`). Pages carry an authorable
-  `description "..."` (falling back to the page's `#lead`). docs-kit ships a
-  neutral 1200×630 default OG image, and installs a `docs_kit:og` rake task that
-  screenshots a site's OWN landing page into `app/assets/images/og/` (host-side
-  headless browser; never a gem runtime dependency). A guard spec keeps the
-  shipped default present. Backwards-compatible: a site that sets no `c.seo`
-  renders a valid minimal card and its `<head>` is a strict superset of before.
-  The install generator documents `c.seo` and installs the task + default image;
-  `docs-kit new` reminds the owner to run it. (#48)
+  `description "..."` (falling back to the page's `#lead`). The social-share image
+  is site content (not shipped by the gem): the `docs_kit:og` rake task screenshots
+  a site's OWN landing page into its `app/assets/images/og/` (host-side headless
+  browser; never a gem runtime dependency), and `c.seo.og_image` points at it.
+  Backwards-compatible: a site that sets no `c.seo` renders a valid minimal card
+  and its `<head>` is a strict superset of before. The install generator documents
+  `c.seo` and installs the task; `docs-kit new` reminds the owner to run it. (#48)
 - Release tooling matching the sibling gems (daisyui/phlex-reactive/pgbus): a
   `rake release[X.Y.Z]` task (version bump → lockfile update → build-verify →
   commit → push → GitHub Release; `pre`/`force` supported, `main`-only, clean-tree

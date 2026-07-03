@@ -22,18 +22,20 @@ module DocsKit
     # (DocsUI::Page derives a per-page value from #lead when a page sets none).
     attr_accessor :description
 
-    # The social-share image, as an asset path (resolved via the Rails asset
-    # helper) or an absolute URL → og:image / twitter:image. Defaults to the
-    # neutral image docs-kit ships at app/assets/images/og/og.png so og:image is
-    # never broken; a site regenerates its own with `bin/rails docs_kit:og`.
+    # The social-share image → og:image / twitter:image. Either a logical asset
+    # path in the SITE'S OWN pipeline (e.g. "og/og.png", resolved through
+    # image_url to the digested /assets URL Propshaft serves) or an absolute URL.
+    # The image is SITE content, not shipped by the gem — nil by default, so a
+    # site with no card image emits NO og:image (a valid card, never a 404).
+    # Generate one into app/assets/images/ with `bin/rails docs_kit:og`, then set
+    # this to its path.
     attr_accessor :og_image
 
     # The og:type. "website" for a docs site; a page could override to "article".
     attr_accessor :og_type
 
     # The twitter:card style. "summary_large_image" renders a full-width banner
-    # (the shipped og:image is 1200×630, sized for it); "summary" is the small
-    # square card.
+    # (size your og:image 1200×630 for it); "summary" is the small square card.
     attr_accessor :twitter_card
 
     # The site's @handle → twitter:site, and the content author's → twitter:creator.
@@ -64,7 +66,7 @@ module DocsKit
 
     def initialize
       @description     = nil
-      @og_image        = "og/og.png"
+      @og_image        = nil
       @og_type         = "website"
       @twitter_card    = "summary_large_image"
       @twitter_site    = nil
