@@ -150,7 +150,17 @@ module DocsKit
       # bundled. A site opts in by adding `gem "mcp"` and uncommenting these. POST
       # speaks JSON-RPC; GET/DELETE 405 (read-only, stateless — no SSE session).
       # `route` prepends, so drawing `match` before `post` leaves `post` on top.
+      #
+      # Guarded on the endpoint (route_present?), NOT on Thor's byte-identical
+      # skip: a site that opted in has LIVE routes in its own style (an
+      # `, as: :mcp` suffix, single quotes) which never byte-match the commented
+      # template — plain `route` would re-inject the scaffold on every --sync.
+      # Found dogfooding 1.0.3 into pgbus + phlex-reactive.
       def add_mcp_route
+        if route_present?(%(post "/mcp" => "docs_kit/mcp#create"))
+          return say_status(:identical, "route /mcp (already drawn or scaffolded)", :blue)
+        end
+
         route %(# match "/mcp" => "docs_kit/mcp#method_not_allowed", via: %i[get delete])
         route %(# post "/mcp" => "docs_kit/mcp#create")
         route %(# Add your docs to an agent over MCP (needs `gem "mcp"`):)

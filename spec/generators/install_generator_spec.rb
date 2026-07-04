@@ -488,6 +488,25 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(routes).to include(%(# match "/mcp" => "docs_kit/mcp#method_not_allowed", via: %i[get delete]))
     end
 
+    it "does not re-inject the commented MCP scaffold when the site has LIVE /mcp routes" do
+      # A site that opted in (uncommented, in its own style — an `, as: :mcp`
+      # suffix) must not accumulate the commented scaffold on every --sync run.
+      # Found dogfooding 1.0.3 into pgbus + phlex-reactive.
+      write("config/routes.rb", <<~ROUTES)
+        Rails.application.routes.draw do
+          post "/mcp" => "docs_kit/mcp#create", as: :mcp
+          match "/mcp" => "docs_kit/mcp#method_not_allowed", via: %i[get delete]
+        end
+      ROUTES
+
+      run_generator(sync: true)
+
+      routes = read("config/routes.rb")
+      expect(routes).not_to include(%(# post "/mcp"))
+      expect(routes).not_to include(%(# match "/mcp"))
+      expect(routes.scan(%r{docs_kit/mcp#create}).size).to eq(1)
+    end
+
     it "draws /docs/search ABOVE docs/:doc so it isn't swallowed as :doc" do
       routes = read("config/routes.rb")
 
