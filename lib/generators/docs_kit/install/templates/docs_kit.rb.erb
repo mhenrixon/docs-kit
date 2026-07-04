@@ -109,6 +109,9 @@ Rails.application.config.to_prepare do
     # knobs. Every field is optional; with none set it still renders a minimal hero
     # (the brand + the doc index). Wrap a run in **double asterisks** to accent it
     # in the primary color.
+    # c.landing.logo = { svg: "M4 2h9l5 5…Z", viewbox: "0 0 22 24", label: "<%= app_brand %>" }
+    #   # ^ an inline single-path SVG mark (fill: currentColor, theme-adaptive), OR
+    #   #   an image: { src: "logo.svg", alt: "<%= app_brand %>" }
     # c.landing.eyebrow = "Developer Docs"
     # c.landing.title   = "The <%= app_brand %> **API**"
     # c.landing.lead    = "One sentence on what your product does."

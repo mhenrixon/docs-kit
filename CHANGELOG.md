@@ -18,6 +18,13 @@
 
 ### Added
 
+- **`DocsUI::Landing` hero logo (`c.landing.logo`).** The landing hero now takes
+  an optional brand mark above the eyebrow, in two forms: an inline single-path
+  SVG (`{ svg: "<path d>", viewbox:, label: }`, rendered with `fill: currentColor`
+  so it adapts to the theme) or an image (`{ src:, alt: }`, resolved through the
+  site's asset pipeline). nil (the default) omits it, so it's backwards-compatible.
+  This closes the gap a mounted docs app hit — a hero with no way to show the
+  product's own logo — the first consumer to try `DocsUI::Landing` on a real site.
 - **`DocsUI::Landing` — a config-driven marketing landing page.** Every consuming
   site (and this dogfood site) was hand-rolling a home page; now render
   `DocsUI::Landing` and drive it from a new `c.landing` config block

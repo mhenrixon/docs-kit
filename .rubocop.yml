@@ -120,6 +120,10 @@ Metrics/ClassLength:
     - "lib/docs_kit/configuration.rb"
     - "lib/docs_kit/open_api/operation.rb"
     - "lib/docs_kit/open_api/schema.rb"
+    # A composite renderer: logo + hero (eyebrow/title/lead/install/ctas) + a
+    # feature grid + a doc index. Each part is a small focused method; the class
+    # is long only because it renders several sections, like the OpenAPI ones above.
+    - "app/components/docs_ui/landing.rb"
 
 Metrics/MethodLength:
   Max: 25

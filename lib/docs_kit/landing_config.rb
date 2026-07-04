@@ -26,6 +26,15 @@ module DocsKit
   # individually assignable in the `c.landing.x = ...` block, mirroring
   # DocsKit::SeoConfig.
   class LandingConfig
+    # An optional brand logo/mark rendered at the top of the hero (above the
+    # eyebrow), like a product wordmark. A Hash in one of two forms:
+    #   { svg: "<path d …>", viewbox: "0 0 81 45", label: "Brand" }  # inline mark
+    #   { src: "logo.svg", alt: "Brand" }                            # image asset/URL
+    # The inline `svg` form renders with `fill: currentColor` so it adapts to the
+    # theme (light/dark) — best for a single-color mark. nil omits the logo.
+    # See #hero_logo (the normalized Logo value object) and DocsUI::Landing.
+    attr_writer :logo
+
     # A small uppercase kicker above the title (e.g. "Developer Docs"). nil omits it.
     attr_accessor :eyebrow
 
@@ -81,6 +90,13 @@ module DocsKit
       { code: attrs[:code].to_s, filename: attrs[:filename], lexer: (attrs[:lexer] || :shell).to_sym }
     end
 
+    # The hero logo as a normalized Logo value object, or nil when unset.
+    def hero_logo
+      return if @logo.nil?
+
+      Logo.from(@logo)
+    end
+
     # One hero call-to-action button. `style` maps to a daisyUI btn variant
     # (:primary → btn-primary, anything else → btn-ghost). `icon` is an optional
     # brand/lucide token rendered before the label (DocsUI::BrandMark resolves it).
@@ -116,6 +132,29 @@ module DocsKit
         attrs = feature.to_h.transform_keys(&:to_sym)
         new(icon: attrs[:icon], title: attrs[:title], body: attrs[:body])
       end
+    end
+
+    # The hero brand logo — either an inline single-path SVG mark (`svg` = the
+    # `<path d>` data, `viewbox` = its viewBox) rendered with fill: currentColor so
+    # it adapts to the theme, OR an image (`src` = an asset path/URL, `alt` = its
+    # accessible name). `label` is the accessible name for the inline mark.
+    Logo = Data.define(:svg, :viewbox, :src, :alt, :label) do
+      def initialize(svg: nil, viewbox: "0 0 24 24", src: nil, alt: nil, label: nil)
+        super
+      end
+
+      def self.from(logo)
+        return logo if logo.is_a?(self)
+
+        attrs = logo.to_h.transform_keys(&:to_sym)
+        new(
+          svg: attrs[:svg], viewbox: attrs[:viewbox] || "0 0 24 24",
+          src: attrs[:src], alt: attrs[:alt], label: attrs[:label]
+        )
+      end
+
+      # An inline SVG mark (vs. an <img>). True when `svg` path data is present.
+      def inline? = !svg.to_s.empty?
     end
   end
 end
