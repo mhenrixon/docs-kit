@@ -10,6 +10,8 @@ RSpec.describe "Docs chrome", type: :system do
   it "renders the landing page hero and the docs index" do
     visit "/"
 
+    # The hero brand mark (c.landing.logo, an inline currentColor SVG).
+    expect(page).to have_css("svg[aria-label='docs-kit']")
     expect(page).to have_css("h1", text: "Shared docs chrome for Rails")
     expect(page).to have_link("Get started", href: "/docs/overview")
     # The drawer shell + sidebar are present (daisyUI Drawer).

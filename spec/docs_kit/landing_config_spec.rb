@@ -105,4 +105,36 @@ RSpec.describe DocsKit::LandingConfig do
       expect(landing.install_snippet).to be_nil
     end
   end
+
+  describe "#hero_logo" do
+    it "is nil when unset" do
+      expect(landing.hero_logo).to be_nil
+    end
+
+    it "normalizes an inline SVG-mark Hash into an inline Logo" do
+      landing.logo = { svg: "M1 1H2Z", viewbox: "0 0 10 10", label: "Acme" }
+
+      logo = landing.hero_logo
+      expect(logo).to be_a(described_class::Logo)
+      expect(logo).to be_inline
+      expect(logo.svg).to eq("M1 1H2Z")
+      expect(logo.viewbox).to eq("0 0 10 10")
+      expect(logo.label).to eq("Acme")
+    end
+
+    it "normalizes an image Hash into a non-inline Logo" do
+      landing.logo = { src: "logo.svg", alt: "Acme" }
+
+      logo = landing.hero_logo
+      expect(logo).not_to be_inline
+      expect(logo.src).to eq("logo.svg")
+      expect(logo.alt).to eq("Acme")
+    end
+
+    it "defaults the viewbox to a 24×24 box" do
+      landing.logo = { svg: "M0 0Z" }
+
+      expect(landing.hero_logo.viewbox).to eq("0 0 24 24")
+    end
+  end
 end

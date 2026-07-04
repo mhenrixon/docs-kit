@@ -1,13 +1,14 @@
 # frozen_string_literal: true
 
 module DocsUI
-  # The marketing landing page — a hero (eyebrow + title + lead + optional install
-  # snippet + CTA buttons), a feature-card grid, and a registry-grouped
-  # documentation index — rendered inside DocsUI::Shell. Every consuming site was
-  # hand-rolling this; drive it from config instead:
+  # The marketing landing page — a hero (an optional brand logo + eyebrow + title +
+  # lead + optional install snippet + CTA buttons), a feature-card grid, and a
+  # registry-grouped documentation index — rendered inside DocsUI::Shell. Every
+  # consuming site was hand-rolling this; drive it from config instead:
   #
   #   # config/initializers/docs_kit.rb
   #   DocsKit.configure do |c|
+  #     c.landing.logo     = { svg: "M4 2h9l5 5…Z", viewbox: "0 0 22 24", label: "Acme" }
   #     c.landing.eyebrow  = "Developer Docs"
   #     c.landing.title    = "Jobs & events on **Postgres**"   # ** ** → primary color
   #     c.landing.lead     = "PostgreSQL-native jobs + event bus for Rails."
@@ -30,6 +31,9 @@ module DocsUI
   # walks the same #docs-content region Shell stamps.
   class Landing < Phlex::HTML
     include Phlex::Rails::Helpers::Request
+    # For the image-form hero logo (c.landing.logo = { src: … }): resolve the asset
+    # path through the site's pipeline to its digested /assets URL.
+    include Phlex::Rails::Helpers::ImageURL
 
     def view_template
       render DocsUI::Shell.new(title: landing.eyebrow || config.brand) do
@@ -50,11 +54,28 @@ module DocsUI
 
     def hero
       div(class: "flex flex-col gap-6") do
+        logo
         eyebrow
         heading
         lead
         install_snippet
         ctas
+      end
+    end
+
+    # The brand mark — an inline single-path SVG (currentColor, theme-adaptive) or
+    # an <img>. Rendered above the eyebrow, like a product wordmark.
+    def logo
+      return unless (mark = landing.hero_logo)
+
+      if mark.inline?
+        svg(viewbox: mark.viewbox, class: "h-9 w-auto text-primary", fill: "currentColor",
+            role: "img", aria_label: mark.label) do |s|
+          s.title { mark.label } if mark.label
+          s.path(d: mark.svg)
+        end
+      else
+        img(src: image_url(mark.src), alt: mark.alt.to_s, class: "h-9 w-auto")
       end
     end
 

@@ -54,9 +54,16 @@ Rails.application.config.to_prepare do
     # lambda instead; it wins.
     c.nav_registries = { "Docs" => Doc }
 
-    # The landing page (DocsUI::Landing), dogfooded — a hero + feature grid + a
-    # registry-grouped doc index, all from config. A **run** in the title renders
-    # in the primary color. See LandingsController#show (render_page).
+    # The landing page (DocsUI::Landing), dogfooded — a hero (with a brand mark) +
+    # feature grid + a registry-grouped doc index, all from config. A **run** in
+    # the title renders in the primary color. See LandingsController#show.
+    # The logo is an inline single-path SVG mark (a stacked-docs glyph) rendered
+    # with fill: currentColor, so it adapts to every theme — dogfoods c.landing.logo.
+    c.landing.logo = {
+      svg: "M4 2h9l5 5v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5L12 3.5z",
+      viewbox: "0 0 22 24",
+      label: "docs-kit"
+    }
     c.landing.eyebrow  = "docs-kit"
     c.landing.title    = "Shared docs chrome for **Rails**, in Phlex."
     c.landing.lead     = "The shell, sidebar, theme switcher, syntax highlighting, " \
