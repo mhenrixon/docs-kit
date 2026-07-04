@@ -18,6 +18,19 @@
 
 ### Added
 
+- **`DocsUI::Landing` — a config-driven marketing landing page.** Every consuming
+  site (and this dogfood site) was hand-rolling a home page; now render
+  `DocsUI::Landing` and drive it from a new `c.landing` config block
+  (`DocsKit::LandingConfig`): a hero (`eyebrow`, `title` — wrap a run in
+  `**double asterisks**` to accent it in the primary color, `lead`, an optional
+  `install` code snippet, and `ctas`), a `features` card grid, and a
+  registry-grouped documentation index built from `nav_groups` (so it never drifts
+  from the authored pages). Every field is optional — with an empty `c.landing` it
+  still renders a minimal hero (brand + doc index), never a broken page — and its
+  `.md`/`.text` twin works like any page. The install generator's `landings#show`
+  now renders it and the initializer documents `c.landing`. This is the first
+  landing pattern proven on a **mounted** docs app (a docs section inside a larger
+  Rails app whose `/` is already taken), contributed back from that use case.
 - **SEO + social sharing.** Every page now emits a complete SEO `<head>` —
   meta description, Open Graph, Twitter Card, canonical, favicon, robots, and
   theme-color — via the new `DocsUI::MetaTags` component, driven entirely by a

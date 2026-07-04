@@ -8,12 +8,19 @@ require "rails_helper"
 # (no browser, no JS executed), so a regression that made the page JS-dependent
 # would fail here.
 RSpec.describe "Progressive enhancement (JS off)", type: :request do
-  it "renders the landing page as a complete HTML document" do
+  it "renders the landing page (DocsUI::Landing) as a complete HTML document" do
     get "/"
 
     expect(response).to have_http_status(:ok)
     expect(response.body).to include("<!doctype html>").or include("<!DOCTYPE html>")
-    expect(response.body).to include("Shared docs chrome for Rails")
+    # The hero title, with the **Rails** run rendered in the primary color.
+    expect(response.body).to include("Shared docs chrome for")
+    expect(response.body).to include(%(<span class="text-primary">Rails</span>))
+    # A feature card and a CTA prove the config-driven landing rendered.
+    expect(response.body).to include("One shared shell")
+    expect(response.body).to include("Get started")
+    # The registry-grouped doc index links the authored pages.
+    expect(response.body).to include("/docs/installation")
   end
 
   it "renders every sidebar section expanded (details open) so no-JS readers see the full nav" do

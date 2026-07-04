@@ -17,7 +17,7 @@ Rails.application.config.to_prepare do
     # A link to the source repo in the topbar (next to the theme switcher),
     # rendered with the shipped GitHub brand mark. Dogfoods c.topbar_links.
     c.topbar_links = [
-      { href: "https://github.com/mhenrixon/docs-kit", label: "GitHub", icon: :github },
+      { href: "https://github.com/mhenrixon/docs-kit", label: "GitHub", icon: :github }
     ]
 
     # SEO + social sharing, dogfooded. docs-kit emits the full <head> (description,
@@ -53,5 +53,35 @@ Rails.application.config.to_prepare do
     # tooling / Deploy). For bespoke nav (interleaved registries) set a `c.nav`
     # lambda instead; it wins.
     c.nav_registries = { "Docs" => Doc }
+
+    # The landing page (DocsUI::Landing), dogfooded — a hero + feature grid + a
+    # registry-grouped doc index, all from config. A **run** in the title renders
+    # in the primary color. See LandingsController#show (render_page).
+    c.landing.eyebrow  = "docs-kit"
+    c.landing.title    = "Shared docs chrome for **Rails**, in Phlex."
+    c.landing.lead     = "The shell, sidebar, theme switcher, syntax highlighting, " \
+                         "multi-language examples, and an automatic table of contents — " \
+                         "configure it once, write your pages, deploy with one workflow. " \
+                         "This site is built with docs-kit."
+    c.landing.install  = { code: 'gem "docs-kit"', filename: "Gemfile", lexer: :ruby }
+    c.landing.ctas = [
+      { label: "Get started",      href: "/docs/overview",   style: :primary },
+      { label: "Browse components", href: "/docs/components", style: :ghost },
+      { label: "GitHub", href: "https://github.com/mhenrixon/docs-kit", style: :ghost, icon: :github }
+    ]
+    c.landing.features = [
+      { icon: "layout-template", title: "One shared shell",
+        body: "The topbar, drawer sidebar, theme switcher, and content column — identical across every site, driven by config." },
+      { icon: "code", title: "Syntax + multi-language examples",
+        body: "Rouge highlighting with a light/dark theme pair, and tabbed code with a sticky global language choice." },
+      { icon: "list-tree", title: "Registry-driven nav & search",
+        body: "One `page` declaration feeds the sidebar, the search index, and llms.txt — they never drift from your pages." },
+      { icon: "file-text", title: "Markdown twins + llms.txt",
+        body: "Every page has a .md twin and an llms.txt index for free, derived from the same render your readers see." },
+      { icon: "plug", title: "API-reference kit",
+        body: "DocsUI::Endpoint / FieldTable / RequestExample turn one declaration into a badge, tables, and a tab per client." },
+      { icon: "rocket", title: "Deploy with one workflow",
+        body: "Scaffold a deployable site with `docs-kit new`, or add it to an existing Rails app with the install generator." }
+    ]
   end
 end

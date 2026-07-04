@@ -104,6 +104,25 @@ Rails.application.config.to_prepare do
     # then. README → "Add your docs to an agent (MCP)".
     # c.mcp = false
 
+    # The landing page (app/views/landings/show.rb renders DocsUI::Landing) — a
+    # marketing hero + feature grid + a registry-grouped doc index, all from these
+    # knobs. Every field is optional; with none set it still renders a minimal hero
+    # (the brand + the doc index). Wrap a run in **double asterisks** to accent it
+    # in the primary color.
+    # c.landing.eyebrow = "Developer Docs"
+    # c.landing.title   = "The <%= app_brand %> **API**"
+    # c.landing.lead    = "One sentence on what your product does."
+    # c.landing.install = { code: 'gem "<%= app_brand.downcase %>"', filename: "Gemfile", lexer: :ruby }
+    # c.landing.ctas = [
+    #   { label: "Get started", href: "/docs/overview", style: :primary },
+    #   { label: "GitHub", href: "https://github.com/OWNER/REPO", style: :ghost, icon: :github },
+    # ]
+    # c.landing.features = [
+    #   { icon: "zap",      title: "Fast",         body: "Why it's fast." },
+    #   { icon: "database", title: "One database", body: "No extra moving parts." },
+    # ]
+    # c.landing.doc_index = false   # hide the "Documentation" index section
+
     # The sidebar nav derives from the registry — one heading → one registry.
     # Each registry's authored pages become NavItems automatically (an unwritten
     # page is skipped, so no dead links). For bespoke nav (interleaved

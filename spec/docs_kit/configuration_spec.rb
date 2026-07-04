@@ -53,6 +53,29 @@ RSpec.describe DocsKit::Configuration do
     end
   end
 
+  describe "#landing" do
+    it "returns a DocsKit::LandingConfig with backwards-safe defaults" do
+      landing = described_class.new.landing
+
+      expect(landing).to be_a(DocsKit::LandingConfig)
+      expect(landing.doc_index?).to be(true)
+      expect(landing.features).to eq([])
+    end
+
+    it "memoizes the same instance so a `c.landing.x = ...` block sticks" do
+      config = described_class.new
+      first = config.landing
+
+      expect(config.landing).to be(first)
+    end
+
+    it "is configured via the nested block (c.landing.title = ...)" do
+      DocsKit.configure { |c| c.landing.title = "The Acme API" }
+
+      expect(DocsKit.configuration.landing.title).to eq("The Acme API")
+    end
+  end
+
   describe "#page_markdown_action" do
     it "defaults to true (every page shows the 'Markdown' affordance)" do
       expect(described_class.new.page_markdown_action).to be(true)
