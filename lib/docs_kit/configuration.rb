@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "seo_config"
+require_relative "landing_config"
 
 module DocsKit
   # Per-site configuration for the shared docs chrome. Everything that differs
@@ -279,6 +280,15 @@ module DocsKit
     # the pre-SEO markup.
     def seo
       @seo ||= DocsKit::SeoConfig.new
+    end
+
+    # The landing-page knobs (DocsKit::LandingConfig), read by DocsUI::Landing.
+    # Lazily built and memoized so a `c.landing.title = ...` block mutates the one
+    # instance the component later reads. A site that never touches it still gets a
+    # minimal hero + the doc index (see LandingConfig), so DocsUI::Landing is safe
+    # to render with zero landing config.
+    def landing
+      @landing ||= DocsKit::LandingConfig.new
     end
 
     # The loaded DocsKit::OpenApi::Document for #openapi. Memoized; when #openapi
