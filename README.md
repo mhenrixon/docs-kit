@@ -92,6 +92,39 @@ generators:
 | `ApplicationController#render_page` defined by hand | `DocsKit::Controller#render_page` is included (the generator injects `include DocsKit::Controller`) | Delete the method — keep the `include`. |
 | `app/helpers/icon_helper.rb` | docs-kit renders icons via rails_icons (`DocsUI::Icon`) | Delete the file. |
 | Hand-pinned docs-kit lines in `config/importmap.rb` | the engine auto-pins the `docs-nav` controller and its assets | Delete the manual `pin`/`pin_all_from` lines for docs-kit. |
+| `Dockerfile` stamped by an older docs-kit (`# docs-kit Dockerfile vX.Y.Z`) | docs-kit ships an optimized, multi-stage Dockerfile; a stale copy misses image-size wins | Diff yours against the current template (`lib/generators/docs_kit/install/templates/Dockerfile.tt` in the gem), adopt the changes or replace it. See [Upgrading your Dockerfile](#upgrading-your-dockerfile). |
+
+### Upgrading your Dockerfile
+
+The generator ships two Docker files:
+
+- **`.dockerignore`** is gem-owned — every `docs_kit:install` (or `--sync`) run
+  **refreshes** it, so you always get the current build-context excludes
+  (`node_modules`, `.git`, `log`, `tmp`, `spec`, `coverage`, …). It carries no
+  site-specific content, so overwriting it is safe.
+- **`Dockerfile`** is site-owned — the generator **never clobbers** it (you tune
+  packages, the `CMD`, extra build steps). Instead it stamps a version marker
+  (`# docs-kit Dockerfile v<VERSION>`) so `--sync` can tell you when yours is
+  stale relative to the gem's current template.
+
+When the site bundles `thruster` (a Rails 8 default), the generated Dockerfile
+fronts Puma with Thruster (`CMD ["./bin/thrust", "./bin/rails", "server"]`) for
+HTTP caching, compression, and X-Sendfile — and the generator scaffolds the
+`bin/thrust` binstub if the app lacks one, since the exec-form CMD needs the
+file to exist in the image. Thruster listens on the routed port
+(`HTTP_PORT=3000` — Kamal's `app_port`) and proxies to Puma on `TARGET_PORT=3001`.
+Without thruster in the *production* bundle (absent, or only in a
+development/test group that `BUNDLE_WITHOUT` excludes) the CMD falls back to
+plain `rails server` — never a thrust CMD that would crash at boot.
+
+When `--sync` reports your Dockerfile is behind, compare it against the shipped
+template and pull in the improvements (or replace it wholesale if you never
+customized it):
+
+```bash
+# The template path is printed by the generator; it lives in the installed gem:
+diff Dockerfile "$(bundle show docs-kit)/lib/generators/docs_kit/install/templates/Dockerfile.tt"
+```
 
 ## Configure (per site)
 
@@ -751,8 +784,9 @@ and applies docs-kit's application template, which:
 - runs `rails g docs_kit:install` (initializers, controllers, a Doc registry, a
   sample guide page, the Bun/Tailwind build, the docs-nav Stimulus wiring),
 - syncs the lucide icons and builds the CSS,
-- scaffolds Kamal (`config/deploy.yml`, `.kamal/secrets`, `Dockerfile`) and a
-  thin `.github/workflows/deploy-docs.yml` that calls the reusable workflow.
+- scaffolds Kamal (`config/deploy.yml`, `.kamal/secrets`, an optimized
+  multi-stage `Dockerfile` + a `.dockerignore`) and a thin
+  `.github/workflows/deploy-docs.yml` that calls the reusable workflow.
 
 Then `cd my-docs && bin/dev`. Already have a Rails app? Run the install generator
 instead:

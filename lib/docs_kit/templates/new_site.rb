@@ -4,7 +4,10 @@ require "securerandom"
 
 # Rails application template for a docs-kit docs site. Run via:
 #
-#   rails new my-docs --minimal -a propshaft -j importmap --skip-... -m new_site.rb
+#   rails new my-docs -a propshaft -j importmap --skip-... -m new_site.rb
+#
+# (NOT --minimal — that strips JS the shell needs AND the thruster gem the
+# generated Dockerfile fronts Puma with; exe/docs-kit passes the right flags.)
 #
 # or, more simply, via the `docs-kit new` CLI (exe/docs-kit) which supplies the
 # right `rails new` flags. It:
@@ -101,45 +104,13 @@ after_bundle do
     KAMAL_REGISTRY_PASSWORD=$KAMAL_REGISTRY_PASSWORD
   SH
 
-  create_file "Dockerfile", <<~DOCKER
-    # syntax = docker/dockerfile:1
-    ARG RUBY_VERSION=3.4.2
-    FROM ruby:$RUBY_VERSION-slim AS base
-
-    ARG BUN_VERSION=1.3.2
-    ENV BUN_INSTALL="/usr/local/bun"
-    ENV PATH="/usr/local/bun/bin:$PATH"
-    WORKDIR /rails
-    ENV BUNDLE_WITHOUT="development:test" RAILS_ENV="production"
-
-    RUN apt-get update -qq && \\
-        apt-get install --no-install-recommends -y curl libjemalloc2 && \\
-        rm -rf /var/lib/apt/lists /var/cache/apt/archives
-    RUN gem update --system --no-document && gem install -N bundler
-
-    FROM base AS build
-    RUN apt-get update -qq && \\
-        apt-get install --no-install-recommends -y build-essential git libyaml-dev pkg-config unzip
-    RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
-    COPY Gemfile Gemfile.lock ./
-    RUN bundle install && rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache
-    COPY . .
-    RUN bun install --frozen-lockfile
-    # assets:precompile runs bun run build:css via the css:build rake enhance.
-    RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
-
-    FROM base
-    # Kamal verifies this label on --skip-push deploy; must equal `service:`.
-    LABEL service="#{service}"
-    COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
-    COPY --from=build /rails /rails
-    RUN groupadd --system --gid 1000 rails && \\
-        useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash && \\
-        chown -R 1000:1000 /rails/log /rails/tmp
-    USER 1000:1000
-    EXPOSE 3000
-    CMD ["./bin/rails", "server", "-b", "0.0.0.0"]
-  DOCKER
+  # The Dockerfile + .dockerignore are written by `docs_kit:install` (run above in
+  # after_bundle) so a scaffolded site and an upgrading site share ONE optimized,
+  # version-stamped Dockerfile — no divergent copy to maintain here. The generator
+  # derives the LABEL service from the app dir basename (= app_name); if the site
+  # deploys under a DIFFERENT Kamal service (`--service`), correct the label to
+  # match config/deploy.yml so Kamal's --skip-push validate_image passes.
+  gsub_file "Dockerfile", /LABEL service=".*"/, %(LABEL service="#{service}") if service != app_name
 
   create_file ".github/workflows/deploy-docs.yml", <<~YAML
     name: Deploy docs

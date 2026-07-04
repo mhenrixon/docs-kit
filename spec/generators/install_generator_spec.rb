@@ -137,6 +137,226 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
     end
   end
 
+  # The Docker delivery: a gem-owned `.dockerignore` (refreshed every run, like
+  # the og rake task) and a site-customizable `Dockerfile` (skip-if-exists, like
+  # the config initializer). The Dockerfile carries a version marker so a `--sync`
+  # upgrade can flag it as stale against the gem's current template.
+  describe "Docker files (create_dockerfile + create_dockerignore)" do
+    before do
+      build_skeleton
+      run_generator
+    end
+
+    it "creates a Dockerfile and a .dockerignore" do
+      expect(exist?("Dockerfile")).to be(true)
+      expect(exist?(".dockerignore")).to be(true)
+    end
+
+    it "stamps the Dockerfile with the gem's version marker (so a --sync can detect staleness)" do
+      dockerfile = read("Dockerfile")
+
+      expect(dockerfile).to include("docs-kit Dockerfile v#{DocsKit::VERSION}")
+    end
+
+    it "writes a standalone-site Dockerfile (WORKDIR /rails, whole-app context)" do
+      dockerfile = read("Dockerfile")
+
+      # A consuming site is a standalone Rails app at the context root — NOT the
+      # gem's /app + /app/docs monorepo layout.
+      expect(dockerfile).to include("WORKDIR /rails")
+      expect(dockerfile).to include("COPY --from=build /rails /rails")
+      expect(dockerfile).not_to include("/app/docs")
+    end
+
+    it "uses a multi-stage build that keeps build tooling out of the final image" do
+      dockerfile = read("Dockerfile")
+
+      expect(dockerfile).to include("FROM base AS build")
+      # build-essential/git/pkg-config are build-stage only; the final stage
+      # copies just the bundle + app from the build stage.
+      expect(dockerfile).to include("build-essential")
+      expect(dockerfile).to include(%(COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"))
+    end
+
+    it "excludes build cruft in .dockerignore (node_modules, git, logs, tmp, specs, coverage)" do
+      dockerignore = read(".dockerignore")
+
+      %w[node_modules .git log tmp spec coverage].each do |pattern|
+        expect(dockerignore).to include(pattern)
+      end
+    end
+
+    it "keeps the built assets and the lockfile OUT of .dockerignore (the build needs them)" do
+      dockerignore = read(".dockerignore")
+
+      # Gemfile.lock is required for a reproducible `bundle install --frozen`.
+      expect(dockerignore).not_to match(/^\s*Gemfile\.lock\s*$/)
+    end
+
+    it "falls back to a plain rails server CMD when the site has no Thruster" do
+      # The default skeleton has no bin/thrust and no Gemfile — a thrust CMD
+      # would crash the container at boot (Gem.bin_path raises), so the plain
+      # server CMD is the only safe default.
+      dockerfile = read("Dockerfile")
+
+      expect(dockerfile).to include(%(CMD ["./bin/rails", "server", "-b", "0.0.0.0"]))
+      expect(dockerfile).not_to include(%(CMD ["./bin/thrust"))
+    end
+
+    it "does not clobber a site's customized Dockerfile on re-run (site-owned, skip-if-exists)" do
+      write("Dockerfile", "# my hand-tuned Dockerfile\nFROM ruby:3.2\n")
+
+      run_generator
+
+      expect(read("Dockerfile")).to eq("# my hand-tuned Dockerfile\nFROM ruby:3.2\n")
+    end
+
+    it "refreshes the gem-owned .dockerignore on re-run (not site-owned)" do
+      write(".dockerignore", "# stale\n")
+
+      run_generator
+
+      expect(read(".dockerignore")).to include("node_modules")
+      expect(read(".dockerignore")).not_to eq("# stale\n")
+    end
+  end
+
+  # Thruster (HTTP caching + compression + X-Sendfile in front of Puma) is used
+  # when the site actually bundles it — a `rails new` on Rails 8 ships
+  # `gem "thruster"` + bin/thrust, but docs_kit:install also runs on older apps
+  # where a thrust CMD would crash the container at boot. Detection: bin/thrust
+  # OR a Gemfile thruster entry.
+  describe "Dockerfile Thruster CMD (thruster-aware sites)" do
+    context "when the site has a bin/thrust binstub" do
+      before do
+        build_skeleton
+        write("bin/thrust", "#!/usr/bin/env ruby\nload Gem.bin_path(\"thruster\", \"thrust\")\n")
+        run_generator
+      end
+
+      it "fronts Puma with Thruster" do
+        expect(read("Dockerfile")).to include(%(CMD ["./bin/thrust", "./bin/rails", "server"]))
+      end
+
+      it "pins HTTP_PORT to 3000 (kamal-proxy's app_port; non-root can't rely on 80)" do
+        dockerfile = read("Dockerfile")
+
+        # Thruster's default HTTP_PORT is 80: as USER 1000 the bind can fail, and
+        # kamal-proxy routes to app_port 3000 — which would hit Puma directly and
+        # silently bypass Thruster. HTTP_PORT=3000 keeps Thruster on the routed
+        # port; TARGET_PORT moves Puma out of the way.
+        expect(dockerfile).to match(/HTTP_PORT="?3000"?/)
+        expect(dockerfile).to match(/TARGET_PORT="?3001"?/)
+      end
+
+      it "does not also emit the plain-server fallback CMD" do
+        expect(read("Dockerfile")).not_to include(%(CMD ["./bin/rails", "server", "-b", "0.0.0.0"]))
+      end
+    end
+
+    context "when the site's Gemfile bundles thruster (no binstub yet)" do
+      before do
+        build_skeleton
+        write("Gemfile", <<~RUBY)
+          source "https://rubygems.org"
+          gem "rails"
+          gem "thruster", require: false
+        RUBY
+        run_generator
+      end
+
+      it "fronts Puma with Thruster" do
+        expect(read("Dockerfile")).to include(%(CMD ["./bin/thrust", "./bin/rails", "server"]))
+      end
+
+      it "creates the bin/thrust binstub the CMD needs (or the container crashes at boot)" do
+        # `bundle install` installs the gem, not app binstubs, and `COPY . .` can't
+        # copy a file the repo doesn't have — an exec-form CMD pointing at a
+        # missing ./bin/thrust builds green and then dies at container start.
+        expect(exist?("bin/thrust")).to be(true)
+        expect(read("bin/thrust")).to include(%(Gem.bin_path("thruster", "thrust")))
+
+        mode = File.stat(File.join(destination, "bin/thrust")).mode & 0o777
+        expect(mode).to eq(0o755)
+      end
+    end
+
+    context "when the site already has its own bin/thrust" do
+      before do
+        build_skeleton
+        write("bin/thrust", "#!/usr/bin/env ruby\n# hand-tuned\nload Gem.bin_path(\"thruster\", \"thrust\")\n")
+        run_generator
+      end
+
+      it "never overwrites the existing binstub" do
+        expect(read("bin/thrust")).to include("# hand-tuned")
+      end
+    end
+
+    context "when thruster is only in a group BUNDLE_WITHOUT excludes" do
+      before do
+        build_skeleton
+        write("Gemfile", <<~RUBY)
+          source "https://rubygems.org"
+          gem "rails"
+
+          group :development do
+            gem "thruster", require: false
+          end
+        RUBY
+        run_generator
+      end
+
+      it "keeps the plain rails server CMD (the production bundle won't have the gem)" do
+        # BUNDLE_WITHOUT="development:test" means Gem.bin_path("thruster") raises
+        # at boot — a dev-group entry must NOT trigger the thrust CMD.
+        dockerfile = read("Dockerfile")
+
+        expect(dockerfile).to include(%(CMD ["./bin/rails", "server", "-b", "0.0.0.0"]))
+        expect(dockerfile).not_to include(%(CMD ["./bin/thrust"))
+      end
+
+      it "does not scaffold a binstub for a gem the production bundle excludes" do
+        expect(exist?("bin/thrust")).to be(false)
+      end
+    end
+
+    context "when thruster uses the inline group: kwarg" do
+      before do
+        build_skeleton
+        write("Gemfile", <<~RUBY)
+          source "https://rubygems.org"
+          gem "rails"
+          gem "thruster", require: false, group: :development
+        RUBY
+        run_generator
+      end
+
+      it "keeps the plain rails server CMD" do
+        expect(read("Dockerfile")).to include(%(CMD ["./bin/rails", "server", "-b", "0.0.0.0"]))
+        expect(read("Dockerfile")).not_to include(%(CMD ["./bin/thrust"))
+      end
+    end
+
+    context "when the site's Gemfile has no thruster" do
+      before do
+        build_skeleton
+        write("Gemfile", <<~RUBY)
+          source "https://rubygems.org"
+          gem "rails"
+        RUBY
+        run_generator
+      end
+
+      it "keeps the plain rails server CMD" do
+        dockerfile = read("Dockerfile")
+
+        expect(dockerfile).to include(%(CMD ["./bin/rails", "server", "-b", "0.0.0.0"]))
+        expect(dockerfile).not_to include(%(CMD ["./bin/thrust"))
+      end
+    end
+  end
+
   describe "config/initializers/docs_kit.rb" do
     before do
       build_skeleton
@@ -762,6 +982,36 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
 
       expect(output).not_to include("render_page")
       expect(output).not_to include("IconHelper")
+    end
+
+    it "warns when the site's Dockerfile is stamped with an older docs-kit version" do
+      build_skeleton
+      # A site scaffolded by an older docs-kit carries an older version marker.
+      write("Dockerfile", "# docs-kit Dockerfile v0.9.0\nFROM ruby:3.4-slim\n")
+
+      output = capture_generator(sync: true)
+
+      expect(output).to include("Dockerfile")
+      expect(output).to include("0.9.0")
+      expect(output).to include(DocsKit::VERSION)
+    end
+
+    it "does NOT warn when the site's Dockerfile marker matches the gem version" do
+      build_skeleton
+      write("Dockerfile", "# docs-kit Dockerfile v#{DocsKit::VERSION}\nFROM ruby:3.4-slim\n")
+
+      output = capture_generator(sync: true)
+
+      expect(output).not_to match(/Dockerfile.*older|stale.*Dockerfile/i)
+    end
+
+    it "does NOT warn about a Dockerfile with no docs-kit marker (site brought its own)" do
+      build_skeleton
+      write("Dockerfile", "FROM ruby:3.4-slim\n# a hand-written Dockerfile, no marker\n")
+
+      output = capture_generator(sync: true)
+
+      expect(output).not_to match(/Dockerfile is v|Dockerfile.*older/i)
     end
   end
 end

@@ -29,6 +29,49 @@ module Views
             SHELL
           end
 
+          DocsUI::Section("The Docker image", description: "Lean, multi-stage, and upgradable.") do
+            prose do
+              p do
+                plain "The scaffolded "
+                code { "Dockerfile" }
+                plain " is a multi-stage build: a throwaway "
+                code { "build" }
+                plain " stage carries the toolchain (build-essential, git, bun) and compiles the gems + assets, and the final stage copies "
+                strong { "only" }
+                plain " the installed bundle and the app — no compilers, no "
+                code { "node_modules" }
+                plain ". A shipped "
+                code { ".dockerignore" }
+                plain " keeps the build context small (no "
+                code { ".git" }
+                plain ", "
+                code { "node_modules" }
+                plain ", logs, specs, or coverage). When the site bundles "
+                code { "thruster" }
+                plain " (a Rails 8 default), "
+                code { "bin/thrust" }
+                plain " fronts Puma with HTTP caching, compression, and X-Sendfile — Thruster listens on the routed port (3000) and proxies to Puma."
+              end
+              p do
+                plain "The "
+                code { ".dockerignore" }
+                plain " is gem-owned — every "
+                code { "docs_kit:install" }
+                plain " run refreshes it. The "
+                code { "Dockerfile" }
+                plain " is yours to tune, so the generator never clobbers it; it stamps a version marker ("
+                code { "# docs-kit Dockerfile vX.Y.Z" }
+                plain ") so "
+                code { "--sync" }
+                plain " warns you when a newer, leaner template ships. Diff and adopt:"
+              end
+            end
+            DocsUI::Code(<<~SHELL, lexer: :shell)
+              bin/rails g docs_kit:install --sync   # warns if your Dockerfile is stale
+              diff Dockerfile "$(bundle show docs-kit)/lib/generators/docs_kit/install/templates/Dockerfile.tt"
+            SHELL
+          end
+
           DocsUI::Section("The reusable workflow") do
             prose do
               p do

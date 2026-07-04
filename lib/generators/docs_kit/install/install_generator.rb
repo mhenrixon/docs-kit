@@ -4,6 +4,7 @@ require "erb"
 require "yaml"
 require "rails/generators/base"
 require_relative "sync_report"
+require_relative "../../../docs_kit/version"
 
 module DocsKit
   module Generators
@@ -176,6 +177,49 @@ module DocsKit
       # 404 for an image the gem can't provide.
       def create_og_task
         template "docs_kit_og.rake", "lib/tasks/docs_kit_og.rake"
+      end
+
+      # The production Dockerfile — a lean multi-stage build for a standalone
+      # docs site. Site-customizable (a site tunes packages/CMD), so skip when it
+      # exists and point an upgrader at the current template for a manual diff.
+      # The template stamps a `# docs-kit Dockerfile vX.Y.Z` marker so a `--sync`
+      # upgrade (SyncReport) can flag a stale copy. (create_initializer follows
+      # this same skip-if-exists + template-hint pattern.)
+      def create_dockerfile
+        dockerfile = "Dockerfile"
+        if File.exist?(File.join(destination_root, dockerfile))
+          template_path = File.join(self.class.source_root, "Dockerfile.tt")
+          return say_status(:skip, "#{dockerfile} exists — compare with #{template_path} if upgrading", :blue)
+        end
+
+        template "Dockerfile.tt", dockerfile
+      end
+
+      # The .dockerignore — gem-owned build-context trimming (node_modules, .git,
+      # logs, specs, coverage). Refreshed on every run (like create_og_task): it
+      # carries no site-specific content, so a re-run always ships the current
+      # excludes rather than fossilizing an old list.
+      def create_dockerignore
+        copy_file "dockerignore", ".dockerignore", force: true
+      end
+
+      # When the site bundles thruster but lacks the binstub, create it — the
+      # Dockerfile's exec-form `CMD ["./bin/thrust", ...]` needs the file to EXIST
+      # in the image (`bundle install` installs the gem, not app binstubs, and
+      # `COPY . .` can't ship a file the repo doesn't have). Without this, the
+      # image builds green and the container crashes at boot. Skip-if-exists: a
+      # hand-tuned binstub is never touched.
+      def create_thrust_binstub
+        return unless gemfile_bundles_thruster? && !thrust_binstub?
+
+        create_file "bin/thrust", <<~RUBY
+          #!/usr/bin/env ruby
+          require "rubygems"
+          require "bundler/setup"
+
+          load Gem.bin_path("thruster", "thrust")
+        RUBY
+        chmod "bin/thrust", 0o755
       end
 
       def wire_assets_and_package_json
@@ -451,6 +495,56 @@ module DocsKit
       def app_brand
         name = defined?(Rails) && Rails.respond_to?(:application) && Rails.application&.class&.module_parent_name
         (name || File.basename(destination_root)).to_s.underscore.humanize
+      end
+
+      # The Kamal `service` name stamped as the Dockerfile's LABEL — the app dir
+      # basename (a docs site's repo name), matching the `docs-kit new` default.
+      # Used in Dockerfile.tt via <%= docker_service %>.
+      def docker_service
+        File.basename(destination_root)
+      end
+
+      # The RUBY_VERSION build ARG default: the host's running Ruby (X.Y.Z), so a
+      # site's image matches its dev Ruby. Used in Dockerfile.tt.
+      def ruby_version_arg
+        RUBY_VERSION[/\d+\.\d+\.\d+/] || "3.4.2"
+      end
+
+      # True when the site bundles Thruster (HTTP caching + compression +
+      # X-Sendfile in front of Puma) — a Rails 8 `rails new` ships bin/thrust +
+      # the gem, but docs_kit:install also runs on older apps where a thrust CMD
+      # would crash the container at boot (Gem.bin_path raises). Decides which
+      # CMD Dockerfile.tt emits. A committed binstub is authoritative; otherwise
+      # the Gemfile decides (and create_thrust_binstub scaffolds the binstub).
+      def thruster?
+        thrust_binstub? || gemfile_bundles_thruster?
+      end
+
+      def thrust_binstub?
+        File.exist?(File.join(destination_root, "bin/thrust"))
+      end
+
+      # True when the Gemfile declares thruster where the PRODUCTION bundle sees
+      # it. The Dockerfile sets BUNDLE_WITHOUT="development:test", so a
+      # `group :development do ... end` entry (or an inline `group:` kwarg) must
+      # NOT count — the gem wouldn't be installed and thrust would raise at boot.
+      # Line-level block tracking: any `... do` pushes, `end` pops; a gem line
+      # counts only outside every group block (nested non-group blocks are fine).
+      def gemfile_bundles_thruster?
+        gemfile = File.join(destination_root, "Gemfile")
+        return false unless File.exist?(gemfile)
+
+        block_stack = []
+        File.foreach(gemfile) do |line|
+          if line.match?(/\bdo\s*(\|[^|]*\|)?\s*$/)
+            block_stack.push(line.match?(/^\s*group\b/))
+          elsif line.match?(/^\s*end\b/)
+            block_stack.pop
+          elsif block_stack.none? && line.match?(/^\s*gem\s+["']thruster["']/) && !line.match?(/\bgroup:/)
+            return true
+          end
+        end
+        false
       end
     end
   end
