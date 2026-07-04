@@ -65,8 +65,8 @@ Rails.application.config.to_prepare do
                          "This site is built with docs-kit."
     c.landing.install  = { code: 'gem "docs-kit"', filename: "Gemfile", lexer: :ruby }
     c.landing.ctas = [
-      { label: "Get started",      href: "/docs/installation", style: :primary },
-      { label: "Browse components", href: "/docs/components",   style: :ghost },
+      { label: "Get started",      href: "/docs/overview",   style: :primary },
+      { label: "Browse components", href: "/docs/components", style: :ghost },
       { label: "GitHub", href: "https://github.com/mhenrixon/docs-kit", style: :ghost, icon: :github }
     ]
     c.landing.features = [
