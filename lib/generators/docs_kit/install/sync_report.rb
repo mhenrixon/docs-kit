@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../../../docs_kit/version"
+
 module DocsKit
   module Generators
     # Detects manual drift in an existing docs site that the install generator
@@ -9,13 +11,21 @@ module DocsKit
     # generator prints these as a checklist during a `--sync` upgrade; the site
     # owner deletes the flagged code by hand.
     #
-    # Two drift items, both from the consumer audits:
+    # Drift items, from the consumer audits:
     #   - ApplicationController hand-defines `render_page` — DocsKit::Controller
     #     (included by the generator for months) already provides it.
     #   - a dead IconHelper copy — the gem renders icons via rails_icons.
+    #   - a Dockerfile stamped by an OLDER docs-kit than the gem now ships — the
+    #     site should diff against the current template and adopt the improvements.
     class SyncReport
       APPLICATION_CONTROLLER = "app/controllers/application_controller.rb"
       ICON_HELPER = "app/helpers/icon_helper.rb"
+      DOCKERFILE = "Dockerfile"
+
+      # Matches the version stamp the Dockerfile template writes, e.g.
+      # `# docs-kit Dockerfile v1.0.2`. Absent on a hand-written Dockerfile a site
+      # brought itself — which we deliberately leave alone (no marker → no warning).
+      DOCKERFILE_MARKER = /docs-kit Dockerfile v(\d+\.\d+\.\d+)/
 
       def initialize(destination_root)
         @root = destination_root
@@ -24,7 +34,7 @@ module DocsKit
       # The drift messages, in the order a site should act on them. Empty when
       # the site is clean.
       def items
-        [render_page_drift, icon_helper_drift].compact
+        [render_page_drift, icon_helper_drift, dockerfile_drift].compact
       end
 
       def clean?
@@ -51,6 +61,22 @@ module DocsKit
 
         "#{ICON_HELPER} (IconHelper) is dead — docs-kit renders icons via " \
           "rails_icons (DocsUI::Icon); delete it."
+      end
+
+      # The site's Dockerfile carries a docs-kit version stamp OLDER than the gem
+      # now ships. We never rewrite the site's Dockerfile (it's tuned per site) —
+      # we point the owner at the current template to diff or replace. A file with
+      # no marker (a hand-written Dockerfile) is left alone: no stamp, no warning.
+      def dockerfile_drift
+        source = read(DOCKERFILE)
+        stamped = source&.match(DOCKERFILE_MARKER)
+        return unless stamped
+
+        site_version = stamped[1]
+        return if site_version == DocsKit::VERSION
+
+        "#{DOCKERFILE} is v#{site_version}, docs-kit now ships v#{DocsKit::VERSION} — " \
+          "diff against the template (bin/rails g docs_kit:install shows the path) and adopt the changes."
       end
 
       def read(rel)

@@ -4,6 +4,7 @@ require "erb"
 require "yaml"
 require "rails/generators/base"
 require_relative "sync_report"
+require_relative "../../../docs_kit/version"
 
 module DocsKit
   module Generators
@@ -176,6 +177,30 @@ module DocsKit
       # 404 for an image the gem can't provide.
       def create_og_task
         template "docs_kit_og.rake", "lib/tasks/docs_kit_og.rake"
+      end
+
+      # The production Dockerfile — a lean multi-stage build for a standalone
+      # docs site. Site-customizable (a site tunes packages/CMD), so skip when it
+      # exists and point an upgrader at the current template for a manual diff.
+      # The template stamps a `# docs-kit Dockerfile vX.Y.Z` marker so a `--sync`
+      # upgrade (SyncReport) can flag a stale copy. (create_initializer follows
+      # this same skip-if-exists + template-hint pattern.)
+      def create_dockerfile
+        dockerfile = "Dockerfile"
+        if File.exist?(File.join(destination_root, dockerfile))
+          template_path = File.join(self.class.source_root, "Dockerfile.tt")
+          return say_status(:skip, "#{dockerfile} exists — compare with #{template_path} if upgrading", :blue)
+        end
+
+        template "Dockerfile.tt", dockerfile
+      end
+
+      # The .dockerignore — gem-owned build-context trimming (node_modules, .git,
+      # logs, specs, coverage). Refreshed on every run (like create_og_task): it
+      # carries no site-specific content, so a re-run always ships the current
+      # excludes rather than fossilizing an old list.
+      def create_dockerignore
+        copy_file "dockerignore", ".dockerignore", force: true
       end
 
       def wire_assets_and_package_json
@@ -451,6 +476,19 @@ module DocsKit
       def app_brand
         name = defined?(Rails) && Rails.respond_to?(:application) && Rails.application&.class&.module_parent_name
         (name || File.basename(destination_root)).to_s.underscore.humanize
+      end
+
+      # The Kamal `service` name stamped as the Dockerfile's LABEL — the app dir
+      # basename (a docs site's repo name), matching the `docs-kit new` default.
+      # Used in Dockerfile.tt via <%= docker_service %>.
+      def docker_service
+        File.basename(destination_root)
+      end
+
+      # The RUBY_VERSION build ARG default: the host's running Ruby (X.Y.Z), so a
+      # site's image matches its dev Ruby. Used in Dockerfile.tt.
+      def ruby_version_arg
+        RUBY_VERSION[/\d+\.\d+\.\d+/] || "3.4.2"
       end
     end
   end

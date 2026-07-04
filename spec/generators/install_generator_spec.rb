@@ -137,6 +137,80 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
     end
   end
 
+  # The Docker delivery: a gem-owned `.dockerignore` (refreshed every run, like
+  # the og rake task) and a site-customizable `Dockerfile` (skip-if-exists, like
+  # the config initializer). The Dockerfile carries a version marker so a `--sync`
+  # upgrade can flag it as stale against the gem's current template.
+  describe "Docker files (create_dockerfile + create_dockerignore)" do
+    before do
+      build_skeleton
+      run_generator
+    end
+
+    it "creates a Dockerfile and a .dockerignore" do
+      expect(exist?("Dockerfile")).to be(true)
+      expect(exist?(".dockerignore")).to be(true)
+    end
+
+    it "stamps the Dockerfile with the gem's version marker (so a --sync can detect staleness)" do
+      dockerfile = read("Dockerfile")
+
+      expect(dockerfile).to include("docs-kit Dockerfile v#{DocsKit::VERSION}")
+    end
+
+    it "writes a standalone-site Dockerfile (WORKDIR /rails, whole-app context)" do
+      dockerfile = read("Dockerfile")
+
+      # A consuming site is a standalone Rails app at the context root — NOT the
+      # gem's /app + /app/docs monorepo layout.
+      expect(dockerfile).to include("WORKDIR /rails")
+      expect(dockerfile).to include("COPY --from=build /rails /rails")
+      expect(dockerfile).not_to include("/app/docs")
+    end
+
+    it "uses a multi-stage build that keeps build tooling out of the final image" do
+      dockerfile = read("Dockerfile")
+
+      expect(dockerfile).to include("FROM base AS build")
+      # build-essential/git/pkg-config are build-stage only; the final stage
+      # copies just the bundle + app from the build stage.
+      expect(dockerfile).to include("build-essential")
+      expect(dockerfile).to include(%(COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"))
+    end
+
+    it "excludes build cruft in .dockerignore (node_modules, git, logs, tmp, specs, coverage)" do
+      dockerignore = read(".dockerignore")
+
+      %w[node_modules .git log tmp spec coverage].each do |pattern|
+        expect(dockerignore).to include(pattern)
+      end
+    end
+
+    it "keeps the built assets and the lockfile OUT of .dockerignore (the build needs them)" do
+      dockerignore = read(".dockerignore")
+
+      # Gemfile.lock is required for a reproducible `bundle install --frozen`.
+      expect(dockerignore).not_to match(/^\s*Gemfile\.lock\s*$/)
+    end
+
+    it "does not clobber a site's customized Dockerfile on re-run (site-owned, skip-if-exists)" do
+      write("Dockerfile", "# my hand-tuned Dockerfile\nFROM ruby:3.2\n")
+
+      run_generator
+
+      expect(read("Dockerfile")).to eq("# my hand-tuned Dockerfile\nFROM ruby:3.2\n")
+    end
+
+    it "refreshes the gem-owned .dockerignore on re-run (not site-owned)" do
+      write(".dockerignore", "# stale\n")
+
+      run_generator
+
+      expect(read(".dockerignore")).to include("node_modules")
+      expect(read(".dockerignore")).not_to eq("# stale\n")
+    end
+  end
+
   describe "config/initializers/docs_kit.rb" do
     before do
       build_skeleton
@@ -762,6 +836,36 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
 
       expect(output).not_to include("render_page")
       expect(output).not_to include("IconHelper")
+    end
+
+    it "warns when the site's Dockerfile is stamped with an older docs-kit version" do
+      build_skeleton
+      # A site scaffolded by an older docs-kit carries an older version marker.
+      write("Dockerfile", "# docs-kit Dockerfile v0.9.0\nFROM ruby:3.4-slim\n")
+
+      output = capture_generator(sync: true)
+
+      expect(output).to include("Dockerfile")
+      expect(output).to include("0.9.0")
+      expect(output).to include(DocsKit::VERSION)
+    end
+
+    it "does NOT warn when the site's Dockerfile marker matches the gem version" do
+      build_skeleton
+      write("Dockerfile", "# docs-kit Dockerfile v#{DocsKit::VERSION}\nFROM ruby:3.4-slim\n")
+
+      output = capture_generator(sync: true)
+
+      expect(output).not_to match(/Dockerfile.*older|stale.*Dockerfile/i)
+    end
+
+    it "does NOT warn about a Dockerfile with no docs-kit marker (site brought its own)" do
+      build_skeleton
+      write("Dockerfile", "FROM ruby:3.4-slim\n# a hand-written Dockerfile, no marker\n")
+
+      output = capture_generator(sync: true)
+
+      expect(output).not_to match(/Dockerfile is v|Dockerfile.*older/i)
     end
   end
 end
