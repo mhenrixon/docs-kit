@@ -57,8 +57,10 @@ Gem::Specification.new do |s|
   s.add_dependency "phlex-rails", ">= 2.0", "< 3"
   # lucide icons synced into the host app's assets.
   s.add_dependency "rails_icons", "~> 1.1"
-  # Syntax highlighting for Docs::Code.
-  s.add_dependency "rouge", ">= 4.0", "< 5"
+  # Syntax highlighting for Docs::Code. Admits rouge 5 (verified against the
+  # component suite) — the `< 5` cap was silently DOWNGRADING consuming sites
+  # that already ran rouge 5.x (seen in daisyui's docs app).
+  s.add_dependency "rouge", ">= 4.0", "< 6"
   # GFM parsing for DocsUI::Markdown (v2 = Rust/comrak, precompiled; GFM tables +
   # strikethrough + autolink on by default). We walk its AST to Phlex nodes, so
   # commonmarker never renders HTML we'd have to html_safe.
