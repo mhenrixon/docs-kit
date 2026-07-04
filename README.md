@@ -107,6 +107,16 @@ The generator ships two Docker files:
   (`# docs-kit Dockerfile v<VERSION>`) so `--sync` can tell you when yours is
   stale relative to the gem's current template.
 
+When the site bundles `thruster` (a Rails 8 default), the generated Dockerfile
+fronts Puma with Thruster (`CMD ["./bin/thrust", "./bin/rails", "server"]`) for
+HTTP caching, compression, and X-Sendfile — and the generator scaffolds the
+`bin/thrust` binstub if the app lacks one, since the exec-form CMD needs the
+file to exist in the image. Thruster listens on the routed port
+(`HTTP_PORT=3000` — Kamal's `app_port`) and proxies to Puma on `TARGET_PORT=3001`.
+Without thruster in the *production* bundle (absent, or only in a
+development/test group that `BUNDLE_WITHOUT` excludes) the CMD falls back to
+plain `rails server` — never a thrust CMD that would crash at boot.
+
 When `--sync` reports your Dockerfile is behind, compare it against the shipped
 template and pull in the improvements (or replace it wholesale if you never
 customized it):

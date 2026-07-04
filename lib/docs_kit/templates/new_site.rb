@@ -4,7 +4,10 @@ require "securerandom"
 
 # Rails application template for a docs-kit docs site. Run via:
 #
-#   rails new my-docs --minimal -a propshaft -j importmap --skip-... -m new_site.rb
+#   rails new my-docs -a propshaft -j importmap --skip-... -m new_site.rb
+#
+# (NOT --minimal — that strips JS the shell needs AND the thruster gem the
+# generated Dockerfile fronts Puma with; exe/docs-kit passes the right flags.)
 #
 # or, more simply, via the `docs-kit new` CLI (exe/docs-kit) which supplies the
 # right `rails new` flags. It:

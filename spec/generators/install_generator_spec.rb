@@ -193,6 +193,16 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(dockerignore).not_to match(/^\s*Gemfile\.lock\s*$/)
     end
 
+    it "falls back to a plain rails server CMD when the site has no Thruster" do
+      # The default skeleton has no bin/thrust and no Gemfile — a thrust CMD
+      # would crash the container at boot (Gem.bin_path raises), so the plain
+      # server CMD is the only safe default.
+      dockerfile = read("Dockerfile")
+
+      expect(dockerfile).to include(%(CMD ["./bin/rails", "server", "-b", "0.0.0.0"]))
+      expect(dockerfile).not_to include(%(CMD ["./bin/thrust"))
+    end
+
     it "does not clobber a site's customized Dockerfile on re-run (site-owned, skip-if-exists)" do
       write("Dockerfile", "# my hand-tuned Dockerfile\nFROM ruby:3.2\n")
 
@@ -208,6 +218,142 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
 
       expect(read(".dockerignore")).to include("node_modules")
       expect(read(".dockerignore")).not_to eq("# stale\n")
+    end
+  end
+
+  # Thruster (HTTP caching + compression + X-Sendfile in front of Puma) is used
+  # when the site actually bundles it — a `rails new` on Rails 8 ships
+  # `gem "thruster"` + bin/thrust, but docs_kit:install also runs on older apps
+  # where a thrust CMD would crash the container at boot. Detection: bin/thrust
+  # OR a Gemfile thruster entry.
+  describe "Dockerfile Thruster CMD (thruster-aware sites)" do
+    context "when the site has a bin/thrust binstub" do
+      before do
+        build_skeleton
+        write("bin/thrust", "#!/usr/bin/env ruby\nload Gem.bin_path(\"thruster\", \"thrust\")\n")
+        run_generator
+      end
+
+      it "fronts Puma with Thruster" do
+        expect(read("Dockerfile")).to include(%(CMD ["./bin/thrust", "./bin/rails", "server"]))
+      end
+
+      it "pins HTTP_PORT to 3000 (kamal-proxy's app_port; non-root can't rely on 80)" do
+        dockerfile = read("Dockerfile")
+
+        # Thruster's default HTTP_PORT is 80: as USER 1000 the bind can fail, and
+        # kamal-proxy routes to app_port 3000 — which would hit Puma directly and
+        # silently bypass Thruster. HTTP_PORT=3000 keeps Thruster on the routed
+        # port; TARGET_PORT moves Puma out of the way.
+        expect(dockerfile).to match(/HTTP_PORT="?3000"?/)
+        expect(dockerfile).to match(/TARGET_PORT="?3001"?/)
+      end
+
+      it "does not also emit the plain-server fallback CMD" do
+        expect(read("Dockerfile")).not_to include(%(CMD ["./bin/rails", "server", "-b", "0.0.0.0"]))
+      end
+    end
+
+    context "when the site's Gemfile bundles thruster (no binstub yet)" do
+      before do
+        build_skeleton
+        write("Gemfile", <<~RUBY)
+          source "https://rubygems.org"
+          gem "rails"
+          gem "thruster", require: false
+        RUBY
+        run_generator
+      end
+
+      it "fronts Puma with Thruster" do
+        expect(read("Dockerfile")).to include(%(CMD ["./bin/thrust", "./bin/rails", "server"]))
+      end
+
+      it "creates the bin/thrust binstub the CMD needs (or the container crashes at boot)" do
+        # `bundle install` installs the gem, not app binstubs, and `COPY . .` can't
+        # copy a file the repo doesn't have — an exec-form CMD pointing at a
+        # missing ./bin/thrust builds green and then dies at container start.
+        expect(exist?("bin/thrust")).to be(true)
+        expect(read("bin/thrust")).to include(%(Gem.bin_path("thruster", "thrust")))
+
+        mode = File.stat(File.join(destination, "bin/thrust")).mode & 0o777
+        expect(mode).to eq(0o755)
+      end
+    end
+
+    context "when the site already has its own bin/thrust" do
+      before do
+        build_skeleton
+        write("bin/thrust", "#!/usr/bin/env ruby\n# hand-tuned\nload Gem.bin_path(\"thruster\", \"thrust\")\n")
+        run_generator
+      end
+
+      it "never overwrites the existing binstub" do
+        expect(read("bin/thrust")).to include("# hand-tuned")
+      end
+    end
+
+    context "when thruster is only in a group BUNDLE_WITHOUT excludes" do
+      before do
+        build_skeleton
+        write("Gemfile", <<~RUBY)
+          source "https://rubygems.org"
+          gem "rails"
+
+          group :development do
+            gem "thruster", require: false
+          end
+        RUBY
+        run_generator
+      end
+
+      it "keeps the plain rails server CMD (the production bundle won't have the gem)" do
+        # BUNDLE_WITHOUT="development:test" means Gem.bin_path("thruster") raises
+        # at boot — a dev-group entry must NOT trigger the thrust CMD.
+        dockerfile = read("Dockerfile")
+
+        expect(dockerfile).to include(%(CMD ["./bin/rails", "server", "-b", "0.0.0.0"]))
+        expect(dockerfile).not_to include(%(CMD ["./bin/thrust"))
+      end
+
+      it "does not scaffold a binstub for a gem the production bundle excludes" do
+        expect(exist?("bin/thrust")).to be(false)
+      end
+    end
+
+    context "when thruster uses the inline group: kwarg" do
+      before do
+        build_skeleton
+        write("Gemfile", <<~RUBY)
+          source "https://rubygems.org"
+          gem "rails"
+          gem "thruster", require: false, group: :development
+        RUBY
+        run_generator
+      end
+
+      it "keeps the plain rails server CMD" do
+        expect(read("Dockerfile")).to include(%(CMD ["./bin/rails", "server", "-b", "0.0.0.0"]))
+        expect(read("Dockerfile")).not_to include(%(CMD ["./bin/thrust"))
+      end
+    end
+
+    context "when the site's Gemfile has no thruster" do
+      before do
+        build_skeleton
+        write("Gemfile", <<~RUBY)
+          source "https://rubygems.org"
+          gem "rails"
+        RUBY
+        run_generator
+      end
+
+      it "keeps the plain rails server CMD" do
+        dockerfile = read("Dockerfile")
+
+        expect(dockerfile).to include(%(CMD ["./bin/rails", "server", "-b", "0.0.0.0"]))
+        expect(dockerfile).not_to include(%(CMD ["./bin/thrust"))
+      end
     end
   end
 

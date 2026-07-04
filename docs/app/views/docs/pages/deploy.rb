@@ -46,7 +46,11 @@ module Views
                 code { ".git" }
                 plain ", "
                 code { "node_modules" }
-                plain ", logs, specs, or coverage)."
+                plain ", logs, specs, or coverage). When the site bundles "
+                code { "thruster" }
+                plain " (a Rails 8 default), "
+                code { "bin/thrust" }
+                plain " fronts Puma with HTTP caching, compression, and X-Sendfile — Thruster listens on the routed port (3000) and proxies to Puma."
               end
               p do
                 plain "The "

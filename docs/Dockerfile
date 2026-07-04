@@ -72,4 +72,12 @@ RUN groupadd --system --gid 1000 rails && \
 USER 1000:1000
 
 EXPOSE 3000
-CMD ["./bin/rails", "server", "-b", "0.0.0.0"]
+# Thruster fronts Puma (HTTP caching + compression + X-Sendfile). It listens on
+# HTTP_PORT and proxies to Puma on TARGET_PORT (it sets PORT for the child, which
+# config/puma.rb reads). HTTP_PORT MUST be the port traffic is routed to (Kamal's
+# `app_port: 3000` in config/deploy.yml, the EXPOSE above) — Thruster's default
+# is 80, which the non-root user can't reliably bind AND which kamal-proxy would
+# never route to, silently bypassing Thruster straight into Puma.
+ENV HTTP_PORT="3000" \
+    TARGET_PORT="3001"
+CMD ["./bin/thrust", "./bin/rails", "server"]
