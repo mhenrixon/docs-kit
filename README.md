@@ -81,6 +81,31 @@ site-owned content (your `Doc` registry, your pages, your themed
 `application.tailwind.css`). Drop `--sync` to also (re)scaffold missing content
 files — Thor prompts before overwriting anything that exists.
 
+### Version-aware migrations
+
+Every install and `--sync` stamps the docs-kit version it ran into your config
+initializer, as an inert comment on the first line:
+
+```ruby
+# docs-kit synced: v1.0.5
+# frozen_string_literal: true
+Rails.application.config.to_prepare do
+  DocsKit.configure do |c|
+    # ...
+```
+
+On the next `--sync` after a `bundle update docs-kit`, the generator reads that
+stamp, works out the gap to the newly-installed version, and runs the **ordered
+release-to-release migrations** in between — renamed config knobs, changed route
+shapes, restructured templates — in sequence, then restamps to the new version.
+A site created before the stamp existed (no comment) is treated as the earliest
+version, so it gets every migration. Migrations are **warn-only-safe** exactly
+like the drift report: what a step can't safely automate it prints as a manual
+checklist (`migration steps to apply by hand:`), never a destructive rewrite of
+a line you've edited. There are no migrations to apply yet — the mechanism ships
+ahead of the first release that needs one, so the upgrade path is already in
+place.
+
 ### One-time cleanup for sites created before these landed
 
 `--sync` detects drift it can't safely automate and prints a checklist — it
