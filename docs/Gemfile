@@ -46,9 +46,23 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  # The test framework (matches the sibling gems — cosmos/phlex-reactive/pgbus).
+  gem "rspec-rails"
 end
 
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
+
+  # Lints the Capybara system specs (the site's .rubocop.yml enables it).
+  gem "rubocop-capybara", require: false
+  gem "rubocop-rspec", require: false
+end
+
+group :test do
+  # Browser/system specs via Capybara + a real Playwright chromium, matching the
+  # sibling gems. `require: false` — loaded only by the system-spec support files.
+  gem "capybara", require: false
+  gem "capybara-playwright-driver", require: false
 end

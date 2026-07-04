@@ -1,8 +1,35 @@
 # Omakase Ruby styling for Rails
 inherit_gem: { rubocop-rails-omakase: rubocop.yml }
 
-# Overwrite or add rules to create your own house style
-#
-# # Use `[a, [b, c]]` not `[ a, [ b, c ] ]`
-# Layout/SpaceInsideArrayLiteralBrackets:
-#   Enabled: false
+# Lint the RSpec + Capybara system specs.
+plugins:
+  - rubocop-rspec
+  - rubocop-capybara
+
+AllCops:
+  NewCops: enable
+  Exclude:
+    - bin/**/*
+    - config/**/*
+    - db/**/*
+    - node_modules/**/*
+    - tmp/**/*
+    - vendor/**/*
+    - storage/**/*
+
+# The site's house style: `[a, [b, c]]`, not `[ a, [ b, c ] ]` (the authored
+# preference, previously only a comment). Applies to app views + the specs alike.
+Layout/SpaceInsideArrayLiteralBrackets:
+  Enabled: false
+
+# System specs legitimately do more than one assertion per example (a user flow),
+# and read top-to-bottom rather than one-expectation-per-it.
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/ExampleLength:
+  Max: 15
+
+# The docs registry pages and Phlex views are the site's content, not spec'd here.
+RSpec/SpecFilePathFormat:
+  Enabled: false
