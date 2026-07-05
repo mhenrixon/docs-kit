@@ -32,13 +32,7 @@ Protect this session's context: delegate mechanical exploration to cheaper subag
 3. Read `CLAUDE.md` and the `.claude/rules/` files — the project invariants live there.
 4. Check `git log` for recent related work; the design should extend it, not fight it.
 
-## Phase 2 — Design
-
-- Develop 2–3 candidate approaches with real tradeoffs. Pick one and say why; record why the others lost.
-- The chosen design must respect docs-kit invariants: chrome is composed from `DocsUI::` Phlex components (never raw daisyUI markup); site-specific values come from `DocsKit.configuration` (with a default, for backwards compat); the page works with JavaScript off (progressive enhancement); there is exactly ONE Stimulus controller (`docs-nav`) — no per-feature JS; `config.themes` stays in sync with the Tailwind `@plugin` theme list; new emitted classes need a CSS `@source` scan; any required setup is wired into the install generator AND the `docs-kit new` template, not just the README; TDD (specs named before implementation steps).
-- Decide the test strategy per the testing rules: config specs for a new knob + its default, component-render specs for output/semantics, registry specs for grouping/lookup, generator specs for install output.
-
-## Phase 3 — Surface the unknowns (blindspot pass + interview)
+## Phase 2 — Surface the unknowns (blindspot pass + interview)
 
 Investigation tells you what the codebase says; this phase finds what the REQUEST doesn't say. Run it BEFORE designing — a wrong assumption caught here costs one question; caught in review it costs a rewrite.
 
@@ -51,6 +45,12 @@ Investigation tells you what the codebase says; this phase finds what the REQUES
    - 2–5 questions is the sweet spot; zero is fine when the request is genuinely unambiguous — say so rather than inventing questions.
    - Every question offers concrete options with a recommended default, never an open-ended essay prompt.
 3. **Record the answers** in the plan's Decision section as `Settled in interview:` bullets — constraints the executor must not re-litigate.
+
+## Phase 3 — Design
+
+- Develop 2–3 candidate approaches with real tradeoffs. Pick one and say why; record why the others lost.
+- The chosen design must respect docs-kit invariants: chrome is composed from `DocsUI::` Phlex components (never raw daisyUI markup); site-specific values come from `DocsKit.configuration` (with a default, for backwards compat); the page works with JavaScript off (progressive enhancement); there is exactly ONE Stimulus controller (`docs-nav`) — no per-feature JS; `config.themes` stays in sync with the Tailwind `@plugin` theme list; new emitted classes need a CSS `@source` scan; any required setup is wired into the install generator AND the `docs-kit new` template, not just the README; TDD (specs named before implementation steps).
+- Decide the test strategy per the testing rules: config specs for a new knob + its default, component-render specs for output/semantics, registry specs for grouping/lookup, generator specs for install output.
 
 ## Phase 4 — Emit the plan artifact
 
