@@ -5,6 +5,8 @@ require "stringio"
 require "tmpdir"
 require "rails/generators"
 require "generators/docs_kit/install/install_generator"
+require "generators/docs_kit/install/migration"
+require "generators/docs_kit/install/migration_registry"
 
 # The install generator never touches a booted Rails app — it only reads/writes
 # files under destination_root via Thor. So we exercise it against a throwaway
@@ -430,10 +432,14 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       write("config/initializers/docs_kit.rb", edited_config)
     end
 
-    it "preserves the site's edited config byte-for-byte on re-run" do
+    it "preserves the site's edited config body on re-run (only prepends the inert version stamp)" do
       run_generator
 
-      expect(read("config/initializers/docs_kit.rb")).to eq(edited_config)
+      result = read("config/initializers/docs_kit.rb")
+      # The edited config body is untouched — just prefixed with the synced-version
+      # stamp comment (an inert line the migration machinery reads on the next sync).
+      expect(result).to include(edited_config.rstrip)
+      expect(result).to eq("# docs-kit synced: v#{DocsKit::VERSION}\n#{edited_config}")
     end
 
     it "reports the skip and hints at the template for an upgrade diff" do
@@ -1031,6 +1037,149 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       output = capture_generator(sync: true)
 
       expect(output).not_to match(/Dockerfile is v|Dockerfile.*older/i)
+    end
+  end
+
+  # Version-aware sync: the generator records which docs-kit version a site was
+  # last synced at (a `# docs-kit synced: vX.Y.Z` stamp in the initializer) so a
+  # future `--sync` can run the ORDERED migrations between that version and the
+  # gem's current version — not just diff against head. The stamp is inert (a
+  # comment), lives in the one file every site has, and is injectable into an
+  # existing initializer the generator otherwise never rewrites.
+  describe "version stamping (records the last-synced docs-kit version)" do
+    let(:stamp) { "# docs-kit synced: v#{DocsKit::VERSION}" }
+
+    it "stamps the current gem version into the initializer on a full install" do
+      build_skeleton
+      run_generator
+
+      expect(read("config/initializers/docs_kit.rb")).to include(stamp)
+    end
+
+    it "injects the stamp into an existing (never-clobbered) initializer that lacks one" do
+      # A site created before this feature has an un-stamped initializer the
+      # generator must not rewrite. --sync injects the stamp comment without
+      # touching the site's config body.
+      build_skeleton
+      write("config/initializers/docs_kit.rb", <<~RUBY)
+        # frozen_string_literal: true
+        DocsKit.configure do |c|
+          c.brand = "My Hand-Edited Brand"
+        end
+      RUBY
+
+      run_generator(sync: true)
+
+      initializer = read("config/initializers/docs_kit.rb")
+      expect(initializer).to include(stamp)
+      # The site's edited config body is preserved.
+      expect(initializer).to include(%(c.brand = "My Hand-Edited Brand"))
+    end
+
+    it "updates a stale stamp to the current version on --sync (never duplicates it)" do
+      build_skeleton
+      write("config/initializers/docs_kit.rb", <<~RUBY)
+        # docs-kit synced: v0.9.0
+        # frozen_string_literal: true
+        DocsKit.configure { |c| c.brand = "X" }
+      RUBY
+
+      run_generator(sync: true)
+
+      initializer = read("config/initializers/docs_kit.rb")
+      expect(initializer).to include(stamp)
+      expect(initializer).not_to include("v0.9.0")
+      expect(initializer.scan("docs-kit synced:").size).to eq(1)
+    end
+
+    it "is idempotent — a second run leaves exactly one current stamp" do
+      build_skeleton
+      run_generator
+      run_generator(sync: true)
+
+      initializer = read("config/initializers/docs_kit.rb")
+      expect(initializer.scan("docs-kit synced:").size).to eq(1)
+      expect(initializer).to include(stamp)
+    end
+  end
+
+  # The payoff of the stamp: --sync computes the gap between the site's
+  # last-synced version and the gem's version and runs the ordered migrations
+  # in between, printing warn-only messages for anything a migration can't
+  # safely automate (the #24 drift pattern). The default registry ships EMPTY at
+  # 1.0.x, so these assert the WIRING (the gap is read, the registry is invoked,
+  # warnings surface) against an injected registry rather than a real transform.
+  describe "version-aware migrations (--sync runs ordered transforms across the gap)" do
+    # A registry whose one migration records that it ran (by writing a marker
+    # file into the site) and emits a warning — so we can assert the generator
+    # read the stamp, invoked the registry, and printed the warning. `to`
+    # defaults to the installed gem version (a migration introduced in THIS
+    # release): the realistic case, and within the registry's `upto` ceiling so
+    # it's applicable to a site stamped below it. A `to` above DocsKit::VERSION
+    # would be filtered as unreleased.
+    def stub_default_registry(to: DocsKit::VERSION, warnings: ["do the manual thing the migration can't automate"])
+      migration = DocsKit::Generators::Migration.new(to: to, description: "a migration") do |root, _gen|
+        File.write(File.join(root, ".migration-ran"), "yes")
+        warnings
+      end
+      registry = DocsKit::Generators::MigrationRegistry.new([migration])
+      allow(DocsKit::Generators::MigrationRegistry).to receive(:default).and_return(registry)
+    end
+
+    it "runs applicable migrations for a stamped site and prints their warnings" do
+      build_skeleton
+      run_generator # full install → stamps the current version
+      # Roll the stamp back so the stubbed migration (at the gem version) is applicable.
+      write("config/initializers/docs_kit.rb",
+            "# docs-kit synced: v0.9.0\n#{read('config/initializers/docs_kit.rb')}")
+      stub_default_registry
+
+      generator = described_class.new([], { sync: true }, destination_root: destination)
+      output = capture_stream { generator.invoke_all }
+
+      expect(exist?(".migration-ran")).to be(true)
+      expect(output).to include("do the manual thing the migration can't automate")
+    end
+
+    it "runs no migrations when the site is already at the current version" do
+      build_skeleton
+      run_generator # stamps current version
+      # A migration AT the current version has already been applied at that sync.
+      stub_default_registry(to: DocsKit::VERSION, warnings: [])
+
+      generator = described_class.new([], { sync: true }, destination_root: destination)
+      capture_stream { generator.invoke_all }
+
+      expect(exist?(".migration-ran")).to be(false)
+    end
+
+    it "treats a pre-feature (un-stamped) site as earliest (runs every migration)" do
+      build_skeleton
+      # A site created before the stamp landed: it HAS an initializer, but with
+      # no synced-version stamp. create_initializer never clobbers it, so it
+      # survives into run_migrations, which reads it as 0.0.0 (earliest) — every
+      # migration up to the gem version applies.
+      write("config/initializers/docs_kit.rb", <<~RUBY)
+        # frozen_string_literal: true
+        DocsKit.configure { |c| c.brand = "Legacy Site" }
+      RUBY
+      stub_default_registry
+
+      generator = described_class.new([], { sync: true }, destination_root: destination)
+      capture_stream { generator.invoke_all }
+
+      expect(exist?(".migration-ran")).to be(true)
+    end
+
+    it "does not run migrations on a full (non-sync) install" do
+      build_skeleton
+      stub_default_registry
+
+      generator = described_class.new([], {}, destination_root: destination)
+      capture_stream { generator.invoke_all }
+
+      # A full install is a fresh scaffold, not an upgrade — nothing to migrate.
+      expect(exist?(".migration-ran")).to be(false)
     end
   end
 end

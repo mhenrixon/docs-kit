@@ -4,6 +4,7 @@ require "erb"
 require "yaml"
 require "rails/generators/base"
 require_relative "sync_report"
+require_relative "migration_registry"
 require_relative "../../../docs_kit/version"
 
 module DocsKit
@@ -43,6 +44,18 @@ module DocsKit
       AGENTS_BEGIN = "<!-- BEGIN docs-kit -->"
       AGENTS_END   = "<!-- END docs-kit -->"
       AGENTS_BLOCK_RE = /#{Regexp.escape(AGENTS_BEGIN)}.*#{Regexp.escape(AGENTS_END)}/m
+
+      # The config initializer — the one file every site has, so it carries the
+      # last-synced version stamp. See stamp_synced_version / run_migrations.
+      INITIALIZER = "config/initializers/docs_kit.rb"
+
+      # The inert comment recording which docs-kit version last synced this site.
+      # A future `--sync` reads it to run only the ordered migrations between that
+      # version and the gem's current one. Absent → the site predates the stamp
+      # (treated as the earliest version, so every migration applies).
+      SYNCED_STAMP_RE = /^#\s*docs-kit synced:\s*v(\d+\.\d+\.\d+)\s*$/
+
+      def self.synced_stamp(version = DocsKit::VERSION) = "# docs-kit synced: v#{version}"
 
       # The RuboCop wiring docs-kit injects. REQUIRE loads the cops;
       # INHERIT_GEM/INHERIT_PATH enable + scope them (see config/rubocop/docs_kit.yml).
@@ -308,6 +321,43 @@ module DocsKit
         report.items.each { |item| say "  • #{item}" }
       end
 
+      # Run the ordered release-to-release migrations between the site's
+      # last-synced version and the gem's current one — the payoff of the version
+      # stamp. `--sync` only (a full install is a fresh scaffold, not an upgrade),
+      # and BEFORE stamp_synced_version restamps, so it reads the OLD version. An
+      # un-stamped site is treated as the earliest version (every migration runs).
+      # Migrations are warn-only-safe: what they can't automate they hand back as
+      # a checklist, printed like the drift report. The registry ships EMPTY at
+      # 1.0.x, so today this is a no-op that establishes the upgrade path.
+      def run_migrations
+        return unless options[:sync]
+
+        warnings = MigrationRegistry.default.migrate!(synced_version, destination_root, self)
+        return if warnings.empty?
+
+        say_status :warn, "migration steps to apply by hand:", :yellow
+        warnings.each { |item| say "  • #{item}" }
+      end
+
+      # Record which docs-kit version this site is now synced at, so the NEXT
+      # `--sync` can run only the migrations after it. Injected as an inert
+      # comment at the top of the initializer (the one file every site has) —
+      # which create_initializer never rewrites, so stamping is its own step.
+      # Idempotent: updates a stale stamp in place, adds one when absent, and
+      # is a no-op when already current.
+      def stamp_synced_version
+        path = File.join(destination_root, INITIALIZER)
+        return unless File.exist?(path)
+
+        current = self.class.synced_stamp
+        source = File.read(path)
+        updated = source.match?(SYNCED_STAMP_RE) ? source.sub(SYNCED_STAMP_RE, current) : "#{current}\n#{source}"
+        return if updated == source
+
+        File.write(path, updated)
+        say_status :update, "#{INITIALIZER} (synced v#{DocsKit::VERSION})", :green
+      end
+
       def show_post_install
         return show_sync_summary if options[:sync]
 
@@ -327,6 +377,17 @@ module DocsKit
       end
 
       private
+
+      # The docs-kit version this site was last synced at, read from the
+      # initializer's stamp. Un-stamped (a site created before the stamp landed,
+      # or a fresh skeleton) → "0.0.0", the earliest version, so every migration
+      # applies. Read BEFORE stamp_synced_version overwrites it.
+      def synced_version
+        path = File.join(destination_root, INITIALIZER)
+        return "0.0.0" unless File.exist?(path)
+
+        File.read(path)[SYNCED_STAMP_RE, 1] || "0.0.0"
+      end
 
       def show_sync_summary
         say_status :info, "docs-kit synced.", :green
