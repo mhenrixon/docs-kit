@@ -65,7 +65,7 @@ module DocsUI
         # "Markdown" action sits opposite "← Home"; it's chrome too, so it lives
         # inside the skipped nav and never appears in the .md twin.
         nav(class: "mb-6 flex items-center justify-between gap-4", data: { md_skip: true }) do
-          a(href: root_path, class: "link link-hover text-sm opacity-70") { "← Home" }
+          a(href: home_href, class: "link link-hover text-sm opacity-70") { "← Docs home" }
           render DocsUI::MarkdownAction.new(request.path) if markdown_action?
         end
 
@@ -92,5 +92,12 @@ module DocsUI
     def content
       raise NotImplementedError, "#{self.class} must implement #content"
     end
+
+    private
+
+    # The masthead "← Docs home" target: config.brand_href (the DOCS home, like
+    # the topbar/sidebar brand links) — never the host's root_path helper, which
+    # on an app-embedded site is the application root, not the docs landing.
+    def home_href = DocsKit.configuration.brand_href
   end
 end

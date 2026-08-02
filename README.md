@@ -157,10 +157,14 @@ diff Dockerfile "$(bundle show docs-kit)/lib/generators/docs_kit/install/templat
 # config/initializers/docs_kit.rb
 DocsKit.configure do |c|
   c.brand        = "phlex-reactive"
-  c.brand_href   = "/docs"                                  # brand link target (default "/")
+  c.brand_href   = "/docs"                                  # the DOCS home: brand, sidebar, and "← Docs home" masthead link (default "/")
   c.title_suffix = "phlex-reactive"
   c.themes       = %w[dark light synthwave retro cyberpunk dracula night nord sunset]
   c.version_badge = -> { "v#{Phlex::Reactive::VERSION}" }   # optional
+
+  # Docs embedded in a bigger app? The way BACK to it — a labeled link rendered
+  # once in the topbar, right after the brand. Unset (default) renders nothing.
+  c.app_link = { href: "/", label: "Back to the app" }
 
   # Repo/social links in the topbar (next to the theme switcher).
   c.topbar_links = [
@@ -181,13 +185,15 @@ registry maps a heading to its authored pages (`Doc.nav_items`); a page that
 isn't written yet is skipped, so there are no dead links. Register a page with
 one line (see [Add a page](#add-a-page)) and it appears in the sidebar.
 
-### Brand link and dark code themes
+### The two homes, the brand link, and dark code themes
 
-Three knobs cover what sites used to shim by subclassing `DocsUI::Shell`:
+These knobs cover what sites used to shim by subclassing `DocsUI::Shell` or
+overriding route helpers:
 
 | Knob | Default | What it does |
 |------|---------|--------------|
-| `c.brand_href` | `"/"` | The href of the topbar brand link. Set it (e.g. `"/docs"`) instead of subclassing `Shell` to copy-paste `#topbar`. |
+| `c.brand_href` | `"/"` | The **docs home** — the href of the topbar brand, the sidebar brand, and each page's "← Docs home" masthead link. Set it (e.g. `"/docs"`) when the docs live under a subpath, instead of subclassing `Shell` or overriding `root_path`. |
+| `c.app_link` | `nil` | The **app home** — an opt-in `{ href:, label: }` link back to the application hosting the docs, rendered once in the topbar right after the brand (e.g. `{ href: "/", label: "Back to the app" }`). Unset renders nothing, so a standalone docs site is unchanged. External hrefs open in a new tab with `rel=noopener`. |
 | `c.code_theme_dark` | `nil` | A second Rouge theme for **dark** daisyUI themes. `nil` keeps the single-theme behavior (fully backwards compatible). When set, `DocsUI::Code` also emits this theme's CSS scoped under `[data-theme=X] .code-highlight` for each shipped dark theme, so code blocks stay readable when the switcher flips to a dark theme. |
 | `c.dark_themes` | daisyUI's built-in dark theme names | Which theme names count as dark for `code_theme_dark`. Intersected with `c.themes` at render time, so only shipped themes emit CSS. Override to name custom dark themes (e.g. `%w[zazu-dark]`). |
 

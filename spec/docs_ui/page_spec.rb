@@ -97,6 +97,46 @@ RSpec.describe "DocsUI::Page.on_page" do # rubocop:disable RSpec/DescribeClass
     stdout
   end
 
+  # The masthead "← Docs home" link follows config.brand_href — the DOCS home —
+  # never the host app's root_path helper (on an app-embedded site root_path is
+  # the app dashboard, which bounced anonymous readers off the docs; see
+  # issue #62). Exercised through #home_href in the same
+  # isolated child process (Page needs Rails to load).
+  define_method(:resolve_home_href) do |config: ""|
+    script = <<~RUBY
+      $LOAD_PATH.unshift "#{gem_root}/lib"
+      require "active_support/all"
+      require "action_dispatch"
+      require "phlex/rails"
+      require "daisy_ui"
+      module Rails
+        def self.application
+          @app ||= Class.new do
+            def routes = @routes ||= ActionDispatch::Routing::RouteSet.new
+          end.new
+        end
+      end
+      require "docs_kit"
+      DocsKit.configure { |c| #{config} }
+      klass = Class.new(DocsUI::Page) { def content = nil }
+      print klass.allocate.send(:home_href).inspect
+    RUBY
+    stdout, stderr, status = Open3.capture3(RbConfig.ruby, "-e", script)
+    raise "child process failed: #{stderr}" unless status.success?
+
+    stdout
+  end
+
+  describe "DocsUI::Page#home_href (the masthead \"← Docs home\" target)" do
+    it "defaults to \"/\" — the same destination root_path resolved to on a standalone site" do
+      expect(resolve_home_href).to eq('"/"')
+    end
+
+    it "follows config.brand_href so an app-embedded site points it at the docs landing" do
+      expect(resolve_home_href(config: 'c.brand_href = "/docs"')).to eq('"/docs"')
+    end
+  end
+
   describe "DocsUI::Page.description (the per-page SEO description)" do
     it "returns an explicitly set description" do
       expect(resolve_description(body: %(description "Add the gem and render."))).to eq('"Add the gem and render."')

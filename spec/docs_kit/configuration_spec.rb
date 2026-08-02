@@ -16,6 +16,36 @@ RSpec.describe DocsKit::Configuration do
     end
   end
 
+  describe "#app_link" do
+    it "defaults to nil (no App Home link renders)" do
+      expect(described_class.new.app_link).to be_nil
+    end
+
+    it "normalizes a symbol-keyed Hash into a DocsKit::TopbarLink" do
+      DocsKit.configure { |c| c.app_link = { href: "/", label: "Back to the app" } }
+
+      link = DocsKit.configuration.app_link
+      expect(link).to be_a(DocsKit::TopbarLink)
+      expect(link.href).to eq("/")
+      expect(link.label).to eq("Back to the app")
+    end
+
+    it "normalizes a string-keyed Hash (a YAML/JSON-loaded config) the same way" do
+      DocsKit.configure { |c| c.app_link = { "href" => "/app", "label" => "App Home" } }
+
+      link = DocsKit.configuration.app_link
+      expect(link.href).to eq("/app")
+      expect(link.label).to eq("App Home")
+    end
+
+    it "passes an existing DocsKit::TopbarLink through unchanged" do
+      value = DocsKit::TopbarLink.new(href: "/", label: "Back to the app")
+      DocsKit.configure { |c| c.app_link = value }
+
+      expect(DocsKit.configuration.app_link).to be(value)
+    end
+  end
+
   describe "#tagline" do
     it "defaults to nil (the llms.txt blockquote line is omitted)" do
       expect(described_class.new.tagline).to be_nil

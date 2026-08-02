@@ -390,6 +390,14 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(initializer).to match(/openapi\.ya?ml/)
     end
 
+    it "documents the optional app_link knob (commented, so it's opt-in)" do
+      initializer = read("config/initializers/docs_kit.rb")
+
+      # Commented by default — a standalone docs site has no app to link back to.
+      expect(initializer).to include("# c.app_link = ")
+      expect(initializer).to include("Back to the app")
+    end
+
     it "documents the optional topbar_links knob (commented, so it's opt-in)" do
       initializer = read("config/initializers/docs_kit.rb")
 
