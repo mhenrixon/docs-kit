@@ -156,7 +156,7 @@ module DocsUI
         div(class: "flex-1 items-center gap-2") do
           label(for: DRAWER_ID, class: "btn btn-square btn-ghost btn-sm lg:hidden",
                 aria_label: "Open menu") { render DocsUI::Icon.new("menu", class: "size-5") }
-          a(href: config.brand_href, class: "btn btn-ghost text-lg font-bold") { config.brand }
+          a(href: config.brand_href, class: topbar_brand_classes) { brand_mark }
           app_home_link
         end
         render DocsUI::SearchBox.new if config.search_enabled?
@@ -166,6 +166,26 @@ module DocsUI
           render DocsUI::TopbarLinks.new
           render DocsUI::ThemeSwitcher.new
         end
+      end
+    end
+
+    # The brand anchor's classes. config.topbar_brand = :mobile_only adds
+    # lg:hidden — at the drawer-pinned breakpoint the sidebar brand is already
+    # visible, so a site can drop the duplicate. The default (:always) keeps
+    # the pre-knob classes verbatim.
+    def topbar_brand_classes
+      base = "btn btn-ghost text-lg font-bold"
+      config.topbar_brand == :mobile_only ? "#{base} lg:hidden" : base
+    end
+
+    # The brand: the configured mark (config.brand_logo) when set, else the
+    # text brand — byte-identical to before for a site that sets nothing. The
+    # text brand stays the mark's accessible-name fallback.
+    def brand_mark
+      if (logo = config.brand_logo)
+        render DocsUI::Logo.new(logo, class: "h-6 w-auto", label: config.brand)
+      else
+        plain config.brand
       end
     end
 
