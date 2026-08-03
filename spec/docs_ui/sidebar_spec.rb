@@ -24,4 +24,90 @@ RSpec.describe DocsUI::Sidebar do
       expect(html).to include('href="/docs"')
     end
   end
+
+  # The nav renders from config.nav_groups ({ heading => { subgroup => [NavItem] } }).
+  # Icon-less items keep the render free of rails_icons; #current_path degrades to
+  # nil outside a Rails request, so the full component renders standalone.
+  def nav_item(href, label)
+    DocsKit::NavItem.new(href: href, label: label)
+  end
+
+  describe "the nav with a single top-level heading" do
+    before do
+      DocsKit.configure do |c|
+        c.nav = lambda {
+          { "Documentation" => {
+            "Getting started" => [nav_item("/docs/overview", "Overview")],
+            "REST API" => [nav_item("/docs/accounts", "Accounts")]
+          } }
+        }
+      end
+    end
+
+    let(:html) { described_class.new.call }
+
+    it "drops the heading entirely" do
+      expect(html).not_to include("Documentation")
+    end
+
+    it "renders the subgroups as top-level open collapsibles" do
+      expect(html.scan(/<summary[^>]*>\s*([^<]+?)\s*</).flatten)
+        .to contain_exactly("Getting started", "REST API")
+    end
+
+    it "renders every page link" do
+      expect(html).to include('href="/docs/overview"').and include('href="/docs/accounts"')
+    end
+
+    it "server-renders every collapsible open (works with JS off)" do
+      expect(html.scan("<details").count).to eq(html.scan("<details open").count)
+    end
+  end
+
+  describe "the nav with multiple top-level headings" do
+    before do
+      DocsKit.configure do |c|
+        c.nav = lambda {
+          {
+            "Docs" => { "Guide" => [nav_item("/docs/install", "Installation")] },
+            "Demos" => { "Examples" => [nav_item("/demos/counter", "Counter")] }
+          }
+        }
+      end
+    end
+
+    let(:html) { described_class.new.call }
+
+    it "renders each heading as a static menu-title label, not a collapsible summary" do
+      expect(html).to match(%r{<li class="[^"]*menu-title[^"]*">Docs</li>})
+      expect(html).to match(%r{<li class="[^"]*menu-title[^"]*">Demos</li>})
+      expect(html.scan(/<summary[^>]*>\s*([^<]+?)\s*</).flatten)
+        .to contain_exactly("Guide", "Examples")
+    end
+
+    it "spaces headings apart from the group above" do
+      expect(html).to match(/menu-title[^"]*mt-4|mt-4[^"]*menu-title/)
+      expect(html).to include("first:mt-0")
+    end
+
+    it "keeps the subgroups collapsible and open" do
+      expect(html.scan("<details").count).to eq(2)
+      expect(html.scan("<details open").count).to eq(2)
+    end
+
+    it "skips a heading whose groups are empty" do
+      DocsKit.configure do |c|
+        c.nav = lambda {
+          {
+            "Docs" => { "Guide" => [nav_item("/docs/install", "Installation")] },
+            "Empty" => {}
+          }
+        }
+      end
+
+      expect(html).not_to include("Empty")
+      # One non-empty heading remains, so the single-heading rule applies.
+      expect(html).not_to include("Docs</li>")
+    end
+  end
 end
