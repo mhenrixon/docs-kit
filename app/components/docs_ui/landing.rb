@@ -162,15 +162,17 @@ module DocsUI
       div(class: "mt-16") do
         h2(class: "text-sm font-semibold uppercase tracking-wide text-base-content/50") { "Documentation" }
         div(class: "mt-6 grid gap-8 sm:grid-cols-2") do
-          groups.each { |heading, items| doc_index_group(heading, items) }
+          # A lone heading would just repeat the h2 above (often literally
+          # "Documentation"), so only label the columns when there are several.
+          groups.each { |heading, items| doc_index_group(heading, items, labeled: groups.size > 1) }
         end
       end
     end
 
-    def doc_index_group(heading, items)
+    def doc_index_group(heading, items, labeled:)
       div do
-        h3(class: "text-xs font-semibold uppercase tracking-wide text-base-content/40") { heading }
-        ul(class: "mt-3 flex flex-col gap-2") do
+        h3(class: "text-xs font-semibold uppercase tracking-wide text-base-content/40") { heading } if labeled
+        ul(class: labeled ? "mt-3 flex flex-col gap-2" : "flex flex-col gap-2") do
           items.each { |item| li { a(href: item.href, class: "link link-hover text-sm") { item.label } } }
         end
       end

@@ -185,6 +185,12 @@ registry maps a heading to its authored pages (`Doc.nav_items`); a page that
 isn't written yet is skipped, so there are no dead links. Register a page with
 one line (see [Add a page](#add-a-page)) and it appears in the sidebar.
 
+The registry's page groups ("Getting started", "REST API", …) are the top level
+of the rendered menu — each an open, collapsible section. The heading above them
+only appears when you register **several** headings, and then as a static label
+(no fold): a site with one registry gets no redundant "Documentation" level, and
+nothing in the sidebar is indented deeper than group → page.
+
 ### The two homes, the brand link, and dark code themes
 
 These knobs cover what sites used to shim by subclassing `DocsUI::Shell` or

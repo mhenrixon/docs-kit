@@ -8,6 +8,11 @@ module DocsUI
   #
   # nav_groups is an ordered Hash:
   #   { "Heading" => { "Subgroup" => [DocsKit::NavItem, ...] } }
+  #
+  # Subgroups are the top level of the rendered menu. A lone heading (the common
+  # single-registry site) is not rendered at all — the brand masthead already
+  # labels the sidebar; with several headings, each renders as a STATIC
+  # `.menu-title` label (no fold) and only subgroups collapse.
   class Sidebar < Phlex::HTML
     include Phlex::Rails::Helpers::Request
     include DaisyUI
@@ -29,7 +34,8 @@ module DocsUI
         header_section
         div(class: "flex-1 overflow-y-auto px-2 pb-6") do
           Menu(class: "w-full gap-1") do
-            nav_groups.each { |heading, grouped| nav_group(heading, grouped) }
+            groups = nav_groups.reject { |_, grouped| grouped.nil? || grouped.empty? }
+            groups.each { |heading, grouped| nav_group(heading, grouped, labeled: groups.size > 1) }
           end
         end
       end
@@ -48,21 +54,20 @@ module DocsUI
       end
     end
 
-    # A top-level collapsible group (e.g. "Docs") holding collapsible sub-groups
-    # (e.g. "Guide", "Examples"). `grouped` is a { subgroup => [items] } Hash.
-    def nav_group(heading, grouped)
-      return if grouped.nil? || grouped.empty?
-
-      li do
-        details(open: true) do
-          summary(class: "text-xs font-semibold uppercase tracking-wider text-base-content/50 #{MARKER_RESET}") do
-            heading
-          end
-          ul do
-            grouped.each { |subgroup, items| nav_subgroup(subgroup, items) }
-          end
+    # A top-level group (e.g. "Docs") holding collapsible sub-groups (e.g.
+    # "Guide", "Examples"). `grouped` is a { subgroup => [items] } Hash. The
+    # heading label only renders when the sidebar shows SEVERAL groups
+    # (labeled:) — as a static `.menu-title`, never a <details>, so subgroups
+    # stay at the menu's top level instead of gaining a nesting indent. The
+    # mt-4/first:mt-0 pair is the breathing room between one group's links and
+    # the next group's label.
+    def nav_group(heading, grouped, labeled:)
+      if labeled
+        li(class: "menu-title mt-4 text-xs font-semibold uppercase tracking-wider text-base-content/50 first:mt-0") do
+          heading
         end
       end
+      grouped.each { |subgroup, items| nav_subgroup(subgroup, items) }
     end
 
     # A collapsible sub-group: its title is a <summary> so the whole section folds

@@ -124,7 +124,7 @@ module Views
                 code { "DocsKit::Registry" }
                 plain " method returning "
                 code { "{ group => [NavItem] }" }
-                plain "), and the whole sidebar derives from it with zero site nav code. A heading whose registry has no authored pages is dropped, so no empty group renders."
+                plain "), and the whole sidebar derives from it with zero site nav code. A heading whose registry has no authored pages is dropped, so no empty group renders. The registry's groups are the top level of the menu; the heading itself only renders — as a static label — when several headings are registered, so a one-registry site gets no redundant top fold."
               end
             end
             DocsUI::Code(<<~RUBY, filename: "config/initializers/docs_kit.rb")
