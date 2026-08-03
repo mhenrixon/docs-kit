@@ -81,6 +81,54 @@ RSpec.describe DocsUI::Shell do
     end
   end
 
+  # The opt-in App Home link (config.app_link) — the way back to the hosting
+  # app, rendered ONCE, right after the brand anchor. Absent config → absent
+  # link, so a site that sets nothing keeps a byte-identical topbar.
+  describe "the topbar App Home link" do
+    let(:topbar_only) do
+      Class.new(described_class) do
+        def view_template = topbar
+      end
+    end
+
+    it "renders no App Home link by default" do
+      html = topbar_only.new.call
+
+      expect(html).not_to include("Back to")
+    end
+
+    it "renders the configured link after the brand anchor" do
+      DocsKit.configure do |c|
+        c.brand = "Docs"
+        c.brand_href = "/docs"
+        c.app_link = { href: "/", label: "Back to the app" }
+      end
+      html = topbar_only.new.call
+
+      brand = html.index('href="/docs"')
+      app = html.index("Back to the app")
+      expect(brand).to be_truthy
+      expect(app).to be > brand
+      expect(html).to include('href="/"')
+    end
+
+    it "opens an external App Home href in a new tab with rel=noopener" do
+      DocsKit.configure { |c| c.app_link = { href: "https://app.example.com", label: "Back to the app" } }
+      html = topbar_only.new.call
+
+      expect(html).to include('target="_blank"')
+      expect(html).to include("noopener")
+    end
+
+    it "opens a site-relative App Home href in place (no target/rel)" do
+      DocsKit.configure { |c| c.app_link = { href: "/", label: "Back to the app" } }
+      html = topbar_only.new.call
+
+      expect(html).not_to include('target="_blank"')
+      expect(html).not_to include("noopener")
+    end
+  end
+
   # The topbar search form is the JS-off search entry point: a plain GET form to
   # config.search_path with an input named "q". It renders only when search is
   # enabled, so a site can opt out with c.search = false.

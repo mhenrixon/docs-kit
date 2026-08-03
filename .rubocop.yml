@@ -124,6 +124,9 @@ Metrics/ClassLength:
     # feature grid + a doc index. Each part is a small focused method; the class
     # is long only because it renders several sections, like the OpenAPI ones above.
     - "app/components/docs_ui/landing.rb"
+    # Same shape: the whole document chrome (head, theme-restore script, drawer,
+    # topbar, App Home link) as small focused methods — length is section count.
+    - "app/components/docs_ui/shell.rb"
 
 Metrics/MethodLength:
   Max: 25

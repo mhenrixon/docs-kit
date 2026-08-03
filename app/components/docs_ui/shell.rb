@@ -157,6 +157,7 @@ module DocsUI
           label(for: DRAWER_ID, class: "btn btn-square btn-ghost btn-sm lg:hidden",
                 aria_label: "Open menu") { render DocsUI::Icon.new("menu", class: "size-5") }
           a(href: config.brand_href, class: "btn btn-ghost text-lg font-bold") { config.brand }
+          app_home_link
         end
         render DocsUI::SearchBox.new if config.search_enabled?
         div(class: "flex-none items-center") do
@@ -166,6 +167,23 @@ module DocsUI
           render DocsUI::ThemeSwitcher.new
         end
       end
+    end
+
+    # The opt-in App Home link (config.app_link) — the way back to the hosting
+    # app, rendered once, right after the brand. Nothing renders when unset, so
+    # the topbar stays byte-identical for a site that never configures it.
+    # External hrefs open in a new tab with rel=noopener (same posture as
+    # DocsUI::TopbarLinks); a site-relative href opens in place.
+    def app_home_link
+      link = config.app_link
+      return unless link
+
+      a(
+        href: link.href,
+        class: "link link-hover text-sm opacity-70",
+        target: (link.external? ? "_blank" : nil),
+        rel: (link.external? ? "noopener noreferrer" : nil)
+      ) { link.label }
     end
   end
 end

@@ -184,6 +184,15 @@ module DocsKit
     # Read the effective map via #api_clients (which merges), never @api_clients.
     attr_writer :api_clients
 
+    # The opt-in "App Home" link — the way back to the application that hosts
+    # the docs, rendered ONCE in the topbar right after the brand (e.g.
+    # "Back to the app" on a docs site embedded in a bigger app). A Hash
+    # ({ href:, label: }) or a DocsKit::TopbarLink; #app_link normalizes it.
+    # Defaults to nil → no link renders and the topbar is byte-identical to
+    # before. Distinct from #brand_href, which is the DOCS home (the brand,
+    # sidebar, and page-masthead links). Read via #app_link, never @app_link.
+    attr_writer :app_link
+
     # External links rendered in the topbar next to the theme switcher — a repo
     # link, a chat invite, a social profile. Each entry is a Hash
     # ({ href:, label:, icon: }) or a DocsKit::TopbarLink; #topbar_links
@@ -262,8 +271,17 @@ module DocsKit
       @api_base_url = "https://api.example.com"
       @api_auth_header = nil
       @api_clients = {}
+      @app_link = nil
       @topbar_links = []
       @openapi = nil
+    end
+
+    # The normalized App Home link (a DocsKit::TopbarLink), or nil when unset —
+    # absent config, absent link, exactly like every other opt-in knob.
+    def app_link
+      return if @app_link.nil?
+
+      DocsKit::TopbarLink.from(@app_link)
     end
 
     # The normalized topbar links (DocsKit::TopbarLink list), in declaration
