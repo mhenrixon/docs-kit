@@ -52,5 +52,9 @@ RSpec.describe "DocsKit::LlmsController (source wiring)" do
     expect(source).not_to match(/^\s*def config\b/)
     expect(source).to include("def docs_config = DocsKit.configuration")
   end
+
+  it "wraps every action in the request's version scope (DocsKit::Scoping)" do
+    expect(source).to include("include DocsKit::Scoping")
+  end
 end
 # rubocop:enable RSpec/DescribeClass

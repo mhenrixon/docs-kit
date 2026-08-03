@@ -65,5 +65,9 @@ RSpec.describe "DocsKit::SearchController (source wiring)" do
     expect(source).to include("DocsUI::Shell")
     expect(source).to include("layout: false")
   end
+
+  it "wraps every action in the request's version scope (DocsKit::Scoping)" do
+    expect(source).to include("include DocsKit::Scoping")
+  end
 end
 # rubocop:enable RSpec/DescribeClass
