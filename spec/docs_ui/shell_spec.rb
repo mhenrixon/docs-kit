@@ -81,6 +81,59 @@ RSpec.describe DocsUI::Shell do
     end
   end
 
+  # The opt-in brand mark (config.brand_logo) — rendered inside the brand anchor
+  # in place of the text brand. Absent config → the text brand, byte-identical
+  # to before. config.topbar_brand = :mobile_only additionally hides the topbar
+  # brand at lg:, where the pinned sidebar already shows it.
+  describe "the topbar brand mark" do
+    let(:topbar_only) do
+      Class.new(described_class) do
+        def view_template = topbar
+      end
+    end
+
+    it "renders the text brand with no svg by default (byte-compat)" do
+      DocsKit.configure { |c| c.brand = "Docs" }
+      html = topbar_only.new.call
+
+      expect(html).to include("Docs")
+      expect(html).not_to include("<svg")
+      expect(html).not_to include("lg:hidden\" href")
+    end
+
+    it "renders the configured mark inside the brand anchor" do
+      DocsKit.configure { |c| c.brand_logo = { paths: ["M0 0Z"], label: "Acme" } }
+      html = topbar_only.new.call
+
+      anchor = html[%r{<a[^>]*btn-ghost[^>]*>.*?</a>}m]
+      expect(anchor).to include("<svg")
+      expect(anchor).to include('d="M0 0Z"')
+    end
+
+    it "names the mark with config.brand when the logo has no label" do
+      DocsKit.configure do |c|
+        c.brand = "Docs"
+        c.brand_logo = { svg: "M0 0Z" }
+      end
+      html = topbar_only.new.call
+
+      expect(html).to include('aria-label="Docs"')
+    end
+
+    it "keeps the brand visible everywhere on the default topbar_brand (:always)" do
+      html = topbar_only.new.call
+
+      expect(html).not_to include("lg:hidden\" href")
+    end
+
+    it "hides the brand at lg: when topbar_brand is :mobile_only (sidebar shows it there)" do
+      DocsKit.configure { |c| c.topbar_brand = :mobile_only }
+      html = topbar_only.new.call
+
+      expect(html).to match(/<a[^>]*class="[^"]*btn-ghost[^"]*lg:hidden/)
+    end
+  end
+
   # The opt-in App Home link (config.app_link) — the way back to the hosting
   # app, rendered ONCE, right after the brand anchor. Absent config → absent
   # link, so a site that sets nothing keeps a byte-identical topbar.

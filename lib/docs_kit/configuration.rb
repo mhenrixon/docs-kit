@@ -193,6 +193,39 @@ module DocsKit
     # sidebar, and page-masthead links). Read via #app_link, never @app_link.
     attr_writer :app_link
 
+    # The opt-in shell brand mark, rendered by BOTH the topbar and the sidebar
+    # header in place of the text #brand (which stays the accessible-name
+    # fallback). A Hash in exactly one of the DocsKit::BrandLogo forms —
+    # svg:/paths: (inline path-d, theme-adaptive via currentColor), markup:/file:
+    # (site-authored <svg> embedded verbatim), or src: (an <img>, NOT
+    # theme-adaptive) — or an already-built BrandLogo. Defaults to nil → the
+    # text brand renders and the chrome is byte-identical to before. Sibling of
+    # c.landing.logo, which is the landing-hero mark. Read via #brand_logo,
+    # never @brand_logo.
+    def brand_logo=(value)
+      @brand_logo = nil
+      @brand_logo_raw = value
+    end
+
+    # Where the topbar renders the brand: :always (the default — byte-compat),
+    # or :mobile_only, which hides it at the drawer-pinned breakpoint (lg:)
+    # where the sidebar brand is already visible, deduplicating the mark.
+    attr_reader :topbar_brand
+
+    # The topbar-brand placements. At lg: the sidebar (with its own brand) is
+    # pinned open, so :mobile_only drops the duplicate; :always keeps it.
+    TOPBAR_BRAND_MODES = %i[always mobile_only].freeze
+
+    def topbar_brand=(value)
+      mode = value.respond_to?(:to_sym) ? value.to_sym : value
+      unless TOPBAR_BRAND_MODES.include?(mode)
+        raise ArgumentError,
+              "topbar_brand must be one of #{TOPBAR_BRAND_MODES.inspect} (got #{value.inspect})"
+      end
+
+      @topbar_brand = mode
+    end
+
     # External links rendered in the topbar next to the theme switcher — a repo
     # link, a chat invite, a social profile. Each entry is a Hash
     # ({ href:, label:, icon: }) or a DocsKit::TopbarLink; #topbar_links
@@ -295,6 +328,9 @@ module DocsKit
       @app_link = nil
       @topbar_links = []
       @openapi = nil
+      @brand_logo = nil
+      @brand_logo_raw = nil
+      @topbar_brand = :always
       @versions = []
       @repo_url = nil
       @snapshots_path = nil
@@ -306,6 +342,17 @@ module DocsKit
       return if @app_link.nil?
 
       DocsKit::TopbarLink.from(@app_link)
+    end
+
+    # The normalized shell brand mark (a DocsKit::BrandLogo), or nil when unset.
+    # Memoized (and invalidated on reassignment) — unlike #app_link's rebuild-
+    # per-read, because a file: mark shape-checks and reads its SVG on build;
+    # per-render re-normalization would repeat that IO. A malformed value raises
+    # here, on first read — loud, never a silently broken header.
+    def brand_logo
+      return if @brand_logo_raw.nil?
+
+      @brand_logo ||= DocsKit::BrandLogo.from(@brand_logo_raw)
     end
 
     # The normalized topbar links (DocsKit::TopbarLink list), in declaration

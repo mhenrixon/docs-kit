@@ -19,7 +19,9 @@ RSpec.describe DocsKit::Snapshot do
 
   describe ".for" do
     it "memoizes per version id (same instance across reads)" do
-      expect(snapshot).to be(snapshot)
+      first = snapshot
+
+      expect(described_class.for(version, config: DocsKit.configuration)).to be(first)
     end
 
     it "re-reads when the manifest's mtime changes" do

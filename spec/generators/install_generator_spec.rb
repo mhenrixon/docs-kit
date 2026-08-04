@@ -398,6 +398,15 @@ RSpec.describe DocsKit::Generators::InstallGenerator do
       expect(initializer).to include("Back to the app")
     end
 
+    it "documents the optional brand_logo + topbar_brand knobs (commented, so they're opt-in)" do
+      initializer = read("config/initializers/docs_kit.rb")
+
+      # Commented by default — the text brand renders until a site opts in.
+      expect(initializer).to include("# c.brand_logo = ")
+      expect(initializer).to include("# c.topbar_brand = :mobile_only")
+      expect(initializer).to include("currentColor")
+    end
+
     it "documents the optional topbar_links knob (commented, so it's opt-in)" do
       initializer = read("config/initializers/docs_kit.rb")
 

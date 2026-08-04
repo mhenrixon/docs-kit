@@ -31,9 +31,6 @@ module DocsUI
   # walks the same #docs-content region Shell stamps.
   class Landing < Phlex::HTML
     include Phlex::Rails::Helpers::Request
-    # For the image-form hero logo (c.landing.logo = { src: … }): resolve the asset
-    # path through the site's pipeline to its digested /assets URL.
-    include Phlex::Rails::Helpers::ImageURL
 
     def view_template
       render DocsUI::Shell.new(title: landing.eyebrow || config.brand) do
@@ -63,20 +60,12 @@ module DocsUI
       end
     end
 
-    # The brand mark — an inline single-path SVG (currentColor, theme-adaptive) or
-    # an <img>. Rendered above the eyebrow, like a product wordmark.
+    # The brand mark — the shared DocsUI::Logo renderer (any DocsKit::BrandLogo
+    # form) at hero size. Rendered above the eyebrow, like a product wordmark.
     def logo
       return unless (mark = landing.hero_logo)
 
-      if mark.inline?
-        svg(viewbox: mark.viewbox, class: "h-9 w-auto text-primary", fill: "currentColor",
-            role: "img", aria_label: mark.label) do |s|
-          s.title { mark.label } if mark.label
-          s.path(d: mark.svg)
-        end
-      else
-        img(src: image_url(mark.src), alt: mark.alt.to_s, class: "h-9 w-auto")
-      end
+      render DocsUI::Logo.new(mark, class: "h-9 w-auto text-primary")
     end
 
     def eyebrow

@@ -166,6 +166,10 @@ DocsKit.configure do |c|
   # once in the topbar, right after the brand. Unset (default) renders nothing.
   c.app_link = { href: "/", label: "Back to the app" }
 
+  # Your own mark in the topbar + sidebar header instead of the text brand.
+  c.brand_logo   = { paths: ["M4 2h9l5 5…Z"], viewbox: "0 0 81 45" }
+  c.topbar_brand = :mobile_only                             # drop the desktop duplicate (default :always)
+
   # Repo/social links in the topbar (next to the theme switcher).
   c.topbar_links = [
     { href: "https://github.com/you/phlex-reactive", label: "GitHub", icon: :github },
@@ -200,6 +204,8 @@ overriding route helpers:
 |------|---------|--------------|
 | `c.brand_href` | `"/"` | The **docs home** — the href of the topbar brand, the sidebar brand, and each page's "← Docs home" masthead link. Set it (e.g. `"/docs"`) when the docs live under a subpath, instead of subclassing `Shell` or overriding `root_path`. |
 | `c.app_link` | `nil` | The **app home** — an opt-in `{ href:, label: }` link back to the application hosting the docs, rendered once in the topbar right after the brand (e.g. `{ href: "/", label: "Back to the app" }`). Unset renders nothing, so a standalone docs site is unchanged. External hrefs open in a new tab with `rel=noopener`. |
+| `c.brand_logo` | `nil` | Your **brand mark**, rendered inside the brand anchor of BOTH the topbar and the sidebar header in place of the text `c.brand` (which stays the accessible name / `aria-label` fallback). Unset renders the text brand, byte-identical to before. Takes exactly one of five forms — see [The brand mark](#the-brand-mark) below. |
+| `c.topbar_brand` | `:always` | Where the topbar renders the brand. At the drawer-pinned breakpoint (`lg:`) the sidebar brand is always visible, so the topbar copy is a duplicate — `:mobile_only` hides it there (`lg:hidden`). The default keeps today's markup verbatim. |
 | `c.code_theme_dark` | `nil` | A second Rouge theme for **dark** daisyUI themes. `nil` keeps the single-theme behavior (fully backwards compatible). When set, `DocsUI::Code` also emits this theme's CSS scoped under `[data-theme=X] .code-highlight` for each shipped dark theme, so code blocks stay readable when the switcher flips to a dark theme. |
 | `c.dark_themes` | daisyUI's built-in dark theme names | Which theme names count as dark for `code_theme_dark`. Intersected with `c.themes` at render time, so only shipped themes emit CSS. Override to name custom dark themes (e.g. `%w[zazu-dark]`). |
 
@@ -208,6 +214,33 @@ specific than the un-scoped base rule, so the theme switcher restyles code
 blocks with no JavaScript and no flash. The Rouge CSS is inlined per block
 (not part of the Tailwind build), so the [theme-sync invariant](#css--the-canonical-build)
 is unaffected — a `code_theme_dark` doesn't need a CSS rebuild.
+
+### The brand mark
+
+`c.brand_logo` replaces the text brand in the shell chrome (topbar + sidebar
+header) with your own mark — no more copying private `Shell`/`Sidebar` methods
+that go stale on upgrades. It takes **exactly one** of five forms (mixing forms,
+or a malformed value, raises at config time):
+
+```ruby
+c.brand_logo = { svg: "M4 2h9l5 5…Z", viewbox: "0 0 22 24", label: "Acme" } # one path-d
+c.brand_logo = { paths: ["M4 2…Z", "M9 7…Z"], viewbox: "0 0 81 45" }        # multi-path wordmark
+c.brand_logo = { markup: File.read("mark.svg") }                            # raw <svg> markup, embedded verbatim
+c.brand_logo = { file: "app/assets/images/mark.svg" }                       # a .svg file, embedded inline
+c.brand_logo = { src: "logo.png", alt: "Acme" }                             # an <img> from the asset pipeline
+```
+
+- The `svg:`/`paths:` forms render with `fill="currentColor"`, so the mark
+  **recolors with the active daisyUI theme**. `markup:`/`file:` are embedded
+  as-authored — use `currentColor` inside them to stay theme-adaptive. An
+  `src:` `<img>` **cannot** inherit `currentColor` and won't adapt.
+- `markup:`/`file:` embed your own SVG verbatim (they are your site's content,
+  same trust domain as your views); both are shape-checked to be an `<svg>`
+  element at config time, and a `file:` re-reads on change in development.
+- `label:`/`alt:` name the mark for assistive tech; unset, the mark falls back
+  to `c.brand`. The sidebar keeps the `version_badge` next to the mark.
+- Sizing is fixed per surface (topbar `h-6`, sidebar `h-7`, landing hero `h-9`).
+- `c.landing.logo` (the landing-hero mark) accepts the same five forms.
 
 ### Topbar links (repo & social)
 

@@ -25,6 +25,42 @@ RSpec.describe DocsUI::Sidebar do
     end
   end
 
+  # The opt-in brand mark (config.brand_logo) — rendered in the header in place
+  # of the text brand; the version badge survives either way. Absent config →
+  # the text brand, byte-identical to before.
+  describe "the brand mark" do
+    it "renders the text brand with no svg by default (byte-compat)" do
+      DocsKit.configure { |c| c.brand = "Docs" }
+      html = header_only.new.call
+
+      expect(html).to include("Docs")
+      expect(html).not_to include("<svg")
+    end
+
+    it "renders the configured mark inside the brand anchor" do
+      DocsKit.configure do |c|
+        c.brand = "Docs"
+        c.brand_logo = { paths: ["M0 0Z"] }
+      end
+      html = header_only.new.call
+
+      expect(html).to include("<svg")
+      expect(html).to include('d="M0 0Z"')
+      expect(html).to include('aria-label="Docs"')
+    end
+
+    it "keeps the version badge next to the mark" do
+      DocsKit.configure do |c|
+        c.brand_logo = { svg: "M0 0Z" }
+        c.version_badge = "v1.2"
+      end
+      html = header_only.new.call
+
+      expect(html).to include("<svg")
+      expect(html).to include("badge").and include("v1.2")
+    end
+  end
+
   # The nav renders from config.nav_groups ({ heading => { subgroup => [NavItem] } }).
   # Icon-less items keep the render free of rails_icons; #current_path degrades to
   # nil outside a Rails request, so the full component renders standalone.

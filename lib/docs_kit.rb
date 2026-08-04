@@ -58,6 +58,9 @@ loader.ignore(File.expand_path("docs_kit/configuration.rb", __dir__))
 # ignore it here too or zeitwerk double-manages the constant.
 loader.ignore(File.expand_path("docs_kit/seo_config.rb", __dir__))
 loader.ignore(File.expand_path("docs_kit/landing_config.rb", __dir__))
+# Required eagerly by landing_config.rb (the LandingConfig::Logo alias resolves
+# it at require time, before this loader is set up), so ignore it here too.
+loader.ignore(File.expand_path("docs_kit/brand_logo.rb", __dir__))
 # Loaded ONLY by the host's docs_kit:og rake task (an explicit require), never at
 # gem runtime — so its Rack/browser tooling is never pulled into a host that
 # doesn't run the task. Ignore it so eager_load! doesn't require it.
