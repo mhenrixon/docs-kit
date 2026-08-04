@@ -48,9 +48,20 @@ module DocsUI
 
     def header_section
       div(class: "flex min-h-16 items-center gap-2 px-4") do
-        a(href: config.brand_href, class: "text-lg font-bold text-base-content") { config.brand }
+        a(href: config.brand_href, class: "text-lg font-bold text-base-content") { brand_mark }
         badge = config.version_badge_text
         span(class: "badge badge-sm badge-ghost") { badge } if badge
+      end
+    end
+
+    # The brand: the configured mark (config.brand_logo) when set, else the
+    # text brand — byte-identical to before for a site that sets nothing.
+    # Slightly taller than the topbar's h-6: this is the masthead.
+    def brand_mark
+      if (logo = config.brand_logo)
+        render DocsUI::Logo.new(logo, class: "h-7 w-auto", label: config.brand)
+      else
+        plain config.brand
       end
     end
 

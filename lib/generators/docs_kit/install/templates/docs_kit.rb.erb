@@ -21,6 +21,23 @@ Rails.application.config.to_prepare do
     # docs live under a subpath:
     # c.brand_href = "/docs"
 
+    # Your own mark in the topbar + sidebar header instead of the text brand
+    # (which stays the accessible name). Exactly ONE of these forms:
+    #   paths:  — inline path-d list; fills with currentColor, so the mark
+    #             recolors with the active theme (also `svg:` for one path)
+    #   markup: — a full <svg>…</svg> string, embedded verbatim (use
+    #             fill="currentColor" in it to stay theme-adaptive)
+    #   file:   — a .svg under this app (e.g. "app/assets/images/mark.svg"),
+    #             embedded inline at render — same currentColor advice
+    #   src:    — an image asset path/URL rendered as an <img>; note an <img>
+    #             canNOT inherit currentColor, so it won't adapt to the theme
+    # c.brand_logo = { paths: ["M4 2h9l5 5…Z"], viewbox: "0 0 81 45", label: "<%= app_brand %>" }
+
+    # On desktop (lg:) the pinned sidebar already shows the brand, so the topbar
+    # copy is a duplicate. :mobile_only hides the topbar brand at lg:; the
+    # default (:always) keeps it everywhere.
+    # c.topbar_brand = :mobile_only
+
     # Docs embedded in a bigger app? Add the way BACK to that app — a labeled
     # link rendered once in the topbar, right after the brand. brand_href is the
     # DOCS home (brand, sidebar, and the page masthead's "← Docs home" all

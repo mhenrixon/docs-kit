@@ -46,6 +46,69 @@ RSpec.describe DocsKit::Configuration do
     end
   end
 
+  describe "#brand_logo" do
+    it "defaults to nil (the chrome renders the text brand, byte-identical to before)" do
+      expect(described_class.new.brand_logo).to be_nil
+    end
+
+    it "normalizes a Hash into a DocsKit::BrandLogo" do
+      DocsKit.configure { |c| c.brand_logo = { paths: ["M0 0Z"], label: "Acme" } }
+
+      logo = DocsKit.configuration.brand_logo
+      expect(logo).to be_a(DocsKit::BrandLogo)
+      expect(logo.paths).to eq(["M0 0Z"])
+    end
+
+    it "memoizes the normalized value (a file: mark must not re-validate per render)" do
+      DocsKit.configure { |c| c.brand_logo = { svg: "M0 0Z" } }
+
+      config = DocsKit.configuration
+      first = config.brand_logo
+
+      expect(config.brand_logo).to be(first)
+    end
+
+    it "re-normalizes after reassignment" do
+      config = described_class.new
+      config.brand_logo = { svg: "M0 0Z" }
+      first = config.brand_logo
+      config.brand_logo = { svg: "M1 1Z" }
+
+      expect(config.brand_logo).not_to be(first)
+      expect(config.brand_logo.svg).to eq("M1 1Z")
+    end
+
+    it "raises on first read of a malformed value (loud, never a silently broken header)" do
+      config = described_class.new
+      config.brand_logo = {}
+
+      expect { config.brand_logo }.to raise_error(ArgumentError, /brand_logo/)
+    end
+  end
+
+  describe "#topbar_brand" do
+    it "defaults to :always (strict byte-compat — the topbar brand renders everywhere)" do
+      expect(described_class.new.topbar_brand).to eq(:always)
+    end
+
+    it "accepts :mobile_only (the desktop dedup — the sidebar brand already shows at lg:)" do
+      DocsKit.configure { |c| c.topbar_brand = :mobile_only }
+
+      expect(DocsKit.configuration.topbar_brand).to eq(:mobile_only)
+    end
+
+    it "accepts the string form (a YAML/ENV-loaded config)" do
+      DocsKit.configure { |c| c.topbar_brand = "mobile_only" }
+
+      expect(DocsKit.configuration.topbar_brand).to eq(:mobile_only)
+    end
+
+    it "raises on an unknown mode, naming the knob" do
+      expect { described_class.new.topbar_brand = :desktop_only }
+        .to raise_error(ArgumentError, /topbar_brand/)
+    end
+  end
+
   describe "#tagline" do
     it "defaults to nil (the llms.txt blockquote line is omitted)" do
       expect(described_class.new.tagline).to be_nil

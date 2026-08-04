@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "brand_logo"
+
 module DocsKit
   # The per-site landing-page knobs, read by DocsUI::Landing to render a marketing
   # home page (hero + feature grid + doc index) without a site hand-rolling one.
@@ -90,11 +92,11 @@ module DocsKit
       { code: attrs[:code].to_s, filename: attrs[:filename], lexer: (attrs[:lexer] || :shell).to_sym }
     end
 
-    # The hero logo as a normalized Logo value object, or nil when unset.
+    # The hero logo as a normalized DocsKit::BrandLogo, or nil when unset.
     def hero_logo
       return if @logo.nil?
 
-      Logo.from(@logo)
+      DocsKit::BrandLogo.from(@logo)
     end
 
     # One hero call-to-action button. `style` maps to a daisyUI btn variant
@@ -134,27 +136,9 @@ module DocsKit
       end
     end
 
-    # The hero brand logo — either an inline single-path SVG mark (`svg` = the
-    # `<path d>` data, `viewbox` = its viewBox) rendered with fill: currentColor so
-    # it adapts to the theme, OR an image (`src` = an asset path/URL, `alt` = its
-    # accessible name). `label` is the accessible name for the inline mark.
-    Logo = Data.define(:svg, :viewbox, :src, :alt, :label) do
-      def initialize(svg: nil, viewbox: "0 0 24 24", src: nil, alt: nil, label: nil)
-        super
-      end
-
-      def self.from(logo)
-        return logo if logo.is_a?(self)
-
-        attrs = logo.to_h.transform_keys(&:to_sym)
-        new(
-          svg: attrs[:svg], viewbox: attrs[:viewbox] || "0 0 24 24",
-          src: attrs[:src], alt: attrs[:alt], label: attrs[:label]
-        )
-      end
-
-      # An inline SVG mark (vs. an <img>). True when `svg` path data is present.
-      def inline? = !svg.to_s.empty?
-    end
+    # The hero brand logo shape now lives in DocsKit::BrandLogo (shared with the
+    # shell's config.brand_logo); the old nested name stays as an alias so any
+    # site referencing LandingConfig::Logo keeps working.
+    Logo = DocsKit::BrandLogo
   end
 end
